@@ -11,7 +11,7 @@ import WalletCreateGroupModal from "../../components/wallets/WalletCreateGroupMo
 import "../../styles/home/WalletsPage.css";
 
 const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
-const API_BASE = "http://localhost:8080/wallets"; // Thay bằng domain thật khi deploy
+const API_BASE = "http://localhost:8080/wallets";
 
 export default function WalletsPage() {
   // ===== State =====
@@ -28,6 +28,15 @@ export default function WalletsPage() {
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "" });
+
+  // === STATE CHO MODAL TẠO VÍ (TỰ ĐỘNG FORMAT SỐ) ===
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    currency: "VND",
+    openingBalanceRaw: "", // Lưu số thô (1123131312)
+    note: "",
+    isDefault: false,
+  });
 
   const existingNames = useMemo(
     () => wallets.map((w) => w.name.toLowerCase().trim()),
@@ -112,7 +121,7 @@ export default function WalletsPage() {
     },
   };
 
-  // ===== Load ví =====
+  // ===== Load danh sách ví =====
   useEffect(() => {
     const loadWallets = async () => {
       try {
@@ -138,28 +147,44 @@ export default function WalletsPage() {
     loadWallets();
   }, []);
 
-  // ===== CRUD =====
-  const handleAddWalletClick = () => setShowChooser((v) => !v);
-
-  const doDelete = async () => {
+  // ===== XEM CHI TIẾT VÍ – GỌI API /wallets/{id} =====
+  const loadWalletDetail = async (walletId) => {
     try {
-      await api.del(`/${confirmDel.id}`);
-      setWallets((prev) => prev.filter((w) => w.id !== confirmDel.id));
-      setConfirmDel(null);
-      setToast({ open: true, message: "Đã xóa ví thành công" });
+      const res = await api.get(`/${walletId}`);
+      const w = res.wallet;
+
+      const detail = {
+        id: w.walletId,
+        name: w.walletName,
+        balance: Number(w.balance),
+        note: w.description || "Không có mô tả",
+        createdBy: w.user?.email || "Không xác định",
+        createdAt: w.createdAt,
+      };
+
+      setViewing(detail);
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "Không thể tải chi tiết ví");
     }
   };
 
-  const handleCreatePersonal = async (f) => {
+  // ===== TẠO VÍ – DÙNG MODAL TRONG FILE NÀY (TỰ FORMAT SỐ) =====
+  const handleCreatePersonal = async () => {
+    if (!createForm.name.trim()) {
+      alert("Vui lòng nhập tên ví");
+      return;
+    }
+
+    const payload = {
+      walletName: createForm.name.trim(),
+      currencyCode: createForm.currency,
+      initialBalance: createForm.openingBalanceRaw
+        ? Number(createForm.openingBalanceRaw)
+        : 0,
+      description: createForm.note?.trim() || "",
+    };
+
     try {
-      const payload = {
-        walletName: f.name.trim(),
-        currencyCode: f.currency,
-        initialBalance: Number(f.openingBalance || 0),
-        description: f.note?.trim() || "",
-      };
       const res = await api.post("/create", payload);
       const newWallet = {
         id: res.wallet.walletId,
@@ -173,10 +198,44 @@ export default function WalletsPage() {
       };
       setWallets((prev) => [...prev, newWallet]);
       setShowPersonal(false);
+      setCreateForm({
+        name: "",
+        currency: "VND",
+        openingBalanceRaw: "",
+        note: "",
+        isDefault: false,
+      });
       setToast({
         open: true,
         message: `Đã tạo ví cá nhân "${newWallet.name}"`,
       });
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // ===== FORMAT SỐ KHI GÕ =====
+  const formatBalanceInput = (value) => {
+    if (!value) return "";
+    const num = value.replace(/[^\d]/g, "");
+    return Number(num).toLocaleString("vi-VN");
+  };
+
+  const handleBalanceInputChange = (e) => {
+    const input = e.target.value;
+    const raw = input.replace(/[^\d]/g, "");
+    setCreateForm((prev) => ({ ...prev, openingBalanceRaw: raw }));
+  };
+
+  // ===== CRUD =====
+  const handleAddWalletClick = () => setShowChooser((v) => !v);
+
+  const doDelete = async () => {
+    try {
+      await api.del(`/${confirmDel.id}`);
+      setWallets((prev) => prev.filter((w) => w.id !== confirmDel.id));
+      setConfirmDel(null);
+      setToast({ open: true, message: "Đã xóa ví thành công" });
     } catch (err) {
       alert(err.message);
     }
@@ -267,6 +326,13 @@ export default function WalletsPage() {
                 onChoosePersonal={() => {
                   setShowChooser(false);
                   setShowPersonal(true);
+                  setCreateForm({
+                    name: "",
+                    currency: "VND",
+                    openingBalanceRaw: "",
+                    note: "",
+                    isDefault: false,
+                  });
                 }}
                 onChooseGroup={() => {
                   setShowChooser(false);
@@ -301,7 +367,7 @@ export default function WalletsPage() {
                     <div className="wallet-grid__item" key={w.id}>
                       <WalletCard
                         wallet={w}
-                        onView={setViewing}
+                        onView={() => loadWalletDetail(w.id)}
                         onEdit={setEditing}
                         onDelete={setConfirmDel}
                       />
@@ -333,7 +399,7 @@ export default function WalletsPage() {
                     <div className="wallet-grid__item" key={w.id}>
                       <WalletCard
                         wallet={w}
-                        onView={setViewing}
+                        onView={() => loadWalletDetail(w.id)}
                         onEdit={setEditing}
                         onDelete={setConfirmDel}
                       />
@@ -346,14 +412,191 @@ export default function WalletsPage() {
         </div>
       </div>
 
-      {/* ===== Modals ===== */}
-      <WalletCreatePersonalModal
-        open={showPersonal}
-        onClose={() => setShowPersonal(false)}
-        currencies={CURRENCIES}
-        existingNames={existingNames}
-        onSubmit={handleCreatePersonal}
-      />
+      {/* ===== MODAL TẠO VÍ CÁ NHÂN – TRONG FILE NÀY (TỰ FORMAT SỐ) ===== */}
+      {showPersonal && (
+        <div
+          className="modal show d-block"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreatePersonal();
+              }}
+            >
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Tạo ví cá nhân</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowPersonal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {/* Tên ví */}
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Tên ví <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={createForm.name}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      maxLength={100}
+                      required
+                    />
+                  </div>
+
+                  {/* Tiền tệ & Số dư */}
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">
+                        Tiền tệ <span className="text-danger">*</span>
+                      </label>
+                      <select
+                        className="form-select"
+                        value={createForm.currency}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            currency: e.target.value,
+                          }))
+                        }
+                      >
+                        {CURRENCIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Số dư ban đầu</label>
+                      <input
+                        type="text"
+                        className="form-control text-end"
+                        value={formatBalanceInput(createForm.openingBalanceRaw)}
+                        onChange={handleBalanceInputChange}
+                        placeholder="0"
+                        inputMode="numeric"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ví mặc định */}
+                  <div className="form-check mb-3">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      id="isDefaultCreate"
+                      checked={createForm.isDefault}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          isDefault: e.target.checked,
+                        }))
+                      }
+                    />
+                    <label
+                      className="form-check-label"
+                      htmlFor="isDefaultCreate"
+                    >
+                      Đặt làm ví mặc định cho {createForm.currency}
+                    </label>
+                  </div>
+
+                  {/* Ghi chú */}
+                  <div className="mb-3">
+                    <label className="form-label">Ghi chú</label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      value={createForm.note}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          note: e.target.value,
+                        }))
+                      }
+                      maxLength={255}
+                    />
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowPersonal(false)}
+                  >
+                    Hủy
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Tạo ví cá nhân
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Modal XEM CHI TIẾT ===== */}
+      {viewing && (
+        <div
+          className="modal show d-block"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Chi tiết ví</h5>
+                <button
+                  className="btn-close"
+                  onClick={() => setViewing(null)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <strong>Tên ví:</strong> {viewing.name}
+                </div>
+                <div className="mb-3">
+                  <strong>Số dư:</strong>{" "}
+                  {viewing.balance.toLocaleString("vi-VN")} ₫
+                </div>
+                <div className="mb-3">
+                  <strong>Mô tả:</strong> {viewing.note}
+                </div>
+                <div className="mb-3 text-primary">
+                  <strong>Người tạo:</strong> {viewing.createdBy}
+                </div>
+                <div className="text-muted small">
+                  Tạo lúc: {new Date(viewing.createdAt).toLocaleString("vi-VN")}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setViewing(null)}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Các Modal khác ===== */}
       <WalletCreateGroupModal
         open={showGroup}
         onClose={() => setShowGroup(false)}
@@ -362,10 +605,6 @@ export default function WalletsPage() {
           setToast({ open: true, message: "Tạo ví nhóm thành công" })
         }
       />
-
-      {viewing && (
-        <WalletViewModal wallet={viewing} onClose={() => setViewing(null)} />
-      )}
 
       {editing && (
         <WalletEditModal
