@@ -10,6 +10,8 @@ import WalletCreateGroupModal from "../../components/wallets/WalletCreateGroupMo
 
 import "../../styles/home/WalletsPage.css";
 
+const API_URL = "http://localhost:8080/wallets";
+
 const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
 const API_BASE = "http://localhost:8080/wallets"; // Thay bằng domain thật khi deploy
 

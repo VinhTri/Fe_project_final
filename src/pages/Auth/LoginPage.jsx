@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [showInvalid, setShowInvalid] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-
+ 
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
     setError("");
@@ -23,7 +23,7 @@ export default function LoginPage() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-
+ 
     if (!form.email || !form.password) {
       return setError("Vui lòng nhập đầy đủ email và mật khẩu!");
     }
@@ -31,10 +31,10 @@ export default function LoginPage() {
     if (!emailRegex.test(form.email)) {
       return setError("Email không hợp lệ! Vui lòng nhập đúng định dạng.");
     }
-
+ 
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'\",.<>\/?~]).{8,}$/;
-
+ 
     if (form.password.length < 8) {
       return setError("Mật khẩu phải có ít nhất 8 ký tự!");
     }
@@ -43,7 +43,7 @@ export default function LoginPage() {
         "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt!"
       );
     }
-
+ 
     try {
       setLoading(true);
 
@@ -97,7 +97,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
+ 
   return (
     <AuthLayout>
       <form className="auth-form" onSubmit={onSubmit}>
@@ -116,7 +116,7 @@ export default function LoginPage() {
             required
           />
         </div>
-
+ 
         <div className="mb-2 input-group">
           <span className="input-group-text">
             <i className="bi bi-lock-fill"></i>
@@ -138,15 +138,15 @@ export default function LoginPage() {
             <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`} />
           </span>
         </div>
-
+ 
         {error && <div className="auth-error">{error}</div>}
-
+ 
         <div className="d-grid mb-3 mt-2">
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </div>
-
+ 
         <div className="text-center">
           <Link
             to="/forgot-password"
@@ -158,13 +158,13 @@ export default function LoginPage() {
             Chưa có tài khoản?
           </Link>
         </div>
-
+ 
         <div className="d-flex align-items-center my-3">
           <hr className="flex-grow-1" />
           <span className="mx-2 text-muted">Hoặc đăng nhập bằng</span>
           <hr className="flex-grow-1" />
         </div>
-
+ 
         <div className="d-grid gap-2">
           <button
             type="button"
@@ -180,7 +180,7 @@ export default function LoginPage() {
           </button>
         </div>
       </form>
-
+ 
       <LoginSuccessModal
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
@@ -189,7 +189,7 @@ export default function LoginPage() {
         message="Đăng nhập thành công!"
         redirectUrl="/home"
       />
-
+ 
       <AccountExistsModal
         open={showInvalid}
         onClose={() => setShowInvalid(false)}
