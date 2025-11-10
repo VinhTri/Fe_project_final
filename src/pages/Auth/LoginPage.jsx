@@ -4,9 +4,9 @@ import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
 import "../../styles/AuthForms.css";
- 
+
 const API_URL = "http://localhost:8080/auth";
- 
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
     setError("");
   };
- 
+
   const onSubmit = async (e) => {
     e.preventDefault();
  
@@ -46,48 +46,50 @@ export default function LoginPage() {
  
     try {
       setLoading(true);
- 
+
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email: form.email,
-          password: form.password
-        })
+          password: form.password,
+        }),
       });
- 
+
       const data = await response.json();
- 
-     if (response.ok && data.accessToken) {
-  // ✅ Lưu token như cũ
-  localStorage.setItem("accessToken", data.accessToken);
- 
-  // ✅ Lưu thông tin user nếu backend trả kèm
-  if (data.user) {
-    localStorage.setItem("user", JSON.stringify(data.user));
-  } else {
-    // 🔁 Fallback: gọi /auth/me để lấy thông tin user từ token
-    try {
-      const meRes = await fetch(`${API_URL}/me`, {
-        headers: { Authorization: `Bearer ${data.accessToken}` }
-      });
-      if (meRes.ok) {
-        const me = await meRes.json();
-        localStorage.setItem("user", JSON.stringify(me));
-      }
-    } catch (_) {
-      // im lặng nếu lỗi, vẫn cho đăng nhập (vì đã có token)
-    }
-  }
+
+      if (response.ok && data.accessToken) {
+        // ✅ Lưu token như cũ
+        localStorage.setItem("accessToken", data.accessToken);
+
+        // ✅ Lưu thông tin user nếu backend trả kèm
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        } else {
+          // 🔁 Fallback: gọi /auth/me để lấy thông tin user từ token
+          try {
+            const meRes = await fetch(`${API_URL}/me`, {
+              headers: { Authorization: `Bearer ${data.accessToken}` },
+            });
+            if (meRes.ok) {
+              const me = await meRes.json();
+              localStorage.setItem("user", JSON.stringify(me));
+            }
+          } catch (_) {
+            // im lặng nếu lỗi, vẫn cho đăng nhập (vì đã có token)
+          }
+        }
         setShowSuccess(true);
       } else if (response.status === 401 || response.status === 400) {
         setShowInvalid(true);
       } else if (data?.error) {
         setError(data.error);
       } else {
-        setError("Lỗi kết nối đến máy chủ. Vui lòng kiểm tra Backend (cổng 8080).");
+        setError(
+          "Lỗi kết nối đến máy chủ. Vui lòng kiểm tra Backend (cổng 8080)."
+        );
       }
     } catch (err) {
       setError("Không thể kết nối server. Kiểm tra backend giúp nhé.");
@@ -100,7 +102,7 @@ export default function LoginPage() {
     <AuthLayout>
       <form className="auth-form" onSubmit={onSubmit}>
         <h3 className="text-center mb-4">Đăng nhập</h3>
- 
+
         <div className="mb-3 input-group">
           <span className="input-group-text">
             <i className="bi bi-envelope-fill"></i>
@@ -146,7 +148,10 @@ export default function LoginPage() {
         </div>
  
         <div className="text-center">
-          <Link to="/forgot-password" className="text-decoration-none link-hover me-3">
+          <Link
+            to="/forgot-password"
+            className="text-decoration-none link-hover me-3"
+          >
             Quên mật khẩu?
           </Link>
           <Link to="/register" className="text-decoration-none link-hover">
@@ -161,18 +166,19 @@ export default function LoginPage() {
         </div>
  
         <div className="d-grid gap-2">
-  <button
-  type="button"
-  className="btn btn-outline-danger"
-  onClick={() => {
-    const callback = `${window.location.origin}/oauth/callback`;
-    window.location.href = `${API_URL}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(callback)}`;
-  }}
->
-  <i className="bi bi-google me-2"></i> Google
-</button>
-</div>
- 
+          <button
+            type="button"
+            className="btn btn-outline-danger"
+            onClick={() => {
+              const callback = `${window.location.origin}/oauth/callback`;
+              window.location.href = `${API_URL}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(
+                callback
+              )}`;
+            }}
+          >
+            <i className="bi bi-google me-2"></i> Google
+          </button>
+        </div>
       </form>
  
       <LoginSuccessModal
