@@ -4,13 +4,16 @@ import "../../../styles/home/Sidebar.css";
 
 const MENU = [
   { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
-    { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
-    { to: "/home/wallet-groups", label: "Nhóm ví", icon: "bi-collection" },
+  { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
+  { to: "/home/wallet-groups", label: "Nhóm ví", icon: "bi-collection" },
   { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
+
+  // ===== MỤC MỚI: DANH MỤC =====
+  { to: "/home/categories", label: "Danh mục", icon: "bi-tags" },
+
   { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
   { to: "/home/reports", label: "Báo cáo", icon: "bi-graph-up-arrow" },
   { to: "/home/accounts", label: "Tài khoản", icon: "bi-credit-card-2-front" },
- 
 ];
 
 export default function HomeSidebar() {
@@ -25,7 +28,7 @@ export default function HomeSidebar() {
 
   return (
     <div className={`sb__container ${collapsed ? "is-collapsed" : ""}`}>
-      {/* Nút 3 gạch – thay thế logo */}
+      {/* Nút 3 gạch – thu gọn/mở rộng sidebar */}
       <button
         className="sb__hamburger"
         onClick={() => setCollapsed((v) => !v)}
@@ -36,16 +39,15 @@ export default function HomeSidebar() {
       </button>
 
       {/* Menu chính */}
-      <nav className="sb__nav">
+      <nav className="sb__menu">
         {MENU.map((m) => (
           <NavLink
             key={m.to}
             to={m.to}
             end={m.end}
             className={({ isActive }) =>
-              "sb__link" + (isActive ? " is-active" : "")
+              "sb__link" + (isActive ? " active" : "")
             }
-            title={collapsed ? m.label : undefined}
           >
             <span className="sb__icon">
               <i className={`bi ${m.icon}`} />
