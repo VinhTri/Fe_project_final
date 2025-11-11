@@ -1,46 +1,56 @@
-:root{
-  --bg: #f4f6fb;
+:root {
+  --bg: #bcfefe;
   --surface: #ffffff;
-  --sb-grad-1:#5a3dd6;
-  --sb-grad-2:#8a5cff;
-  --text:#0f172a;
-  --muted:#6b7280;
+  --sb-grad-1: #0c5776; /* sidebar gradient 1 */
+  --sb-grad-2: #2d99ae; /* sidebar gradient 2 */
+  --text: #001c44;
+  --muted: #0c5776;
   --radius: 22px;
   --gap: 18px;
 }
 
+/* Khung bao toàn bộ layout home (/home/...) */
 .home__wrap {
   display: flex;
   min-height: 100vh;
-background: linear-gradient(135deg, #ebe4ff 0%, #f4f0ff 100%);
+  background: linear-gradient(135deg, #bcfefe 0%, #f8dad0 100%);
   padding: 20px;
   gap: var(--gap);
 }
 
-
-.home__sidebar{
+/* Sidebar chiếm bên trái – phần style chi tiết ở Sidebar.css */
+.home__sidebar {
   width: 260px;
 }
 
-.home__main{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  gap: var(--gap);
-  min-width:0;
+/* Main content */
+.home__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.home__content{
+/* Nội dung bên trong (topbar + page) */
+.home__content {
+  margin-top: 12px;
   background: transparent;
   padding-bottom: 24px;
 }
-@media (max-width: 1024px){
-  .home__sidebar{ width: 230px; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .home__sidebar {
+    width: 230px;
+  }
 }
-@media (max-width: 768px){
-  .home__wrap{ padding: 12px; }
-.home__sidebar { 
-    display: block;                 /* <— KHÔNG ẩn nữa */
-    width: var(--sb-wc);            /* dùng rail width */
+
+@media (max-width: 768px) {
+  .home__wrap {
+    padding: 12px;
+  }
+
+  .home__sidebar {
+    width: 78px; /* dùng rail width (collapsed) */
   }
 }
