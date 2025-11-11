@@ -13,6 +13,21 @@ export default function TransactionViewModal({ open, tx, onClose }) {
     zIndex: 1200,
   };
 
+  const d = tx.date ? new Date(tx.date) : null;
+  const dateStr = d
+    ? d.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "";
+  const timeStr = d
+    ? d.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+
   return (
     <div style={overlayStyle}>
       <div className="modal-dialog modal-dialog-scrollable" style={{ maxWidth: 520 }}>
@@ -20,15 +35,21 @@ export default function TransactionViewModal({ open, tx, onClose }) {
           className="modal-content border-0 shadow-lg"
           style={{
             borderRadius: 20,
-            backgroundColor: "#ffffff", // 🔹 card trắng
+            backgroundColor: "#ffffff",
           }}
         >
-          <div className="modal-header border-0 pb-0">
+          <div
+            className="modal-header border-0 pb-0"
+            style={{ padding: "16px 22px 8px" }}
+          >
             <h5 className="modal-title fw-semibold">Chi tiết Giao dịch</h5>
             <button type="button" className="btn-close" onClick={onClose} />
           </div>
 
-          <div className="modal-body">
+          <div
+            className="modal-body"
+            style={{ padding: "12px 22px 18px" }}
+          >
             <div className="mb-3">
               <div className="text-muted small mb-1">Loại giao dịch</div>
               <div className="badge rounded-pill bg-soft-blue text-primary fw-semibold">
@@ -51,10 +72,13 @@ export default function TransactionViewModal({ open, tx, onClose }) {
 
               <div className="col-6">
                 <label className="form-label small text-muted mb-1">Ngày</label>
-                <div className="form-control-plaintext">
-                  {new Date(tx.date).toLocaleDateString("vi-VN")}
-                </div>
+                <div className="form-control-plaintext">{dateStr}</div>
               </div>
+              <div className="col-6">
+                <label className="form-label small text-muted mb-1">Giờ</label>
+                <div className="form-control-plaintext">{timeStr}</div>
+              </div>
+
               <div className="col-6">
                 <label className="form-label small text-muted mb-1">Danh mục</label>
                 <div className="form-control-plaintext">{tx.category}</div>
@@ -83,8 +107,8 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                   <div className="d-flex gap-2 align-items-center">
                     <div
                       style={{
-                        width: 96,
-                        height: 72,
+                        width: 120,
+                        height: 90,
                         borderRadius: 12,
                         overflow: "hidden",
                         background: "#f3f4f6",
@@ -105,7 +129,10 @@ export default function TransactionViewModal({ open, tx, onClose }) {
             </div>
           </div>
 
-          <div className="modal-footer border-0 pt-0">
+          <div
+            className="modal-footer border-0 pt-0"
+            style={{ padding: "8px 22px 16px" }}
+          >
             <button className="btn btn-primary" onClick={onClose}>
               Đóng
             </button>

@@ -5,8 +5,6 @@ import TransactionFormModal from "../../components/transactions/TransactionFormM
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
 
-// 🚩 TODO API sau này: thay MOCK_TRANSACTIONS + các thao tác setState
-// bằng gọi API thật (GET/POST/PUT/DELETE).
 const MOCK_TRANSACTIONS = [
   {
     id: 1,
@@ -15,7 +13,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Tiền mặt",
     amount: 50000,
     currency: "VND",
-    date: "2023-10-20",
+    date: "2023-10-20T12:00",
     category: "Ăn uống",
     note: "Bữa trưa vui vẻ cùng đồng nghiệp",
     creatorCode: "USR001",
@@ -29,7 +27,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng A",
     amount: 1500000,
     currency: "VND",
-    date: "2023-10-19",
+    date: "2023-10-19T09:00",
     category: "Lương thưởng",
     note: "Lương tuần",
     creatorCode: "USR001",
@@ -37,13 +35,22 @@ const MOCK_TRANSACTIONS = [
   },
 ];
 
+const PAGE_SIZE = 10;
+
+function toDateObj(str) {
+  if (!str) return null;
+  const d = new Date(str);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS);
   const [searchText, setSearchText] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterWallet, setFilterWallet] = useState("all");
-  const [filterRange, setFilterRange] = useState("all"); // 🔹 khoảng thời gian
+  const [fromDateTime, setFromDateTime] = useState("");
+  const [toDateTime, setToDateTime] = useState("");
 
   const [viewing, setViewing] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -51,41 +58,42 @@ export default function TransactionsPage() {
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "" });
 
-  // ===== Sinh mã giao dịch mới dạng TX-000X =====
+  const [currentPage, setCurrentPage] = useState(1);
+
   const nextCode = () => {
     const max = transactions.reduce((m, t) => {
       const num = parseInt(String(t.code || "").replace(/\D/g, ""), 10);
       return isNaN(num) ? m : Math.max(m, num);
     }, 0);
     const n = max + 1;
-    return 'TX-${String(n).padStart(4, "0")}';
+    return `TX-${String(n).padStart(4, "0")}`;
   };
 
-  // ===== Thêm giao dịch mới =====
   const handleCreate = (payload) => {
     const tx = {
       id: Date.now(),
       code: nextCode(),
-      creatorCode: "USR001", // 🚩 sau này lấy từ user đăng nhập
-      attachment: "", // 🚩 sau này cập nhật link ảnh thật
+      creatorCode: "USR001",
+      attachment: payload.attachment || "",
       ...payload,
     };
     setTransactions((list) => [tx, ...list]);
     setCreating(false);
     setToast({ open: true, message: "Đã thêm giao dịch mới." });
+    setCurrentPage(1);
   };
 
-  // ===== Cập nhật giao dịch =====
   const handleUpdate = (payload) => {
     if (!editing) return;
     setTransactions((list) =>
-      list.map((t) => (t.id === editing.id ? { ...t, ...payload } : t))
+      list.map((t) =>
+        t.id === editing.id ? { ...t, ...payload, attachment: payload.attachment || t.attachment } : t
+      )
     );
     setEditing(null);
     setToast({ open: true, message: "Đã cập nhật giao dịch." });
   };
 
-  // ===== Xóa giao dịch =====
   const handleDelete = () => {
     if (!confirmDel) return;
     setTransactions((list) => list.filter((t) => t.id !== confirmDel.id));
@@ -103,39 +111,25 @@ export default function TransactionsPage() {
     return Array.from(s);
   }, [transactions]);
 
-  // ===== Lọc theo khoảng thời gian =====
-  const matchRange = (tx, range) => {
-    if (range === "all") return true;
-    const txDate = new Date(tx.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const filteredSorted = useMemo(() => {
+    let list = transactions.slice();
 
-    const diffDays = (today - txDate) / (1000 * 60 * 60 * 24);
-
-    switch (range) {
-      case "today":
-        return txDate.toDateString() === today.toDateString();
-      case "7days":
-        return diffDays >= 0 && diffDays < 7;
-      case "month":
-        return (
-          txDate.getFullYear() === today.getFullYear() &&
-          txDate.getMonth() === today.getMonth()
-        );
-      case "year":
-        return txDate.getFullYear() === today.getFullYear();
-      default:
-        return true;
-    }
-  };
-
-  // ===== Lọc + tìm kiếm =====
-  const filtered = useMemo(() => {
-    return transactions.filter((t) => {
+    list = list.filter((t) => {
       if (filterType !== "all" && t.type !== filterType) return false;
       if (filterCategory !== "all" && t.category !== filterCategory) return false;
       if (filterWallet !== "all" && t.walletName !== filterWallet) return false;
-      if (!matchRange(t, filterRange)) return false;
+
+      const d = toDateObj(t.date);
+      if (!d) return false;
+
+      if (fromDateTime) {
+        const from = toDateObj(fromDateTime);
+        if (from && d < from) return false;
+      }
+      if (toDateTime) {
+        const to = toDateObj(toDateTime);
+        if (to && d > to) return false;
+      }
 
       if (searchText) {
         const keyword = searchText.toLowerCase();
@@ -152,11 +146,59 @@ export default function TransactionsPage() {
       }
       return true;
     });
-  }, [transactions, filterType, filterCategory, filterWallet, filterRange, searchText]);
+
+    list.sort((a, b) => {
+      const da = toDateObj(a.date)?.getTime() || 0;
+      const db = toDateObj(b.date)?.getTime() || 0;
+      return db - da;
+    });
+
+    return list;
+  }, [
+    transactions,
+    filterType,
+    filterCategory,
+    filterWallet,
+    fromDateTime,
+    toDateTime,
+    searchText,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE));
+
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredSorted.slice(start, start + PAGE_SIZE);
+  }, [filteredSorted, currentPage]);
+
+  const goToPage = (p) => {
+    if (p < 1 || p > totalPages) return;
+    setCurrentPage(p);
+  };
+
+  const handleFilterChange = (setter) => (e) => {
+    setter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleDateChange = (setter) => (e) => {
+    setter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchText("");
+    setFilterType("all");
+    setFilterCategory("all");
+    setFilterWallet("all");
+    setFromDateTime("");
+    setToDateTime("");
+    setCurrentPage(1);
+  };
 
   return (
     <div className="tx-page container py-4">
-      {/* ===== Header bọc card trắng ===== */}
+      {/* Header */}
       <div className="tx-header card border-0 mb-3">
         <div className="card-body d-flex justify-content-between align-items-center">
           <div>
@@ -175,159 +217,239 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* ===== Thanh filter / search ===== */}
+      {/* Filters – chia 2 hàng */}
       <div className="tx-filters card border-0 mb-3">
-        <div className="card-body d-flex flex-wrap gap-2">
-          <div className="tx-filter-item flex-grow-1">
-            <div className="input-group">
-              <span className="input-group-text bg-white border-end-0">
-                <i className="bi bi-search text-muted" />
-              </span>
-              <input
-                className="form-control border-start-0"
-                placeholder="Tìm kiếm giao dịch..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
+        <div className="card-body d-flex flex-column gap-2">
+          {/* Hàng 1: search + loại + danh mục */}
+          <div className="d-flex flex-wrap gap-2">
+            <div className="tx-filter-item flex-grow-1">
+              <div className="input-group">
+                <span className="input-group-text bg-white border-end-0">
+                  <i className="bi bi-search text-muted" />
+                </span>
+                <input
+                  className="form-control border-start-0"
+                  placeholder="Tìm kiếm giao dịch..."
+                  value={searchText}
+                  onChange={(e) => {
+                    setSearchText(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="tx-filter-item">
+              <select
+                className="form-select"
+                value={filterType}
+                onChange={handleFilterChange(setFilterType)}
+              >
+                <option value="all">Loại giao dịch</option>
+                <option value="income">Thu nhập</option>
+                <option value="expense">Chi tiêu</option>
+              </select>
+            </div>
+
+            <div className="tx-filter-item">
+              <select
+                className="form-select"
+                value={filterCategory}
+                onChange={handleFilterChange(setFilterCategory)}
+              >
+                <option value="all">Danh mục</option>
+                {allCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="tx-filter-item">
-            <select
-              className="form-select"
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="all">Loại giao dịch</option>
-              <option value="income">Thu nhập</option>
-              <option value="expense">Chi tiêu</option>
-            </select>
-          </div>
+          {/* Hàng 2: ví + khoảng thời gian + nút xóa lọc */}
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <div className="tx-filter-item">
+              <select
+                className="form-select"
+                value={filterWallet}
+                onChange={handleFilterChange(setFilterWallet)}
+              >
+                <option value="all">Ví</option>
+                {allWallets.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="tx-filter-item">
-            <select
-              className="form-select"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-            >
-              <option value="all">Danh mục</option>
-              {allCategories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="tx-filter-item d-flex align-items-center gap-1">
+              <input
+                type="datetime-local"
+                className="form-control tx-filter-datetime-input"
+                value={fromDateTime}
+                onChange={handleDateChange(setFromDateTime)}
+              />
+              <span className="small text-muted">đến</span>
+              <input
+                type="datetime-local"
+                className="form-control tx-filter-datetime-input"
+                value={toDateTime}
+                onChange={handleDateChange(setToDateTime)}
+              />
+            </div>
 
-          <div className="tx-filter-item">
-            <select
-              className="form-select"
-              value={filterWallet}
-              onChange={(e) => setFilterWallet(e.target.value)}
-            >
-              <option value="all">Ví</option>
-              {allWallets.map((w) => (
-                <option key={w} value={w}>
-                  {w}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 🔹 Bảng chọn Khoảng thời gian */}
-          <div className="tx-filter-item">
-            <select
-              className="form-select"
-              value={filterRange}
-              onChange={(e) => setFilterRange(e.target.value)}
-            >
-              <option value="all">Khoảng thời gian</option>
-              <option value="today">Hôm nay</option>
-              <option value="7days">7 ngày gần đây</option>
-              <option value="month">Tháng này</option>
-              <option value="year">Năm nay</option>
-            </select>
+            <div className="ms-auto">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={clearFilters}
+              >
+                <i className="bi bi-x-circle me-1" />
+                Xóa lọc
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ===== Bảng danh sách giao dịch ===== */}
+      {/* Table */}
       <div className="card border-0 tx-table-card">
         <div className="table-responsive">
           <table className="table align-middle mb-0">
             <thead>
               <tr className="text-muted small">
                 <th>Ngày</th>
+                <th>Thời gian</th>
                 <th>Loại</th>
                 <th>Ví</th>
+                <th>Danh mục</th>
                 <th>Mô tả</th>
                 <th className="text-end">Số tiền</th>
                 <th className="text-center">Hành động</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && (
+              {paginated.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     Không có giao dịch nào phù hợp.
                   </td>
                 </tr>
               )}
 
-              {filtered.map((t) => (
-                <tr key={t.id}>
-                  <td>{new Date(t.date).toLocaleDateString("vi-VN")}</td>
-                  <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
-                  <td>{t.walletName}</td>
-                  <td>{t.note || t.category}</td>
-                  <td className="text-end">
-                    <span
-                      className={
-                        t.type === "expense" ? "tx-amount-expense" : "tx-amount-income"
-                      }
-                    >
-                      {t.type === "expense" ? "-" : "+"}
-                      {t.amount.toLocaleString("vi-VN")} {t.currency}
-                    </span>
-                  </td>
-                  <td className="text-center">
-                    <button
-                      className="btn btn-link btn-sm text-muted me-1"
-                      title="Xem chi tiết"
-                      onClick={() => setViewing(t)}
-                    >
-                      <i className="bi bi-eye" />
-                    </button>
-                    <button
-                      className="btn btn-link btn-sm text-muted me-1"
-                      title="Chỉnh sửa"
-                      onClick={() => setEditing(t)}
-                    >
-                      <i className="bi bi-pencil" />
-                    </button>
-                    <button
-                      className="btn btn-link btn-sm text-danger"
-                      title="Xóa"
-                      onClick={() => setConfirmDel(t)}
-                    >
-                      <i className="bi bi-trash" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {paginated.map((t) => {
+                const d = toDateObj(t.date);
+                const dateStr = d
+                  ? d.toLocaleDateString("vi-VN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })
+                  : "";
+                const timeStr = d
+                  ? d.toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "";
+
+                return (
+                  <tr key={t.id}>
+                    <td>{dateStr}</td>
+                    <td>{timeStr}</td>
+                    <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
+                    <td>{t.walletName}</td>
+                    <td>{t.category}</td>
+                    <td className="tx-note-cell" title={t.note || "-"}>
+                      {t.note || "-"}
+                    </td>
+                    <td className="text-end">
+                      <span
+                        className={
+                          t.type === "expense"
+                            ? "tx-amount-expense"
+                            : "tx-amount-income"
+                        }
+                      >
+                        {t.type === "expense" ? "-" : "+"}
+                        {t.amount.toLocaleString("vi-VN")} {t.currency}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      <button
+                        className="btn btn-link btn-sm text-muted me-1"
+                        title="Xem chi tiết"
+                        onClick={() => setViewing(t)}
+                      >
+                        <i className="bi bi-eye" />
+                      </button>
+                      <button
+                        className="btn btn-link btn-sm text-muted me-1"
+                        title="Chỉnh sửa"
+                        onClick={() => setEditing(t)}
+                      >
+                        <i className="bi bi-pencil" />
+                      </button>
+                      <button
+                        className="btn btn-link btn-sm text-danger"
+                        title="Xóa"
+                        onClick={() => setConfirmDel(t)}
+                      >
+                        <i className="bi bi-trash" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ===== Modal Xem ===== */}
+      {/* Pagination */}
+      <div className="tx-pagination d-flex justify-content-between align-items-center mt-3">
+        <div className="text-muted small">
+          Trang {currentPage}/{totalPages}
+        </div>
+        <div className="d-flex gap-1">
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            disabled={currentPage === 1}
+            onClick={() => goToPage(currentPage - 1)}
+          >
+            « Trước
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              className={
+                "btn btn-sm btn-outline-secondary " +
+                (p === currentPage ? "active" : "")
+              }
+              onClick={() => goToPage(p)}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            disabled={currentPage === totalPages}
+            onClick={() => goToPage(currentPage + 1)}
+          >
+            Sau »
+          </button>
+        </div>
+      </div>
+
+      {/* Modals & Toast */}
       <TransactionViewModal
         open={!!viewing}
         tx={viewing}
         onClose={() => setViewing(null)}
       />
 
-      {/* ===== Modal Thêm / Sửa ===== */}
       <TransactionFormModal
         open={creating}
         mode="create"
@@ -343,18 +465,18 @@ export default function TransactionsPage() {
         onClose={() => setEditing(null)}
       />
 
-      {/* ===== Xác nhận xóa ===== */}
       <ConfirmModal
         open={!!confirmDel}
         title="Xóa giao dịch"
-        message={confirmDel ? 'Bạn chắc chắn muốn xóa giao dịch ${confirmDel.code}? ': ""}
+        message={
+          confirmDel ? `Bạn chắc chắn muốn xóa giao dịch ${confirmDel.code}? ` : ""
+        }
         okText="Xóa"
         cancelText="Hủy"
         onOk={handleDelete}
         onClose={() => setConfirmDel(null)}
       />
 
-      {/* ===== Toast ===== */}
       <SuccessToast
         open={toast.open}
         message={toast.message}
