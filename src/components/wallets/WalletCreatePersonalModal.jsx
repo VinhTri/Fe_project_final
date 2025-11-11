@@ -7,12 +7,13 @@ export default function WalletCreatePersonalModal({
   currencies = ["VND"],
   existingNames = [],
 }) {
+  // 🟢 Form data khởi tạo — đổi tên field cho khớp backend
   const [form, setForm] = useState({
-    name: "",
-    currency: currencies[0] || "VND",
-    openingBalance: "0",
-    isDefault: false,
-    note: "",
+    walletName: "",
+    currencyCode: currencies[0] || "VND",
+    initialBalance: "0",
+    setAsDefault: false,
+    description: "",
   });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -20,9 +21,7 @@ export default function WalletCreatePersonalModal({
   // Chuẩn hóa danh sách tên đã có (case-insensitive, trim)
   const existing = useMemo(
     () =>
-      new Set(
-        (existingNames || []).map((s) => (s || "").toLowerCase().trim())
-      ),
+      new Set((existingNames || []).map((s) => (s || "").toLowerCase().trim())),
     [existingNames]
   );
 
@@ -32,44 +31,41 @@ export default function WalletCreatePersonalModal({
 
   const validate = (values = form) => {
     const e = {};
-    const name = (values.name || "").trim();
+    const name = (values.walletName || "").trim();
 
     // Tên ví
-    if (!name) e.name = "Vui lòng nhập tên ví";
-    else if (name.length < 2) e.name = "Tên ví phải từ 2 ký tự";
-    else if (name.length > 40) e.name = "Tên ví tối đa 40 ký tự";
+    if (!name) e.walletName = "Vui lòng nhập tên ví";
+    else if (name.length < 2) e.walletName = "Tên ví phải từ 2 ký tự";
+    else if (name.length > 40) e.walletName = "Tên ví tối đa 40 ký tự";
     else if (existing.has(name.toLowerCase()))
-      e.name = "Tên ví đã tồn tại";
+      e.walletName = "Tên ví đã tồn tại";
 
     // Tiền tệ
-    if (!values.currency) e.currency = "Vui lòng chọn loại tiền tệ";
-    else if (!currencies.includes(values.currency))
-      e.currency = "Loại tiền tệ không hợp lệ";
+    if (!values.currencyCode) e.currencyCode = "Vui lòng chọn loại tiền tệ";
+    else if (!currencies.includes(values.currencyCode))
+      e.currencyCode = "Loại tiền tệ không hợp lệ";
 
-    // Số dư ban đầu: số nguyên ≥ 0
-    if (values.openingBalance === "" || values.openingBalance === null) {
-      e.openingBalance = "Vui lòng nhập số dư ban đầu";
+    // Số dư ban đầu
+    if (values.initialBalance === "" || values.initialBalance === null) {
+      e.initialBalance = "Vui lòng nhập số dư ban đầu";
     } else {
-      const n = Number(values.openingBalance);
-      if (!isFinite(n)) e.openingBalance = "Số dư không hợp lệ";
-      else if (n < 0) e.openingBalance = "Số dư phải ≥ 0";
-      else if (String(values.openingBalance).includes("."))
-        e.openingBalance = "Chỉ nhận số nguyên";
+      const n = Number(values.initialBalance);
+      if (!isFinite(n)) e.initialBalance = "Số dư không hợp lệ";
+      else if (n < 0) e.initialBalance = "Số dư phải ≥ 0";
+      else if (String(values.initialBalance).includes("."))
+        e.initialBalance = "Chỉ nhận số nguyên";
       else if (n > 1_000_000_000_000)
-        e.openingBalance = "Số dư quá lớn (≤ 1,000,000,000,000)";
+        e.initialBalance = "Số dư quá lớn (≤ 1,000,000,000,000)";
     }
 
     // Ghi chú
-    if ((values.note || "").length > 200)
-      e.note = "Ghi chú tối đa 200 ký tự";
+    if ((values.description || "").length > 200)
+      e.description = "Ghi chú tối đa 200 ký tự";
 
     return e;
   };
 
-  const isValid = useMemo(
-    () => Object.keys(validate()).length === 0,
-    [form]
-  );
+  const isValid = useMemo(() => Object.keys(validate()).length === 0, [form]);
 
   const setField = (name, value) => {
     const next = { ...form, [name]: value };
@@ -77,24 +73,25 @@ export default function WalletCreatePersonalModal({
     if (touched[name]) setErrors(validate(next));
   };
 
+  // 🟢 Hàm submit đã chỉnh lại để gửi đúng key backend yêu cầu
   const submit = (e) => {
     e.preventDefault();
     const v = validate();
     setErrors(v);
     setTouched({
-      name: true,
-      currency: true,
-      openingBalance: true,
-      note: true,
+      walletName: true,
+      currencyCode: true,
+      initialBalance: true,
+      description: true,
     });
     if (Object.keys(v).length) return;
 
     onSubmit?.({
-      name: form.name.trim(),
-      currency: form.currency,
-      openingBalance: Number(form.openingBalance),
-      isDefault: !!form.isDefault,
-      note: form.note?.trim() || "",
+      walletName: form.walletName.trim(),
+      currencyCode: form.currencyCode,
+      initialBalance: Number(form.initialBalance),
+      description: form.description?.trim() || "",
+      setAsDefault: !!form.setAsDefault,
     });
   };
 
@@ -192,15 +189,17 @@ export default function WalletCreatePersonalModal({
                 Tên ví<span className="req">*</span>
               </label>
               <input
-                className={`fm-input ${touched.name && errors.name ? "is-invalid" : ""}`}
-                value={form.name}
-                onBlur={() => setTouched((t) => ({ ...t, name: true }))}
-                onChange={(e) => setField("name", e.target.value)}
+                className={`fm-input ${
+                  touched.walletName && errors.walletName ? "is-invalid" : ""
+                }`}
+                value={form.walletName}
+                onBlur={() => setTouched((t) => ({ ...t, walletName: true }))}
+                onChange={(e) => setField("walletName", e.target.value)}
                 placeholder="Ví tiền mặt, Techcombank, Momo…"
                 maxLength={40}
               />
-              {touched.name && errors.name && (
-                <div className="fm-feedback">{errors.name}</div>
+              {touched.walletName && errors.walletName && (
+                <div className="fm-feedback">{errors.walletName}</div>
               )}
             </div>
 
@@ -211,17 +210,25 @@ export default function WalletCreatePersonalModal({
                   Tiền tệ<span className="req">*</span>
                 </label>
                 <select
-                  className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
-                  value={form.currency}
-                  onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
-                  onChange={(e) => setField("currency", e.target.value)}
+                  className={`fm-select ${
+                    touched.currencyCode && errors.currencyCode
+                      ? "is-invalid"
+                      : ""
+                  }`}
+                  value={form.currencyCode}
+                  onBlur={() =>
+                    setTouched((t) => ({ ...t, currencyCode: true }))
+                  }
+                  onChange={(e) => setField("currencyCode", e.target.value)}
                 >
                   {currencies.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
-                {touched.currency && errors.currency && (
-                  <div className="fm-feedback">{errors.currency}</div>
+                {touched.currencyCode && errors.currencyCode && (
+                  <div className="fm-feedback">{errors.currencyCode}</div>
                 )}
               </div>
 
@@ -234,15 +241,21 @@ export default function WalletCreatePersonalModal({
                   inputMode="numeric"
                   min="0"
                   step="1"
-                  className={`fm-input ${touched.openingBalance && errors.openingBalance ? "is-invalid" : ""}`}
-                  value={form.openingBalance}
-                  onBlur={() => setTouched((t) => ({ ...t, openingBalance: true }))}
-                  onChange={(e) => setField("openingBalance", e.target.value)}
+                  className={`fm-input ${
+                    touched.initialBalance && errors.initialBalance
+                      ? "is-invalid"
+                      : ""
+                  }`}
+                  value={form.initialBalance}
+                  onBlur={() =>
+                    setTouched((t) => ({ ...t, initialBalance: true }))
+                  }
+                  onChange={(e) => setField("initialBalance", e.target.value)}
                   onKeyDown={blockSciNotationKeys}
                   placeholder="0"
                 />
-                {touched.openingBalance && errors.openingBalance && (
-                  <div className="fm-feedback">{errors.openingBalance}</div>
+                {touched.initialBalance && errors.initialBalance && (
+                  <div className="fm-feedback">{errors.initialBalance}</div>
                 )}
                 <div className="fm-hint">Chỉ nhận số nguyên ≥ 0</div>
               </div>
@@ -252,16 +265,18 @@ export default function WalletCreatePersonalModal({
             <div className="fm-row">
               <label className="fm-label">Ghi chú (tùy chọn)</label>
               <textarea
-                className={`fm-textarea ${touched.note && errors.note ? "is-invalid" : ""}`}
+                className={`fm-textarea ${
+                  touched.description && errors.description ? "is-invalid" : ""
+                }`}
                 rows="2"
-                value={form.note}
-                onBlur={() => setTouched((t) => ({ ...t, note: true }))}
-                onChange={(e) => setField("note", e.target.value)}
+                value={form.description}
+                onBlur={() => setTouched((t) => ({ ...t, description: true }))}
+                onChange={(e) => setField("description", e.target.value)}
                 maxLength={200}
                 placeholder="Ghi chú cho ví này (tối đa 200 ký tự)"
               />
-              {touched.note && errors.note && (
-                <div className="fm-feedback">{errors.note}</div>
+              {touched.description && errors.description && (
+                <div className="fm-feedback">{errors.description}</div>
               )}
             </div>
 
@@ -271,11 +286,11 @@ export default function WalletCreatePersonalModal({
                 id="createDefaultWallet"
                 className="fm-check__input"
                 type="checkbox"
-                checked={form.isDefault}
-                onChange={(e) => setField("isDefault", e.target.checked)}
+                checked={form.setAsDefault}
+                onChange={(e) => setField("setAsDefault", e.target.checked)}
               />
               <label htmlFor="createDefaultWallet">
-                Đặt làm ví mặc định cho {form.currency}
+                Đặt làm ví mặc định cho {form.currencyCode}
               </label>
             </div>
           </div>

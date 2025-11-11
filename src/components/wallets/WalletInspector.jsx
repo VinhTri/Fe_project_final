@@ -1,4 +1,3 @@
-// src/components/wallets/WalletInspector.jsx
 import React, { useMemo, useState } from "react";
 
 /**
@@ -27,7 +26,7 @@ export default function WalletInspector({
   const [otherId, setOtherId] = useState(""); // merge
 
   const walletId = wallet?.id ?? null;
-  const walletCurrency = wallet?.currency ?? "VND";
+  const walletCurrency = wallet?.currencyCode ?? "VND";
 
   // Danh sách ví có thể gộp (an toàn khi wallet null)
   const otherCandidates = useMemo(() => {
@@ -36,7 +35,7 @@ export default function WalletInspector({
       (w) =>
         w &&
         String(w.id) !== String(walletId) &&
-        (w.currency || "VND") === walletCurrency
+        (w.currencyCode || "VND") === walletCurrency
     );
   }, [walletId, walletCurrency, wallets]);
 
@@ -48,7 +47,7 @@ export default function WalletInspector({
   const canWithdraw =
     !!wallet &&
     Number(wAmount) > 0 &&
-    Number(wAmount) <= Number(wallet.balance || 0);
+    Number(wAmount) <= Number(wallet.initialBalance || 0);
 
   // ---- UI ----
   return (
@@ -100,7 +99,7 @@ export default function WalletInspector({
           <>
             <div className="inspector__hero mb-3 d-flex align-items-start justify-content-between gap-2">
               <div>
-                <div className="inspector__title">{wallet.name}</div>
+                <div className="inspector__title">{wallet.walletName}</div>
                 <div className="inspector__desc">
                   Quản lý giao dịch và số dư của ví này.
                 </div>
@@ -126,28 +125,33 @@ export default function WalletInspector({
             <div className="info-row">
               <div className="label">Số dư</div>
               <div className="value">
-                {maskMoney(wallet.balance, wallet.currency, masked)}
+                {maskMoney(wallet.initialBalance, wallet.currencyCode, masked)}
               </div>
             </div>
             <div className="info-row">
               <div className="label">Đã sử dụng</div>
               <div className="value">
-                {maskMoney(Number(wallet.spent || 0), wallet.currency, masked)}
+                {maskMoney(
+                  Number(wallet.spent || 0),
+                  wallet.currencyCode,
+                  masked
+                )}
               </div>
             </div>
             <div className="info-row">
               <div className="label">Còn lại</div>
               <div className="value">
                 {maskMoney(
-                  Number(wallet.balance || 0) - Number(wallet.spent || 0),
-                  wallet.currency,
+                  Number(wallet.initialBalance || 0) -
+                    Number(wallet.spent || 0),
+                  wallet.currencyCode,
                   masked
                 )}
               </div>
             </div>
             <div className="info-row">
-              <div className="label">Ghi chú</div>
-              <div className="value">{wallet.note || "-"}</div>
+              <div className="label">Mô tả</div>
+              <div className="value">{wallet.description || "-"}</div>
             </div>
             <div className="info-row">
               <div className="label">Ngày tạo</div>
@@ -176,7 +180,10 @@ export default function WalletInspector({
               <div className="form-text">
                 Số dư hiện tại:{" "}
                 <strong>
-                  {formatMoney(wallet.balance, wallet.currency || "VND")}
+                  {formatMoney(
+                    wallet.initialBalance,
+                    wallet.currencyCode || "VND"
+                  )}
                 </strong>
               </div>
             </div>
@@ -229,7 +236,7 @@ export default function WalletInspector({
                 <option value="">-- Chọn ví --</option>
                 {otherCandidates.map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name} ({w.currency})
+                    {w.walletName} ({w.currencyCode})
                   </option>
                 ))}
               </select>

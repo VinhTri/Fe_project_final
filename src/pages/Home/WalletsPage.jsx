@@ -9,7 +9,6 @@ import SuccessToast from "../../components/common/Toast/SuccessToast";
 import WalletCreateChooser from "../../components/wallets/WalletCreateChooser";
 import WalletCreatePersonalModal from "../../components/wallets/WalletCreatePersonalModal";
 import WalletCreateGroupModal from "../../components/wallets/WalletCreateGroupModal";
-
 import WalletInspector from "../../components/wallets/WalletInspector";
 import useToggleMask from "../../hooks/useToggleMask";
 
@@ -25,7 +24,6 @@ function useAutoHeight(isOpen, deps = []) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-
     if (isOpen) {
       setMaxH("0px");
       requestAnimationFrame(() => {
@@ -44,7 +42,6 @@ function useAutoHeight(isOpen, deps = []) {
         setMaxH("0px");
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, ...deps]);
 
   return {
@@ -74,42 +71,40 @@ const formatMoney = (amount = 0, currency = "VND") => {
 export default function WalletsPage() {
   const { wallets, createWallet, updateWallet, deleteWallet } = useWalletData();
 
-  // ====== “mắt” tổng ======
+  // ===== Tổng quan & toggle =====
   const [showTotalAll, toggleTotalAll] = useToggleMask(true);
   const [showTotalPersonal, toggleTotalPersonal] = useToggleMask(true);
   const [showTotalGroup, toggleTotalGroup] = useToggleMask(true);
 
-  // ====== Tạo / chooser ======
+  // ===== Modal & lựa chọn =====
   const [showChooser, setShowChooser] = useState(false);
   const [showPersonal, setShowPersonal] = useState(false);
   const [showGroup, setShowGroup] = useState(false);
   const anchorRef = useRef(null);
 
-  // ====== Modals / toast ======
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "" });
 
-  // ====== Sort ======
+  // ===== Sắp xếp =====
   const [sortKey, setSortKey] = useState("createdAt");
   const [sortDir, setSortDir] = useState("desc");
   const [sortScope, setSortScope] = useState("all");
   const toggleSortDir = () => setSortDir((d) => (d === "asc" ? "desc" : "asc"));
 
-  // ====== Expand 1 phần (personal/group) ======
-  const [expandedSection, setExpandedSection] = useState(null); // 'personal' | 'group' | null
+  // ===== Mở rộng =====
+  const [expandedSection, setExpandedSection] = useState(null);
   const isPersonalExpanded = expandedSection === "personal";
   const isGroupExpanded = expandedSection === "group";
   const toggleExpand = (key) =>
     setExpandedSection((prev) => (prev === key ? null : key));
 
-  // Inspector (panel phải)
+  // ===== Inspector =====
   const [selectedWallet, setSelectedWallet] = useState(null);
   useEffect(() => {
     if (expandedSection === null) setSelectedWallet(null);
   }, [expandedSection]);
 
-  // Scroll lên đầu khi expand
   const topRef = useRef(null);
   useEffect(() => {
     if (expandedSection && topRef.current) {
@@ -117,7 +112,6 @@ export default function WalletsPage() {
     }
   }, [expandedSection]);
 
-  // Focus/scroll tới Inspector khi chọn ví
   const inspectorRef = useRef(null);
   const focusInspector = (delay = 280) => {
     setTimeout(() => {
@@ -125,22 +119,23 @@ export default function WalletsPage() {
       if (!el) return;
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
       el.classList.remove("flash");
-      // eslint-disable-next-line no-unused-expressions
       el.offsetHeight;
       el.classList.add("flash");
       setTimeout(() => el.classList.remove("flash"), 900);
     }, delay);
   };
 
-  // ====== Data helpers ======
+  // ===== Đổi sang field backend =====
   const existingNames = useMemo(
-    () => wallets.map((w) => w.name.toLowerCase().trim()),
+    () => wallets.map((w) => w.walletName?.toLowerCase().trim() || ""),
     [wallets]
   );
 
   const compareByKey = (a, b, key) => {
-    if (key === "name") return (a.name || "").localeCompare(b.name || "");
-    if (key === "balance") return Number(a.balance || 0) - Number(b.balance || 0);
+    if (key === "walletName")
+      return (a.walletName || "").localeCompare(b.walletName || "");
+    if (key === "initialBalance")
+      return Number(a.initialBalance || 0) - Number(b.initialBalance || 0);
     return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
   };
   const sortWith = (arr, key, dir) => {
@@ -173,16 +168,16 @@ export default function WalletsPage() {
   }, [groupListRaw, sortKey, sortDir, sortScope]);
 
   const currencyOfChoice = useMemo(
-    () => (wallets[0]?.currency ? wallets[0].currency : "VND"),
+    () => (wallets[0]?.currencyCode ? wallets[0].currencyCode : "VND"),
     [wallets]
   );
 
-  // ====== Tổng chỉ cộng ví đang bật công tắc ======
+  // ===== Tổng =====
   const totalAll = useMemo(
     () =>
       wallets
         .filter((w) => w.includeOverall !== false)
-        .reduce((s, w) => s + (Number(w.balance) || 0), 0),
+        .reduce((s, w) => s + (Number(w.initialBalance) || 0), 0),
     [wallets]
   );
 
@@ -190,7 +185,7 @@ export default function WalletsPage() {
     () =>
       personalListRaw
         .filter((w) => w.includePersonal !== false)
-        .reduce((s, w) => s + (Number(w.balance) || 0), 0),
+        .reduce((s, w) => s + (Number(w.initialBalance) || 0), 0),
     [personalListRaw]
   );
 
@@ -198,48 +193,45 @@ export default function WalletsPage() {
     () =>
       groupListRaw
         .filter((w) => w.includeGroup !== false)
-        .reduce((s, w) => s + (Number(w.balance) || 0), 0),
+        .reduce((s, w) => s + (Number(w.initialBalance) || 0), 0),
     [groupListRaw]
   );
 
-  // ====== CRUD ======
+  // ===== CRUD =====
   const handleAddWalletClick = () => setShowChooser((v) => !v);
 
   const doDelete = async (w) => {
     setConfirmDel(null);
     await deleteWallet(w.id);
-    setToast({ open: true, message: `Đã xóa ví "${w.name}"` });
+    setToast({ open: true, message: `Đã xóa ví "${w.walletName}"` });
     if (selectedWallet?.id === w.id) setSelectedWallet(null);
   };
 
+  // ✅ TẠO VÍ CÁ NHÂN - đã sửa key
   const handleCreatePersonal = async (f) => {
-    const w = await createWallet({
-      name: f.name.trim(),
-      currency: f.currency,
-      type: f.type || "CASH",
-      balance: Number(f.openingBalance || 0),
-      note: f.note?.trim() || "",
-      isDefault: !!f.isDefault,
-      isShared: false,
-      groupId: null,
-      includeOverall: true,
-      includePersonal: true,
+    const res = await createWallet({
+      walletName: f.walletName.trim(),
+      currencyCode: f.currencyCode,
+      initialBalance: Number(f.initialBalance || 0),
+      description: f.description?.trim() || "",
+      setAsDefault: !!f.setAsDefault,
     });
 
-    // [ADD] Đảm bảo chỉ duy nhất 1 ví mặc định
-    try {
-      if (w?.isDefault) {
-        const others = wallets.filter((x) => x.id !== w.id && x.isDefault);
-        if (others.length) {
-          await Promise.all(
-            others.map((x) => updateWallet({ ...x, isDefault: false }))
-          );
-        }
+    const w = res?.wallet;
+    if (w?.setAsDefault) {
+      const others = wallets.filter((x) => x.id !== w.id && x.setAsDefault);
+      if (others.length) {
+        await Promise.all(
+          others.map((x) => updateWallet({ ...x, setAsDefault: false }))
+        );
       }
-    } catch (_) {}
+    }
 
     setShowPersonal(false);
-    setToast({ open: true, message: `Đã tạo ví cá nhân "${w.name}"` });
+    setToast({
+      open: true,
+      message: `Đã tạo ví cá nhân "${w?.walletName || "Mới"}"`,
+    });
   };
 
   const afterCreateGroupWallet = async (w) => {
@@ -247,74 +239,98 @@ export default function WalletsPage() {
       const updated = { ...w, includeOverall: true, includeGroup: true };
       await updateWallet(updated);
     }
-    setToast({ open: true, message: `Đã tạo ví nhóm "${w?.name || ""}"` });
+    setToast({
+      open: true,
+      message: `Đã tạo ví nhóm "${w?.walletName || ""}"`,
+    });
   };
 
+  // ✅ CẬP NHẬT VÍ - đã sửa key
   const handleSubmitEdit = async (data) => {
-    await updateWallet(data);
+    const updated = {
+      ...data,
+      walletName: data.walletName?.trim(),
+      currencyCode: data.currencyCode,
+      initialBalance: Number(data.initialBalance || 0),
+      description: data.description?.trim() || "",
+      setAsDefault: !!data.setAsDefault,
+    };
 
-    // [ADD] Đảm bảo chỉ duy nhất 1 ví mặc định khi chỉnh sửa
-    try {
-      if (data?.isDefault) {
-        const others = wallets.filter((x) => x.id !== data.id && x.isDefault);
-        if (others.length) {
-          await Promise.all(
-            others.map((x) => updateWallet({ ...x, isDefault: false }))
-          );
-        }
+    await updateWallet(updated);
+
+    if (updated?.setAsDefault) {
+      const others = wallets.filter(
+        (x) => x.id !== updated.id && x.setAsDefault
+      );
+      if (others.length) {
+        await Promise.all(
+          others.map((x) => updateWallet({ ...x, setAsDefault: false }))
+        );
       }
-    } catch (_) {}
+    }
 
     setEditing(null);
     setToast({ open: true, message: "Cập nhật ví thành công" });
-    if (selectedWallet?.id === data.id) setSelectedWallet(data);
+    if (selectedWallet?.id === updated.id) setSelectedWallet(updated);
   };
 
-  // Inspector actions
+  // Rút tiền (giữ nguyên logic)
   const handleWithdraw = async (wallet, amount) => {
-    const next = { ...wallet, balance: Number(wallet.balance || 0) - Number(amount) };
+    const next = {
+      ...wallet,
+      initialBalance: Number(wallet.initialBalance || 0) - Number(amount),
+    };
     await updateWallet(next);
     setSelectedWallet(next);
     setToast({ open: true, message: "Rút tiền thành công" });
   };
-
+  // Gộp ví (merge)
   const handleMerge = async ({ mode, baseWallet, otherWallet }) => {
     if (!otherWallet) return;
     if (mode === "this_to_other") {
       const to = {
         ...otherWallet,
-        balance: Number(otherWallet.balance || 0) + Number(baseWallet.balance || 0),
+        initialBalance:
+          Number(otherWallet.initialBalance || 0) +
+          Number(baseWallet.initialBalance || 0),
       };
       await updateWallet(to);
       await deleteWallet(baseWallet.id);
       if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
       setToast({
         open: true,
-        message: `Đã gộp "${baseWallet.name}" vào "${otherWallet.name}"`,
+        message: `Đã gộp "${baseWallet.walletName}" vào "${otherWallet.walletName}"`,
       });
     } else {
       const to = {
         ...baseWallet,
-        balance: Number(baseWallet.balance || 0) + Number(otherWallet.balance || 0),
+        initialBalance:
+          Number(baseWallet.initialBalance || 0) +
+          Number(otherWallet.initialBalance || 0),
       };
       await updateWallet(to);
       await deleteWallet(otherWallet.id);
       if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
       setToast({
         open: true,
-        message: `Đã gộp "${otherWallet.name}" vào "${baseWallet.name}"`,
+        message: `Đã gộp "${otherWallet.walletName}" vào "${baseWallet.walletName}"`,
       });
     }
   };
 
+  // Chuyển đổi loại ví
   const handleConvert = async (wallet, toShared) => {
-    const next = { ...wallet, isShared: !!toShared, groupId: toShared ? wallet.groupId || null : null };
+    const next = {
+      ...wallet,
+      isShared: !!toShared,
+      groupId: toShared ? wallet.groupId || null : null,
+    };
     await updateWallet(next);
     setSelectedWallet(next);
     setToast({ open: true, message: "Chuyển đổi loại ví thành công" });
   };
 
-  // ====== Toggle trong menu “...” ======
+  // Toggle hiển thị tổng & từng phần
   const handleToggleOverall = async (wallet, nextOn) => {
     const next = { ...wallet, includeOverall: !!nextOn };
     await updateWallet(next);
@@ -329,11 +345,13 @@ export default function WalletsPage() {
     if (selectedWallet?.id === wallet.id) setSelectedWallet(next);
   };
 
-  // ====== Auto-height containers ======
-  const personalExpand = useAutoHeight(isPersonalExpanded, [personalWallets.length]);
+  // Auto-height containers
+  const personalExpand = useAutoHeight(isPersonalExpanded, [
+    personalWallets.length,
+  ]);
   const groupExpand = useAutoHeight(isGroupExpanded, [groupWallets.length]);
 
-  // ====== Click card: mở rộng (trừ vùng tương tác) ======
+  // Click card: mở rộng (trừ vùng tương tác)
   const isInteractiveEvent = (e) => {
     const t = e.target;
     return !!t.closest(
@@ -341,7 +359,7 @@ export default function WalletsPage() {
     );
   };
 
-  // === Bổ sung: quản lý refs của từng thẻ để auto-scroll ===
+  // Quản lý refs của từng card
   const [selectedWalletId, setSelectedWalletId] = useState(null);
   const cardRefs = useRef({});
   const setCardRef = (id) => (el) => {
@@ -352,13 +370,17 @@ export default function WalletsPage() {
     const el = id ? cardRefs.current[id] : null;
     if (!el) return;
     const run = () =>
-      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
     delayMs > 0 ? setTimeout(run, delayMs) : run();
   };
 
   const handleCardClick = (section, wallet) => {
     setSelectedWallet(wallet);
-    setSelectedWalletId(wallet.id); // NEW
+    setSelectedWalletId(wallet.id);
 
     const willOpenPersonal = section === "personal" && !isPersonalExpanded;
     const willOpenGroup = section === "group" && !isGroupExpanded;
@@ -366,8 +388,8 @@ export default function WalletsPage() {
     if (willOpenGroup) setExpandedSection("group");
 
     const needDelay = willOpenPersonal || willOpenGroup;
-    const delay = needDelay ? 480 : 0; // khớp thời gian mở rộng
-    scrollToSelected(delay);           // NEW
+    const delay = needDelay ? 480 : 0;
+    scrollToSelected(delay);
     focusInspector(needDelay ? 300 : 0);
   };
 
@@ -376,25 +398,22 @@ export default function WalletsPage() {
     handleCardClick(section, wallet);
   };
 
-  // Nếu đã mở rộng mà đổi lựa chọn -> cuộn ngay
   useEffect(() => {
     if (!selectedWalletId) return;
     if (isPersonalExpanded || isGroupExpanded) {
       scrollToSelected(0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWalletId, isPersonalExpanded, isGroupExpanded]);
 
-  // [ADD] Helper: đưa ví mặc định lên đầu (không phá thứ tự đang có của phần còn lại)
+  // Đưa ví mặc định lên đầu
   const defaultFirst = (arr) => {
     const d = [];
     const r = [];
     for (const w of arr) {
-      (w?.isDefault ? d : r).push(w);
+      (w?.setAsDefault ? d : r).push(w);
     }
     return [...d, ...r];
   };
-
   // ===== Render =====
   return (
     <div className="wallet-page container py-4">
@@ -433,8 +452,8 @@ export default function WalletsPage() {
                 onChange={(e) => setSortKey(e.target.value)}
               >
                 <option value="createdAt">Ngày tạo</option>
-                <option value="balance">Số tiền</option>
-                <option value="name">Tên ví</option>
+                <option value="initialBalance">Số tiền</option>
+                <option value="walletName">Tên ví</option>
               </select>
 
               <button
@@ -480,7 +499,7 @@ export default function WalletsPage() {
         </div>
       </div>
 
-      {/* ===== Tổng số dư tất cả (ẩn khi đang expand 1 phần) ===== */}
+      {/* ===== Tổng tất cả ví ===== */}
       {expandedSection === null && (
         <section className="mt-2 mb-3">
           <div className="sum-card sum-card--overall">
@@ -499,18 +518,22 @@ export default function WalletsPage() {
                   : "••••••"
               )}
               <i
-                className={`bi ${showTotalAll ? "bi-eye" : "bi-eye-slash"} money-eye`}
+                className={`bi ${
+                  showTotalAll ? "bi-eye" : "bi-eye-slash"
+                } money-eye`}
                 onClick={toggleTotalAll}
               />
             </div>
-            <div className="sum-card__desc">Tổng hợp tất cả số dư các ví (chỉ tính ví đang bật).</div>
+            <div className="sum-card__desc">
+              Tổng hợp tất cả số dư các ví (chỉ tính ví đang bật).
+            </div>
           </div>
         </section>
       )}
 
-      {/* ===== 2 cột. Mở rộng 1 phần thì phần kia ẩn ===== */}
+      {/* ===== Hai cột ví ===== */}
       <div className="row g-4">
-        {/* ========== Ví cá nhân ========== */}
+        {/* ===== Ví cá nhân ===== */}
         <div
           className={
             isPersonalExpanded
@@ -544,13 +567,15 @@ export default function WalletsPage() {
             </div>
 
             <div className="card-body">
-              {/* ==== KHỐI MỞ RỘNG (animation) ==== */}
+              {/* ==== KHỐI MỞ RỘNG ==== */}
               <div ref={personalExpand.ref} {...personalExpand.props}>
                 <div className="row gx-4">
-                  {/* Tổng cá nhân (mini) */}
+                  {/* Tổng cá nhân */}
                   <div className="col-12">
                     <div className="sum-card sum-card--mini sum-card--personal mb-3">
-                      <div className="sum-card__title">TỔNG SỐ DƯ (CÁ NHÂN)</div>
+                      <div className="sum-card__title">
+                        TỔNG SỐ DƯ (CÁ NHÂN)
+                      </div>
                       <div className="sum-card__value">
                         {formatMoney(
                           showTotalPersonal ? totalPersonal : 0,
@@ -577,18 +602,20 @@ export default function WalletsPage() {
                     </div>
                   </div>
 
-                  {/* Bên trái: grid ví (cuộn nếu >6) */}
+                  {/* Danh sách ví */}
                   <div className="col-12 col-lg-8">
                     {personalWallets.length === 0 ? (
                       <div className="alert alert-light border rounded-3 mb-0">
-                        Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để thêm
-                        ví đầu tiên.
+                        Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để
+                        thêm.
                       </div>
                     ) : (
                       <div className="wallet-grid wallet-grid--expanded-two wallet-grid--limit-6">
-                        {defaultFirst(personalWallets).map((w) => ( // [ADD] ưu tiên ví mặc định
+                        {defaultFirst(personalWallets).map((w) => (
                           <div
-                            className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
+                            className={`wallet-grid__item ${
+                              selectedWalletId === w.id ? "is-selected" : ""
+                            }`}
                             key={w.id}
                             ref={setCardRef(w.id)}
                             role="button"
@@ -612,7 +639,7 @@ export default function WalletsPage() {
                     )}
                   </div>
 
-                  {/* Bên phải: inspector */}
+                  {/* Inspector */}
                   <aside className="col-12 col-lg-4" ref={inspectorRef}>
                     <WalletInspector
                       wallet={selectedWallet}
@@ -632,19 +659,20 @@ export default function WalletsPage() {
                 </div>
               </div>
 
-              {/* ==== KHỐI THU GỌN (cuộn nếu >6) ==== */}
+              {/* ==== KHỐI THU GỌN ==== */}
               {!isPersonalExpanded && (
                 <>
                   {personalWallets.length === 0 ? (
                     <div className="alert alert-light border rounded-3 mb-0 mt-2">
-                      Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để thêm
-                      ví đầu tiên.
+                      Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để thêm.
                     </div>
                   ) : (
                     <div className="wallet-grid wallet-grid--limit-6 mt-2">
-                      {defaultFirst(personalWallets).map((w) => ( // [ADD] ưu tiên ví mặc định
+                      {defaultFirst(personalWallets).map((w) => (
                         <div
-                          className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
+                          className={`wallet-grid__item ${
+                            selectedWalletId === w.id ? "is-selected" : ""
+                          }`}
                           key={w.id}
                           ref={setCardRef(w.id)}
                           role="button"
@@ -672,7 +700,7 @@ export default function WalletsPage() {
           </section>
         </div>
 
-        {/* ========== Ví nhóm ========== */}
+        {/* ===== Ví nhóm ===== */}
         <div
           className={
             isGroupExpanded
@@ -705,10 +733,9 @@ export default function WalletsPage() {
             </div>
 
             <div className="card-body">
-              {/* ==== KHỐI MỞ RỘNG ==== */}
               <div ref={groupExpand.ref} {...groupExpand.props}>
                 <div className="row gx-4">
-                  {/* Tổng nhóm (mini) */}
+                  {/* Tổng nhóm */}
                   <div className="col-12">
                     <div className="sum-card sum-card--mini sum-card--group mb-3">
                       <div className="sum-card__title">TỔNG SỐ DƯ (NHÓM)</div>
@@ -738,7 +765,7 @@ export default function WalletsPage() {
                     </div>
                   </div>
 
-                  {/* Bên trái: grid ví (cuộn nếu >6) */}
+                  {/* Grid ví nhóm */}
                   <div className="col-12 col-lg-8">
                     {groupWallets.length === 0 ? (
                       <div className="alert alert-light border rounded-3 mb-0">
@@ -747,9 +774,11 @@ export default function WalletsPage() {
                       </div>
                     ) : (
                       <div className="wallet-grid wallet-grid--expanded-two wallet-grid--limit-6">
-                        {defaultFirst(groupWallets).map((w) => ( // [ADD] ưu tiên ví mặc định
+                        {defaultFirst(groupWallets).map((w) => (
                           <div
-                            className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
+                            className={`wallet-grid__item ${
+                              selectedWalletId === w.id ? "is-selected" : ""
+                            }`}
                             key={w.id}
                             ref={setCardRef(w.id)}
                             role="button"
@@ -773,7 +802,7 @@ export default function WalletsPage() {
                     )}
                   </div>
 
-                  {/* Bên phải: inspector */}
+                  {/* Inspector */}
                   <aside className="col-12 col-lg-4" ref={inspectorRef}>
                     <WalletInspector
                       wallet={selectedWallet}
@@ -792,43 +821,6 @@ export default function WalletsPage() {
                   </aside>
                 </div>
               </div>
-
-              {/* ==== KHỐI THU GỌN (cuộn nếu >6) ==== */}
-              {!isGroupExpanded && (
-                <>
-                  {groupWallets.length === 0 ? (
-                    <div className="alert alert-light border rounded-3 mb-0 mt-2">
-                      Chưa có ví nhóm nào. Chọn <strong>Tạo ví nhóm</strong>{" "}
-                      trong menu “Tạo ví mới”.
-                    </div>
-                  ) : (
-                    <div className="wallet-grid wallet-grid--limit-6 mt-2">
-                      {defaultFirst(groupWallets).map((w) => ( // [ADD] ưu tiên ví mặc định
-                        <div
-                          className={`wallet-grid__item ${selectedWalletId === w.id ? "is-selected" : ""}`}
-                          key={w.id}
-                          ref={setCardRef(w.id)}
-                          role="button"
-                          tabIndex={0}
-                          onClickCapture={handleCardAreaClick("group", w)}
-                          onKeyDown={(e) =>
-                            (e.key === "Enter" || e.key === " ") &&
-                            handleCardClick("group", w)
-                          }
-                        >
-                          <WalletCard
-                            wallet={w}
-                            onToggleOverall={handleToggleOverall}
-                            onToggleSection={handleToggleSection}
-                            onEdit={setEditing}
-                            onDelete={setConfirmDel}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           </section>
         </div>
@@ -862,7 +854,7 @@ export default function WalletsPage() {
       <ConfirmModal
         open={!!confirmDel}
         title="Xóa ví"
-        message={confirmDel ? `Xóa ví "${confirmDel.name}"?` : ""}
+        message={confirmDel ? `Xóa ví "${confirmDel.walletName}"?` : ""}
         okText="Xóa"
         cancelText="Hủy"
         onOk={() => doDelete(confirmDel)}

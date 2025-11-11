@@ -8,11 +8,11 @@ export default function WalletEditModal({
   existingNames = [],
 }) {
   const [form, setForm] = useState({
-    name: "",
-    currency: "VND",
-    balance: "",
-    note: "",
-    isDefault: false,
+    walletName: "",
+    currencyCode: "VND",
+    initialBalance: "",
+    description: "",
+    setAsDefault: false,
   });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -22,7 +22,7 @@ export default function WalletEditModal({
       new Set(
         (existingNames || [])
           .map((s) => s.toLowerCase().trim())
-          .filter((n) => n !== (wallet?.name || "").toLowerCase().trim())
+          .filter((n) => n !== (wallet?.walletName || "").toLowerCase().trim())
       ),
     [existingNames, wallet]
   );
@@ -30,39 +30,41 @@ export default function WalletEditModal({
   useEffect(() => {
     if (!wallet) return;
     setForm({
-      name: wallet.name || "",
-      currency: wallet.currency || "VND",
-      balance:
-        wallet.balance === 0 || wallet.balance ? String(wallet.balance) : "",
-      note: wallet.note || "",
-      isDefault: !!wallet.isDefault,
+      walletName: wallet.walletName || "",
+      currencyCode: wallet.currencyCode || "VND",
+      initialBalance:
+        wallet.initialBalance === 0 || wallet.initialBalance
+          ? String(wallet.initialBalance)
+          : "",
+      description: wallet.description || "",
+      setAsDefault: !!wallet.setAsDefault,
     });
   }, [wallet]);
 
   function validate(values = form) {
     const e = {};
-    const name = (values.name || "").trim();
-    if (!name) e.name = "Vui lòng nhập tên ví";
-    else if (name.length < 2) e.name = "Tên ví phải từ 2 ký tự";
-    else if (name.length > 40) e.name = "Tên ví tối đa 40 ký tự";
-    else if (exists.has(name.toLowerCase())) e.name = "Tên ví đã tồn tại";
+    const name = (values.walletName || "").trim();
+    if (!name) e.walletName = "Vui lòng nhập tên ví";
+    else if (name.length < 2) e.walletName = "Tên ví phải từ 2 ký tự";
+    else if (name.length > 40) e.walletName = "Tên ví tối đa 40 ký tự";
+    else if (exists.has(name.toLowerCase())) e.walletName = "Tên ví đã tồn tại";
 
-    if (!values.currency) e.currency = "Vui lòng chọn loại tiền tệ";
-    else if (!currencies.includes(values.currency))
-      e.currency = "Loại tiền tệ không hợp lệ";
+    if (!values.currencyCode) e.currencyCode = "Vui lòng chọn loại tiền tệ";
+    else if (!currencies.includes(values.currencyCode))
+      e.currencyCode = "Loại tiền tệ không hợp lệ";
 
-    if (values.balance === "" || values.balance === null)
-      e.balance = "Vui lòng nhập số dư";
+    if (values.initialBalance === "" || values.initialBalance === null)
+      e.initialBalance = "Vui lòng nhập số dư";
     else {
-      const bn = Number(values.balance);
-      if (!isFinite(bn)) e.balance = "Số dư không hợp lệ";
-      else if (bn < 0) e.balance = "Số dư phải ≥ 0";
-      else if (String(values.balance).includes("."))
-        e.balance = "Số dư chỉ nhận số nguyên";
+      const bn = Number(values.initialBalance);
+      if (!isFinite(bn)) e.initialBalance = "Số dư không hợp lệ";
+      else if (bn < 0) e.initialBalance = "Số dư phải ≥ 0";
+      else if (String(values.initialBalance).includes("."))
+        e.initialBalance = "Số dư chỉ nhận số nguyên";
     }
 
-    if ((values.note || "").length > 200)
-      e.note = "Mô tả tối đa 200 ký tự";
+    if ((values.description || "").length > 200)
+      e.description = "Mô tả tối đa 200 ký tự";
     return e;
   }
 
@@ -73,20 +75,20 @@ export default function WalletEditModal({
     const v = validate();
     setErrors(v);
     setTouched({
-      name: true,
-      currency: true,
-      balance: true,
-      note: true,
+      walletName: true,
+      currencyCode: true,
+      initialBalance: true,
+      description: true,
     });
     if (Object.keys(v).length > 0) return;
 
     onSubmit({
       id: wallet.id,
-      name: form.name.trim(),
-      currency: form.currency,
-      balance: Number(form.balance),
-      note: form.note?.trim() || "",
-      isDefault: !!form.isDefault,
+      walletName: form.walletName.trim(),
+      currencyCode: form.currencyCode,
+      initialBalance: Number(form.initialBalance),
+      description: form.description?.trim() || "",
+      setAsDefault: !!form.setAsDefault,
       createdAt: wallet.createdAt,
     });
   }
@@ -101,9 +103,7 @@ export default function WalletEditModal({
 
   const createdAt =
     wallet.createdAt &&
-    new Date(wallet.createdAt).toLocaleString("vi-VN", {
-      hour12: false,
-    });
+    new Date(wallet.createdAt).toLocaleString("vi-VN", { hour12: false });
 
   return (
     <>
@@ -204,14 +204,16 @@ export default function WalletEditModal({
                 Tên ví<span className="req">*</span>
               </label>
               <input
-                className={`fm-input ${touched.name && errors.name ? "is-invalid" : ""}`}
-                value={form.name}
-                onBlur={() => setTouched((t) => ({ ...t, name: true }))}
-                onChange={(e) => setField("name", e.target.value)}
+                className={`fm-input ${touched.walletName && errors.walletName ? "is-invalid" : ""}`}
+                value={form.walletName}
+                onBlur={() => setTouched((t) => ({ ...t, walletName: true }))}
+                onChange={(e) => setField("walletName", e.target.value)}
                 placeholder="Ví tiền mặt, Ngân hàng ACB…"
                 maxLength={40}
               />
-              {touched.name && errors.name && <div className="fm-feedback">{errors.name}</div>}
+              {touched.walletName && errors.walletName && (
+                <div className="fm-feedback">{errors.walletName}</div>
+              )}
             </div>
 
             {/* Loại tiền & Số dư */}
@@ -221,17 +223,17 @@ export default function WalletEditModal({
                   Loại tiền tệ<span className="req">*</span>
                 </label>
                 <select
-                  className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
-                  value={form.currency}
-                  onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
-                  onChange={(e) => setField("currency", e.target.value)}
+                  className={`fm-select ${touched.currencyCode && errors.currencyCode ? "is-invalid" : ""}`}
+                  value={form.currencyCode}
+                  onBlur={() => setTouched((t) => ({ ...t, currencyCode: true }))}
+                  onChange={(e) => setField("currencyCode", e.target.value)}
                 >
                   {currencies.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-                {touched.currency && errors.currency && (
-                  <div className="fm-feedback">{errors.currency}</div>
+                {touched.currencyCode && errors.currencyCode && (
+                  <div className="fm-feedback">{errors.currencyCode}</div>
                 )}
               </div>
 
@@ -241,17 +243,17 @@ export default function WalletEditModal({
                 </label>
                 <input
                   type="number"
-                  className={`fm-input ${touched.balance && errors.balance ? "is-invalid" : ""}`}
-                  value={form.balance}
-                  onBlur={() => setTouched((t) => ({ ...t, balance: true }))}
-                  onChange={(e) => setField("balance", e.target.value)}
+                  className={`fm-input ${touched.initialBalance && errors.initialBalance ? "is-invalid" : ""}`}
+                  value={form.initialBalance}
+                  onBlur={() => setTouched((t) => ({ ...t, initialBalance: true }))}
+                  onChange={(e) => setField("initialBalance", e.target.value)}
                   onKeyDown={(e) => {
                     if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
                   }}
                   placeholder="0"
                 />
-                {touched.balance && errors.balance && (
-                  <div className="fm-feedback">{errors.balance}</div>
+                {touched.initialBalance && errors.initialBalance && (
+                  <div className="fm-feedback">{errors.initialBalance}</div>
                 )}
                 <div className="fm-hint">Chỉ nhận số nguyên ≥ 0</div>
               </div>
@@ -261,16 +263,16 @@ export default function WalletEditModal({
             <div className="fm-row">
               <label className="fm-label">Mô tả (tùy chọn)</label>
               <textarea
-                className={`fm-textarea ${touched.note && errors.note ? "is-invalid" : ""}`}
+                className={`fm-textarea ${touched.description && errors.description ? "is-invalid" : ""}`}
                 rows="2"
-                value={form.note}
-                onBlur={() => setTouched((t) => ({ ...t, note: true }))}
-                onChange={(e) => setField("note", e.target.value)}
+                value={form.description}
+                onBlur={() => setTouched((t) => ({ ...t, description: true }))}
+                onChange={(e) => setField("description", e.target.value)}
                 maxLength={200}
                 placeholder="Ghi chú cho ví này (tối đa 200 ký tự)"
               />
-              {touched.note && errors.note && (
-                <div className="fm-feedback">{errors.note}</div>
+              {touched.description && errors.description && (
+                <div className="fm-feedback">{errors.description}</div>
               )}
             </div>
 
@@ -280,8 +282,8 @@ export default function WalletEditModal({
                 id="editDefaultWallet"
                 className="fm-check__input"
                 type="checkbox"
-                checked={form.isDefault}
-                onChange={(e) => setField("isDefault", e.target.checked)}
+                checked={form.setAsDefault}
+                onChange={(e) => setField("setAsDefault", e.target.checked)}
               />
               <label htmlFor="editDefaultWallet">Đặt làm ví mặc định</label>
             </div>
