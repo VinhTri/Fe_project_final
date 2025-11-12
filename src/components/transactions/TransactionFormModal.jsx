@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { DataStore } from "../../store/DataStore";
 
 const EMPTY_FORM = {
   type: "expense",
@@ -12,17 +13,6 @@ const EMPTY_FORM = {
   sourceWallet: "",
   targetWallet: "",
 };
-
-const CATEGORIES = [
-  "Ăn uống",
-  "Di chuyển",
-  "Quà tặng",
-  "Giải trí",
-  "Hóa đơn",
-  "Khác",
-];
-
-const WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng A", "Ngân hàng B"];
 
 // Input + datalist: gõ để search, chọn được option
 function AutocompleteInput({
@@ -62,9 +52,46 @@ export default function TransactionFormModal({
   onClose,
   // "external" = giao dịch ngoài, "internal" = chuyển tiền giữa các ví
   variant = "external",
+  // ===== NEW: nhận dữ liệu động từ ngoài, fallback DataStore nếu không truyền =====
+  wallets: walletsProp,
+  categories: categoriesProp, // dạng { expense: [], income: [] } mỗi phần tử {id,name,...} hoặc string name
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
+
+  // ===== Lấy dữ liệu Ví & Danh mục =====
+  const walletsList = useMemo(() => {
+    const raw =
+      walletsProp && Array.isArray(walletsProp) && walletsProp.length
+        ? walletsProp
+        : DataStore.getWallets() || [];
+    // Chuẩn hóa về array tên ví (string)
+    return raw
+      .map((w) => (typeof w === "string" ? w : w?.name))
+      .filter(Boolean);
+  }, [walletsProp]);
+
+  const expenseCategories = useMemo(() => {
+    const raw =
+      categoriesProp?.expense?.length
+        ? categoriesProp.expense
+        : DataStore.getExpenseCategories() || [];
+    return raw
+      .map((c) => (typeof c === "string" ? c : c?.name))
+      .filter(Boolean);
+  }, [categoriesProp]);
+
+  const incomeCategories = useMemo(() => {
+    const raw =
+      categoriesProp?.income?.length
+        ? categoriesProp.income
+        : DataStore.getIncomeCategories() || [];
+    return raw
+      .map((c) => (typeof c === "string" ? c : c?.name))
+      .filter(Boolean);
+  }, [categoriesProp]);
+
+  const categoryOptions = form.type === "income" ? incomeCategories : expenseCategories;
 
   useEffect(() => {
     if (!open) return;
@@ -130,11 +157,28 @@ export default function TransactionFormModal({
         });
         setAttachmentPreview(initialData.attachment || "");
       } else {
-        setForm({ ...EMPTY_FORM, date: now });
+        // Gợi ý category mặc định theo tab (chi tiêu)
+        const defaultCat =
+          (form.type === "income" ? incomeCategories[0] : expenseCategories[0]) ||
+          "Ăn uống";
+        setForm({ ...EMPTY_FORM, date: now, category: defaultCat });
         setAttachmentPreview("");
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode, initialData, variant]);
+
+  // Đổi loại giao dịch (thu/chi) thì đồng bộ options danh mục (không đổi UI)
+  useEffect(() => {
+    if (variant !== "external") return;
+    // nếu category hiện tại không thuộc list mới -> set về phần tử đầu
+    const list = categoryOptions;
+    if (!list?.length) return;
+    if (!list.includes(form.category)) {
+      setForm((f) => ({ ...f, category: list[0] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.type, expenseCategories, incomeCategories, variant]);
 
   const overlayStyle = {
     position: "fixed",
@@ -167,6 +211,9 @@ export default function TransactionFormModal({
     e.preventDefault();
 
     if (variant === "internal") {
+      if (!form.sourceWallet || !form.targetWallet) return;
+      if (form.sourceWallet === form.targetWallet) return; // chặn chọn cùng một ví
+
       const payload = {
         sourceWallet: form.sourceWallet,
         targetWallet: form.targetWallet,
@@ -178,6 +225,9 @@ export default function TransactionFormModal({
       };
       onSubmit?.(payload);
     } else {
+      if (!form.walletName) return;
+      if (!form.category) return;
+
       const payload = {
         ...form,
         amount: Number(form.amount || 0),
@@ -264,7 +314,7 @@ export default function TransactionFormModal({
                           setForm((f) => ({ ...f, walletName: v }))
                         }
                         placeholder="Chọn ví hoặc gõ để tìm..."
-                        options={WALLETS}
+                        options={walletsList}
                         required
                       />
                     </div>
@@ -312,7 +362,7 @@ export default function TransactionFormModal({
                           setForm((f) => ({ ...f, category: v }))
                         }
                         placeholder="Chọn danh mục hoặc gõ để tìm..."
-                        options={CATEGORIES}
+                        options={categoryOptions}
                         required
                       />
                     </div>
@@ -380,7 +430,7 @@ export default function TransactionFormModal({
                         setForm((f) => ({ ...f, sourceWallet: v }))
                       }
                       placeholder="Chọn ví gửi..."
-                      options={WALLETS}
+                      options={walletsList}
                       required
                     />
                   </div>
@@ -394,7 +444,7 @@ export default function TransactionFormModal({
                         setForm((f) => ({ ...f, targetWallet: v }))
                       }
                       placeholder="Chọn ví nhận..."
-                      options={WALLETS}
+                      options={walletsList}
                       required
                     />
                   </div>

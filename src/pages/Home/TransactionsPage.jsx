@@ -4,6 +4,7 @@ import TransactionViewModal from "../../components/transactions/TransactionViewM
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
+import { DataStore } from "../../store/DataStore";
 
 // ===== GIAO DỊCH NGOÀI – 20 dữ liệu mẫu =====
 const MOCK_TRANSACTIONS = [
@@ -589,6 +590,24 @@ export default function TransactionsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
 
+  // ====== ĐỌC VÍ & DANH MỤC TỪ DataStore ĐỂ FORM DÙNG ======
+  const walletsFromStore = useMemo(() => DataStore.getWallets() || [], []);
+  const expenseCatsFromStore = useMemo(
+    () => DataStore.getExpenseCategories() || [],
+    []
+  );
+  const incomeCatsFromStore = useMemo(
+    () => DataStore.getIncomeCategories() || [],
+    []
+  );
+  const categoriesFromStore = useMemo(
+    () => ({
+      expense: expenseCatsFromStore,
+      income: incomeCatsFromStore,
+    }),
+    [expenseCatsFromStore, incomeCatsFromStore]
+  );
+
   const nextCode = () => {
     const all = [...externalTransactions, ...internalTransactions];
     const max = all.reduce((m, t) => {
@@ -895,7 +914,6 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-
       {/* Filters */}
       <div className="tx-filters card border-0 mb-3">
         <div className="card-body d-flex flex-column gap-2">
@@ -1197,14 +1215,19 @@ export default function TransactionsPage() {
         onClose={() => setViewing(null)}
       />
 
+      {/* Form tạo mới */}
       <TransactionFormModal
         open={creating}
         mode="create"
         variant={activeTab === TABS.EXTERNAL ? "external" : "internal"}
         onSubmit={handleCreate}
         onClose={() => setCreating(false)}
+        /* TRUYỀN DỮ LIỆU TỪ LOCALSTORAGE */
+        wallets={walletsFromStore}
+        categories={categoriesFromStore}
       />
 
+      {/* Form chỉnh sửa */}
       <TransactionFormModal
         open={!!editing}
         mode="edit"
@@ -1212,6 +1235,9 @@ export default function TransactionsPage() {
         initialData={editing}
         onSubmit={handleUpdate}
         onClose={() => setEditing(null)}
+        /* TRUYỀN DỮ LIỆU TỪ LOCALSTORAGE */
+        wallets={walletsFromStore}
+        categories={categoriesFromStore}
       />
 
       <ConfirmModal

@@ -14,6 +14,7 @@ import WalletInspector from "../../components/wallets/WalletInspector";
 import useToggleMask from "../../hooks/useToggleMask";
 
 import "../../styles/home/WalletsPage.css";
+import { DataStore } from "../../store/DataStore";
 
 const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
 
@@ -73,6 +74,29 @@ const formatMoney = (amount = 0, currency = "VND") => {
 
 export default function WalletsPage() {
   const { wallets, createWallet, updateWallet, deleteWallet } = useWalletData();
+
+  // ====== [SYNC] Ghi đồng bộ ví sang localStorage để trang khác đọc được ======
+  useEffect(() => {
+    try {
+      // Chỉ giữ các trường cần dùng ở trang khác (an toàn khi serialize)
+      const serializable = (wallets || []).map((w) => ({
+        id: w.id,
+        name: w.name,
+        currency: w.currency,
+        balance: Number(w.balance || 0),
+        isShared: !!w.isShared,
+        isDefault: !!w.isDefault,
+        includeOverall: w.includeOverall !== false,
+        includePersonal: w.includePersonal !== false,
+        includeGroup: w.includeGroup !== false,
+        groupId: w.groupId ?? null,
+        createdAt: w.createdAt ?? null,
+      }));
+      DataStore.setWallets(serializable);
+    } catch (_) {
+      // noop
+    }
+  }, [wallets]);
 
   // ====== “mắt” tổng ======
   const [showTotalAll, toggleTotalAll] = useToggleMask(true);
