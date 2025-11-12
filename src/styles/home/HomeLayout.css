@@ -191,3 +191,30 @@
 /* ======================== DỌN DẸP MAIN-HEADER CŨ ======================== */
 .home__main-header { display: none; }
 .home__main-header .tb__wrap { display: none; }
+/* 1) Cho topbar không cắt con (để dropdown tràn ra) */
+.home__topbar {
+  overflow: visible !important;   /* thay vì overflow: hidden */
+  z-index: 500;                   /* cao hơn mọi phần main */
+}
+
+/* 2) Đảm bảo wrap là mốc định vị và nổi trên overlay glass */
+.home__topbar .tb__wrap {
+  position: relative;
+  z-index: 600;                   /* cao hơn .home__topbar */
+}
+
+/* 3) Panel dropdown nổi hẳn lên trên */
+.dd__panel {
+  position: absolute;             /* bạn đã dùng absolute rồi */
+  top: calc(100% + 8px);          /* bung ngay dưới topbar */
+  right: 0;
+  z-index: 9999;                  /* cao nhất trang */
+}
+
+/* 4) Nội dung main luôn nằm dưới dropdown */
+.home__content,
+.home__main,
+main {
+  position: relative;
+  z-index: 1;
+}

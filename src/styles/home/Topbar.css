@@ -349,3 +349,14 @@
 .tb__search-btn:active {
   transform: translateY(-50%) scale(0.97);
 }
+/* Đặt ở CUỐI file CSS của bạn */
+.tb__wrap{
+  position: relative;      /* giúp z-index hoạt động */
+  isolation: isolate;      /* tách hiệu ứng glass nếu có overlay */
+  z-index: 3;              /* đè lên overlay nền */
+  background:  rgb(45, 153, 174) !important;
+  /* Nếu muốn giữ glass mờ, dùng bản này thay cho dòng trên:
+     background: linear-gradient(90deg, rgba(108,126,225,.65), rgba(143,155,238,.65)) !important;
+  */
+  border-color: rgba(255,255,255,0.25) !important;
+}
