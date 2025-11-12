@@ -1,23 +1,18 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { transactionService } from "../../services/transactionService";
+import Loading from "../../components/common/Loading";
 import "../../styles/home/DashboardPage.css";
 
 
 /**
- * Dashboard tổng quan tài chính – dùng dữ liệu ảo, đổi theo:
- *  - Tuần này
- *  - Tháng này
- *  - Năm nay
- *
- * =================== NƠI GẮN API SAU NÀY ===================
- * TODO: Khi có backend, thay các object mock*ByPeriod bằng
- *       dữ liệu thật lấy từ API.
- *  Ví dụ:
- *    useEffect(() => {
- *      fetch(`/api/dashboard?period=${period}`)
- *        .then(res => res.json())
- *        .then(setData);
- *    }, [period]);
- * ===========================================================
+ * Dashboard tổng quan tài chính – Kết nối với backend API
+ * 
+ * ⚠️ BACKEND API CẦN CÓ:
+ * - GET /transactions/statistics?period=week|month|year
+ * - GET /dashboard/summary?period=week|month|year
+ * 
+ * Nếu backend chưa có API statistics riêng, sẽ dùng mock data
+ * và có thể tính toán từ transactions list.
  */
 
 // Loại giao dịch theo kỳ
@@ -227,12 +222,49 @@ const spendingLevelTagLabel = {
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState("tuan");
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [statisticsData, setStatisticsData] = useState(null);
 
-  const currentTransactionType = transactionTypeByPeriod[period];
-  const currentSpendingTrend = spendingTrendByPeriod[period];
-  const currentSpendingLevel = spendingLevelByPeriod[period];
-  const currentBalance = balanceByPeriod[period];
-  const currentHistory = historyByPeriod[period];
+  // ✅ TRY TO LOAD STATISTICS FROM API
+  const loadStatistics = async () => {
+    try {
+      setLoading(true);
+      setApiError("");
+      
+      // Map period to backend format
+      const periodMap = {
+        tuan: "week",
+        thang: "month", 
+        nam: "year"
+      };
+      
+      const response = await transactionService.getStatistics({
+        period: periodMap[period]
+      });
+      
+      setStatisticsData(response.statistics);
+    } catch (error) {
+      console.warn("⚠️ Backend statistics API not available, using mock data");
+      setApiError(error.response?.data?.error || "");
+      // Fallback to mock data (không throw error)
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load when period changes
+  useEffect(() => {
+    loadStatistics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
+
+  // ✅ USE API DATA IF AVAILABLE, FALLBACK TO MOCK
+  const currentTransactionType = statisticsData?.transactionType || transactionTypeByPeriod[period];
+  const currentSpendingTrend = statisticsData?.spendingTrend || spendingTrendByPeriod[period];
+  const currentSpendingLevel = statisticsData?.spendingLevel || spendingLevelByPeriod[period];
+  const currentBalance = statisticsData?.balance || balanceByPeriod[period];
+  const currentHistory = statisticsData?.recentTransactions || historyByPeriod[period];
 
   const totalSpending = useMemo(
     () => currentSpendingTrend.reduce((sum, item) => sum + item.value, 0),

@@ -11,12 +11,36 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
     }
   }, []);
 
-  const fmtMoney = (n, c = "VND") =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: c,
-      maximumFractionDigits: c === "VND" ? 0 : 2,
-    }).format(Number(n || 0));
+  const fmtMoney = (n, c = "VND") => {
+    try {
+      // ✅ FIX: Dùng locale phù hợp với từng loại tiền
+      let locale = "vi-VN";
+      
+      if (["USD", "GBP", "AUD", "CAD", "SGD"].includes(c)) {
+        locale = "en-US"; // 1,234.56
+      } else if (["EUR"].includes(c)) {
+        locale = "de-DE"; // 1.234,56
+      } else if (["JPY", "KRW"].includes(c)) {
+        locale = "ja-JP";
+      }
+      
+      const formatted = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: c,
+        maximumFractionDigits: ["VND", "JPY", "KRW"].includes(c) ? 0 : 2,
+        minimumFractionDigits: ["VND", "JPY", "KRW"].includes(c) ? 0 : 2,
+      }).format(Number(n || 0));
+      
+      // VND: replace ₫ với VND
+      if (c === "VND") {
+        return formatted.replace(/\s?₫/, " VND");
+      }
+      
+      return formatted;
+    } catch (error) {
+      return `${(Number(n) || 0).toLocaleString()} ${c}`;
+    }
+  };
 
   const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "");
 

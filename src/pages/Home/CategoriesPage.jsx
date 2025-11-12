@@ -1,37 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { categoryService } from "../../services/categoryService";
+import Loading from "../../components/common/Loading";
 import "../../styles/home/CategoriesPage.css";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
 
-// 5 danh mục mẫu – Chi phí
-const INITIAL_EXPENSE_CATEGORIES = [
-  { id: 1, name: "Ăn uống", description: "Cơm, nước, cafe, đồ ăn vặt" },
-  { id: 2, name: "Di chuyển", description: "Xăng xe, gửi xe, phương tiện công cộng" },
-  { id: 3, name: "Mua sắm", description: "Quần áo, giày dép, đồ dùng cá nhân" },
-  { id: 4, name: "Hóa đơn", description: "Điện, nước, internet, điện thoại" },
-  { id: 5, name: "Giải trí", description: "Xem phim, game, du lịch, hội họp bạn bè" },
-];
-
-// 5 danh mục mẫu – Thu nhập
-const INITIAL_INCOME_CATEGORIES = [
-  { id: 101, name: "Lương", description: "Lương chính hàng tháng" },
-  { id: 102, name: "Thưởng", description: "Thưởng dự án, thưởng KPI" },
-  { id: 103, name: "Bán hàng", description: "Bán đồ cũ, bán online" },
-  { id: 104, name: "Lãi tiết kiệm", description: "Lãi ngân hàng, lãi đầu tư an toàn" },
-  { id: 105, name: "Khác", description: "Các khoản thu nhập khác" },
-];
-
 export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
-  const [expenseCategories, setExpenseCategories] = useState(
-    INITIAL_EXPENSE_CATEGORIES
-  );
-  const [incomeCategories, setIncomeCategories] = useState(
-    INITIAL_INCOME_CATEGORIES
-  );
+  
+  // ✅ REPLACE MOCK DATA WITH API STATE
+  const [expenseCategories, setExpenseCategories] = useState([]);
+  const [incomeCategories, setIncomeCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
+  
   const [nameInput, setNameInput] = useState("");
   const [descInput, setDescInput] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "" });
+
+  // ✅ LOAD CATEGORIES FROM API
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      setApiError("");
+      
+      // Load both expense and income categories
+      const [expenseRes, incomeRes] = await Promise.all([
+        categoryService.getCategoriesByType("expense"),
+        categoryService.getCategoriesByType("income")
+      ]);
+
+      setExpenseCategories(expenseRes.categories || []);
+      setIncomeCategories(incomeRes.categories || []);
+    } catch (error) {
+      console.error("❌ Error loading categories:", error);
+      setApiError(error.response?.data?.error || "Không thể tải danh sách danh mục");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load categories on mount and when tab changes
+  useEffect(() => {
+    loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentList =
     activeTab === "expense" ? expenseCategories : incomeCategories;
@@ -42,37 +55,40 @@ export default function CategoriesPage() {
     setEditingId(null);
   };
 
-  const handleAddOrUpdate = (e) => {
+  const handleAddOrUpdate = async (e) => {
     e.preventDefault();
     if (!nameInput.trim()) return;
 
-    const data = {
-      id: editingId || Date.now(),
-      name: nameInput.trim(),
-      description: descInput.trim(),
-    };
+    try {
+      if (editingId) {
+        // ✅ UPDATE CATEGORY
+        await categoryService.updateCategory(editingId, {
+          name: nameInput.trim(),
+          description: descInput.trim(),
+        });
+        
+        setToast({ open: true, message: "Đã cập nhật danh mục." });
+      } else {
+        // ✅ CREATE CATEGORY
+        await categoryService.createCategory({
+          name: nameInput.trim(),
+          type: activeTab, // "expense" hoặc "income"
+          description: descInput.trim(),
+        });
+        
+        setToast({ open: true, message: "Đã thêm danh mục mới." });
+      }
 
-    if (activeTab === "expense") {
-      setExpenseCategories((list) => {
-        if (editingId) {
-          return list.map((c) => (c.id === editingId ? data : c));
-        }
-        return [...list, data];
-      });
-    } else {
-      setIncomeCategories((list) => {
-        if (editingId) {
-          return list.map((c) => (c.id === editingId ? data : c));
-        }
-        return [...list, data];
+      resetForm();
+      // Reload categories from backend
+      await loadCategories();
+    } catch (error) {
+      console.error("❌ Error saving category:", error);
+      setToast({ 
+        open: true, 
+        message: error.response?.data?.error || "Không thể lưu danh mục" 
       });
     }
-
-    setToast({
-      open: true,
-      message: editingId ? "Đã cập nhật danh mục." : "Đã thêm danh mục mới.",
-    });
-    resetForm();
   };
 
   const handleEdit = (cat) => {
@@ -81,18 +97,52 @@ export default function CategoriesPage() {
     setDescInput(cat.description || "");
   };
 
-  const handleDelete = (cat) => {
+  const handleDelete = async (cat) => {
     if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
 
-    if (activeTab === "expense") {
-      setExpenseCategories((list) => list.filter((c) => c.id !== cat.id));
-    } else {
-      setIncomeCategories((list) => list.filter((c) => c.id !== cat.id));
+    try {
+      await categoryService.deleteCategory(cat.id);
+      
+      setToast({ open: true, message: "Đã xóa danh mục." });
+      if (editingId === cat.id) resetForm();
+      
+      // Reload categories from backend
+      await loadCategories();
+    } catch (error) {
+      console.error("❌ Error deleting category:", error);
+      setToast({ 
+        open: true, 
+        message: error.response?.data?.error || "Không thể xóa danh mục" 
+      });
     }
-
-    setToast({ open: true, message: "Đã xóa danh mục." });
-    if (editingId === cat.id) resetForm();
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="cat-page container py-4">
+        <Loading />
+      </div>
+    );
+  }
+
+  // Show error if API failed
+  if (apiError) {
+    return (
+      <div className="cat-page container py-4">
+        <div className="alert alert-danger">
+          <i className="bi bi-exclamation-triangle me-2"></i>
+          {apiError}
+          <button 
+            className="btn btn-sm btn-outline-danger ms-3"
+            onClick={loadCategories}
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="cat-page container py-4">

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const API_URL = "http://localhost:8080/auth";
+import { profileService } from "../../services/profileService";
 
 function getQueryParam(name) {
   const url = new URL(window.location.href);
@@ -15,7 +14,7 @@ export default function OAuthCallback() {
   useEffect(() => {
     (async () => {
       try {
-        // 1) Trường hợp BE trả token qua URL: ?token=xxx
+        // ✅ Backend trả token qua URL: ?token=xxx
         const token = getQueryParam("token");
         const error = getQueryParam("error");
 
@@ -26,43 +25,28 @@ export default function OAuthCallback() {
         }
 
         if (token) {
-          // Lưu token -> lấy thông tin user
+          // ✅ Lưu token
           localStorage.setItem("accessToken", token);
 
+          // ✅ Lấy thông tin user từ backend
           try {
-            const meRes = await fetch(`${API_URL}/me`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (meRes.ok) {
-              const me = await meRes.json();
-              localStorage.setItem("user", JSON.stringify(me));
-            }
-          } catch (_) { /* bỏ qua lỗi, vẫn cho vào hệ thống vì đã có token */ }
+            const profileData = await profileService.getProfile();
+            // profileService đã tự động lưu user vào localStorage
+            console.log("✅ Google OAuth success:", profileData);
+          } catch (err) {
+            console.warn("⚠️ Couldn't fetch profile, but token is valid");
+          }
 
           setMessage("Đăng nhập Google thành công! Đang chuyển hướng...");
           setTimeout(() => navigate("/home", { replace: true }), 800);
           return;
         }
 
-        // 2) Trường hợp BE dùng cookie HttpOnly (không trả token trên URL)
-        // -> Gọi /auth/me với credentials: 'include' để gửi cookie
-        const meRes = await fetch(`${API_URL}/me`, {
-          method: "GET",
-          credentials: "include",            // QUAN TRỌNG: gửi cookie cùng request
-        });
-
-        if (meRes.ok) {
-          const me = await meRes.json();
-          localStorage.setItem("user", JSON.stringify(me));
-          // Nếu BE còn trả kèm accessToken trong body thì bạn có thể lưu thêm:
-          // localStorage.setItem("accessToken", me.accessToken);
-          setMessage("Đăng nhập Google thành công! Đang chuyển hướng...");
-          setTimeout(() => navigate("/home", { replace: true }), 800);
-        } else {
-          setMessage("Không tìm thấy phiên đăng nhập. Vui lòng thử lại.");
-          setTimeout(() => navigate("/login", { replace: true }), 1200);
-        }
+        // ⚠️ Không có token trong URL
+        setMessage("Không tìm thấy token. Vui lòng thử lại.");
+        setTimeout(() => navigate("/login", { replace: true }), 1200);
       } catch (e) {
+        console.error("❌ OAuth callback error:", e);
         setMessage("Có lỗi khi xác thực. Vui lòng thử lại.");
         setTimeout(() => navigate("/login", { replace: true }), 1200);
       }

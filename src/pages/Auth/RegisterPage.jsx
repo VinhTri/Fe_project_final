@@ -1,12 +1,11 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authService } from "../../services/authService";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
 import "../../styles/AuthForms.css";
 import ReCAPTCHA from "react-google-recaptcha";
-
-const API_URL = "http://localhost:8080/auth";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -77,39 +76,35 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: form.fullName,
-          email: form.email,
-          password: form.password,
-          confirmPassword: form.confirmPassword,
-          recaptchaToken: captchaValue,
-        }),
+      // ✅ USE authService
+      const response = await authService.register({
+        fullName: form.fullName,
+        email: form.email,
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+        recaptchaToken: captchaValue,
       });
 
-      const data = await response.json();
+      setSuccessMsg(response.message || "Đã gửi mã xác minh đến email!");
+      setOtp(Array(OTP_LENGTH).fill(""));
 
-      if (response.ok && data.message) {
-        setSuccessMsg(data.message);
-        setOtp(Array(OTP_LENGTH).fill(""));
+      setCaptchaValue(null);
+      captchaRef.current?.reset();
 
-        setCaptchaValue(null);
-        captchaRef.current?.reset();
-
-        setTimeout(() => {
-          setError("");
-          setSuccessMsg("");
-          setStep(2);
-          otpRefs.current[0]?.focus();
-        }, 1200);
-      } else {
-        setError(data.error || "Đã xảy ra lỗi, vui lòng thử lại.");
-        if (data.error?.includes("Email đã được sử dụng")) setShowExists(true);
-      }
+      setTimeout(() => {
+        setError("");
+        setSuccessMsg("");
+        setStep(2);
+        otpRefs.current[0]?.focus();
+      }, 1200);
     } catch (err) {
-      setError("Lỗi kết nối đến máy chủ. Kiểm tra backend và secret key.");
+      console.error("❌ Register error:", err);
+      const errorMsg = err.response?.data?.error || "Đã xảy ra lỗi, vui lòng thử lại.";
+      setError(errorMsg);
+      
+      if (errorMsg.includes("Email đã được sử dụng")) {
+        setShowExists(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -154,21 +149,19 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, code }),
+      // ✅ USE authService
+      const response = await authService.verify({
+        email: form.email,
+        code: code,
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.message?.includes("Xác minh thành công")) {
-        setShowSuccess(true);
-      } else {
-        setError(data.error || "Lỗi xác minh mã.");
-      }
-    } catch {
-      setError("Lỗi kết nối đến máy chủ khi xác minh mã.");
+      // authService already saves tokens to localStorage
+      console.log("✅ Xác minh thành công:", response);
+      setShowSuccess(true);
+    } catch (err) {
+      console.error("❌ Verify error:", err);
+      const errorMsg = err.response?.data?.error || "Lỗi xác minh mã.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -180,21 +173,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccessMsg("Đã gửi lại mã xác minh mới vào email!");
-      } else {
-        setError(data.error || "Lỗi gửi lại mã xác minh.");
-      }
-    } catch {
-      setError("Không thể gửi lại mã. Vui lòng thử sau.");
+      // ✅ USE authService
+      const response = await authService.forgotPassword(form.email);
+      setSuccessMsg(response.message || "Đã gửi lại mã xác minh mới vào email!");
+    } catch (err) {
+      console.error("❌ Resend error:", err);
+      const errorMsg = err.response?.data?.error || "Lỗi gửi lại mã xác minh.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

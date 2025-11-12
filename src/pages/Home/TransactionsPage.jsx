@@ -1,11 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { transactionService } from "../../services/transactionService";
+import { walletService } from "../../services/walletService";
+import { formatMoney } from "../../utils/formatMoney";
+import Loading from "../../components/common/Loading";
 import "../../styles/home/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
 
-// ===== GIAO DỊCH NGOÀI – 20 dữ liệu mẫu =====
+// ===== REMOVED MOCK DATA - NOW USING API =====
+/*
 const MOCK_TRANSACTIONS = [
   {
     id: 1,
@@ -552,6 +557,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     attachment: "",
   },
 ];
+*/
 
 const TABS = {
   EXTERNAL: "external",
@@ -567,11 +573,12 @@ function toDateObj(str) {
 }
 
 export default function TransactionsPage() {
-  const [externalTransactions, setExternalTransactions] =
-    useState(MOCK_TRANSACTIONS);
-  const [internalTransactions, setInternalTransactions] = useState(
-    MOCK_INTERNAL_TRANSFERS
-  );
+  // ✅ REPLACE MOCK DATA WITH API STATE
+  const [externalTransactions, setExternalTransactions] = useState([]);
+  const [internalTransactions, setInternalTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
+  
   const [activeTab, setActiveTab] = useState(TABS.EXTERNAL);
 
   const [searchText, setSearchText] = useState("");
@@ -589,15 +596,36 @@ export default function TransactionsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
 
-  const nextCode = () => {
-    const all = [...externalTransactions, ...internalTransactions];
-    const max = all.reduce((m, t) => {
-      const num = parseInt(String(t.code || "").replace(/\D/g, ""), 10);
-      return Number.isNaN(num) ? m : Math.max(m, num);
-    }, 0);
-    const n = max + 1;
-    return `TX-${String(n).padStart(4, "0")}`;
+  // ⚠️ BACKEND CHƯA CÓ API XEM DANH SÁCH GIAO DỊCH
+  // Tính năng TẠO giao dịch vẫn hoạt động bình thường
+  // Danh sách giao dịch sẽ hiển thị sau khi backend bổ sung API
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      setApiError("");
+      
+      // ⚠️ Backend API không có endpoint GET /transactions
+      // Chỉ có POST /transactions/expense và POST /transactions/income
+      console.warn("⚠️ Backend chưa có API để lấy danh sách giao dịch");
+      console.warn("📝 Hiện tại chỉ hỗ trợ TẠO giao dịch mới");
+      
+      // Set empty data với thông báo
+      setExternalTransactions([]);
+      setInternalTransactions([]);
+      setApiError(""); // Clear error vì đây không phải lỗi
+    } catch (error) {
+      console.error("❌ Error:", error);
+      setApiError(error.message || "Đã có lỗi xảy ra");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Load on mount
+  useEffect(() => {
+    loadTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleTabChange = (e) => {
     const value = e.target.value;
@@ -615,90 +643,161 @@ export default function TransactionsPage() {
     setCreating(false);
   };
 
-  const handleCreate = (payload) => {
-    if (activeTab === TABS.EXTERNAL) {
-      const tx = {
-        id: Date.now(),
-        code: nextCode(),
-        creatorCode: "USR001",
-        attachment: payload.attachment || "",
-        ...payload,
-      };
-      setExternalTransactions((list) => [tx, ...list]);
-    } else {
-      const tx = {
-        id: Date.now(),
-        code: nextCode(),
-        type: "transfer",
-        sourceWallet: payload.sourceWallet,
-        targetWallet: payload.targetWallet,
-        amount: payload.amount,
-        currency: payload.currency || "VND",
-        date: payload.date,
-        category: "Chuyển tiền giữa các ví",
-        note: payload.note || "",
-        creatorCode: "USR001",
-        attachment: payload.attachment || "",
-      };
-      setInternalTransactions((list) => [tx, ...list]);
-    }
+  const handleCreate = async (payload) => {
+    try {
+      let result;
+      
+      if (activeTab === TABS.EXTERNAL) {
+        // ✅ CREATE EXPENSE OR INCOME
+        if (payload.type === "expense") {
+          result = await transactionService.createExpense({
+            walletId: payload.walletId,
+            categoryId: payload.categoryId,
+            amount: payload.amount,
+            transactionDate: payload.date,
+            note: payload.note || "",
+            imageUrl: payload.attachment || "",
+          });
+        } else {
+          result = await transactionService.createIncome({
+            walletId: payload.walletId,
+            categoryId: payload.categoryId,
+            amount: payload.amount,
+            transactionDate: payload.date,
+            note: payload.note || "",
+            imageUrl: payload.attachment || "",
+          });
+        }
+        
+        // ✅ ADD TO LOCAL STATE (vì backend chưa có API để fetch)
+        if (result.transaction) {
+          const newTx = {
+            id: result.transaction.transactionId,
+            code: `TX-${String(result.transaction.transactionId).padStart(4, "0")}`,
+            type: payload.type,
+            walletName: result.transaction.wallet?.walletName || "N/A",
+            walletId: payload.walletId,
+            amount: payload.amount,
+            currency: result.transaction.wallet?.currencyCode || "VND",
+            date: payload.date,
+            category: result.transaction.category?.name || "Khác",
+            categoryId: payload.categoryId,
+            note: payload.note || "",
+            attachment: payload.attachment || "",
+          };
+          
+          setExternalTransactions(prev => [newTx, ...prev]);
+        }
+      } else {
+        // ✅ CREATE TRANSFER (using wallet transfer API)
+        result = await walletService.transferMoney({
+          fromWalletId: payload.fromWalletId,
+          toWalletId: payload.toWalletId,
+          amount: payload.amount,
+          categoryId: payload.categoryId,
+          note: payload.note || "",
+        });
+        
+        // ✅ ADD TO LOCAL STATE
+        if (result.transfer) {
+          const newTx = {
+            id: result.transfer.expenseTransactionId,
+            code: `TR-${String(result.transfer.expenseTransactionId).padStart(4, "0")}`,
+            type: "transfer",
+            sourceWallet: result.transfer.fromWalletName,
+            targetWallet: result.transfer.toWalletName,
+            fromWalletId: payload.fromWalletId,
+            toWalletId: payload.toWalletId,
+            amount: payload.amount,
+            currency: result.transfer.currencyCode,
+            date: result.transfer.transferredAt,
+            category: "Chuyển tiền giữa các ví",
+            categoryId: payload.categoryId,
+            note: payload.note || "",
+          };
+          
+          setInternalTransactions(prev => [newTx, ...prev]);
+        }
+      }
 
-    setCreating(false);
-    setToast({ open: true, message: "Đã thêm giao dịch mới." });
-    setCurrentPage(1);
+      setCreating(false);
+      setToast({ open: true, message: "✅ Đã tạo giao dịch mới thành công!" });
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("❌ Error creating transaction:", error);
+      setToast({ 
+        open: true, 
+        message: error.response?.data?.error || "Không thể tạo giao dịch" 
+      });
+    }
   };
 
-  const handleUpdate = (payload) => {
+  const handleUpdate = async (payload) => {
     if (!editing) return;
-    const isTransfer = !!editing.sourceWallet && !!editing.targetWallet;
+    
+    try {
+      // ✅ UPDATE TRANSACTION VIA API
+      const result = await transactionService.updateTransaction(editing.id, {
+        amount: payload.amount,
+        transactionDate: payload.date,
+        categoryId: payload.categoryId,
+        note: payload.note || "",
+        imageUrl: payload.attachment || "",
+      });
 
-    if (isTransfer) {
-      setInternalTransactions((list) =>
-        list.map((t) =>
-          t.id === editing.id
-            ? {
-                ...t,
-                sourceWallet: payload.sourceWallet,
-                targetWallet: payload.targetWallet,
-                amount: payload.amount,
-                date: payload.date,
-                note: payload.note || "",
-                currency: payload.currency || t.currency,
-                attachment: payload.attachment || t.attachment,
-              }
-            : t
-        )
-      );
-    } else {
-      setExternalTransactions((list) =>
-        list.map((t) =>
-          t.id === editing.id
-            ? { ...t, ...payload, attachment: payload.attachment || t.attachment }
-            : t
-        )
-      );
+      // ✅ UPDATE LOCAL STATE
+      if (editing.type === "transfer") {
+        setInternalTransactions(prev =>
+          prev.map(t =>
+            t.id === editing.id
+              ? { ...t, amount: payload.amount, date: payload.date, categoryId: payload.categoryId, note: payload.note }
+              : t
+          )
+        );
+      } else {
+        setExternalTransactions(prev =>
+          prev.map(t =>
+            t.id === editing.id
+              ? { ...t, amount: payload.amount, date: payload.date, categoryId: payload.categoryId, note: payload.note }
+              : t
+          )
+        );
+      }
+
+      setEditing(null);
+      setToast({ open: true, message: "✅ Đã cập nhật giao dịch." });
+    } catch (error) {
+      console.error("❌ Error updating transaction:", error);
+      setToast({ 
+        open: true, 
+        message: error.response?.data?.error || "Không thể cập nhật giao dịch" 
+      });
     }
-
-    setEditing(null);
-    setToast({ open: true, message: "Đã cập nhật giao dịch." });
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirmDel) return;
-    const isTransfer = !!confirmDel.sourceWallet && !!confirmDel.targetWallet;
+    
+    try {
+      // ✅ DELETE TRANSACTION VIA API
+      await transactionService.deleteTransaction(confirmDel.id);
 
-    if (isTransfer) {
-      setInternalTransactions((list) =>
-        list.filter((t) => t.id !== confirmDel.id)
-      );
-    } else {
-      setExternalTransactions((list) =>
-        list.filter((t) => t.id !== confirmDel.id)
-      );
+      // ✅ UPDATE LOCAL STATE
+      if (confirmDel.type === "transfer") {
+        setInternalTransactions(prev => prev.filter(t => t.id !== confirmDel.id));
+      } else {
+        setExternalTransactions(prev => prev.filter(t => t.id !== confirmDel.id));
+      }
+
+      setConfirmDel(null);
+      setToast({ open: true, message: "✅ Đã xóa giao dịch." });
+    } catch (error) {
+      console.error("❌ Error deleting transaction:", error);
+      setToast({ 
+        open: true, 
+        message: error.response?.data?.error || "Không thể xóa giao dịch" 
+      });
     }
-
-    setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa giao dịch." });
   };
 
   const currentTransactions = useMemo(
@@ -842,6 +941,33 @@ export default function TransactionsPage() {
     setCurrentPage(1);
   };
 
+  // Show loading state
+  if (loading && externalTransactions.length === 0 && internalTransactions.length === 0) {
+    return (
+      <div className="tx-page container py-4">
+        <Loading />
+      </div>
+    );
+  }
+
+  // Show error if API failed
+  if (apiError && externalTransactions.length === 0 && internalTransactions.length === 0) {
+    return (
+      <div className="tx-page container py-4">
+        <div className="alert alert-danger">
+          <i className="bi bi-exclamation-triangle me-2"></i>
+          {apiError}
+          <button 
+            className="btn btn-sm btn-outline-danger ms-3"
+            onClick={loadTransactions}
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="tx-page container py-4">
       {/* HEADER – dùng màu giống trang Danh sách ví */}
@@ -896,7 +1022,8 @@ export default function TransactionsPage() {
       </div>
 
 
-      {/* Filters */}
+      {/* Filters - CHỈ HIỂN THỊ KHI CÓ DATA */}
+      {(externalTransactions.length > 0 || internalTransactions.length > 0) && (
       <div className="tx-filters card border-0 mb-3">
         <div className="card-body d-flex flex-column gap-2">
           <div className="d-flex flex-wrap gap-2">
@@ -992,8 +1119,35 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Bảng danh sách */}
+      {/* ⚠️ THÔNG BÁO */}
+      {externalTransactions.length === 0 && internalTransactions.length === 0 && !loading && (
+        <div className="alert alert-info d-flex align-items-start gap-3 mb-3">
+          <i className="bi bi-info-circle fs-4 mt-1"></i>
+          <div className="flex-grow-1">
+            <h6 className="mb-2 fw-semibold">📝 Bắt đầu tạo giao dịch đầu tiên!</h6>
+            <div className="mb-2">
+              <strong>Cách sử dụng:</strong>
+              <ol className="mb-0 ps-3 mt-1">
+                <li>Nhấn nút <strong className="text-primary">"Thêm giao dịch mới"</strong> bên trên</li>
+                <li>Chọn loại giao dịch: <strong>Giao dịch ngoài</strong> (Thu/Chi) hoặc <strong>Giao dịch giữa các ví</strong> (Chuyển tiền)</li>
+                <li>Điền thông tin và nhấn <strong>"Lưu"</strong></li>
+              </ol>
+            </div>
+            <div className="alert alert-warning mb-0 py-2 px-3">
+              <small>
+                <i className="bi bi-exclamation-triangle me-1"></i>
+                <strong>Lưu ý:</strong> Giao dịch được lưu vào backend và cập nhật số dư ví ngay lập tức. 
+                Danh sách giao dịch chỉ hiển thị trong phiên làm việc hiện tại (vì backend chưa có API <code>GET /transactions</code>).
+              </small>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bảng danh sách - CHỈ HIỂN THỊ KHI CÓ DATA */}
+      {(externalTransactions.length > 0 || internalTransactions.length > 0) && (
       <div className="card border-0 shadow-sm tx-table-card">
         <div className="table-responsive">
           {activeTab === TABS.EXTERNAL ? (
@@ -1053,7 +1207,7 @@ export default function TransactionsPage() {
                             }
                           >
                             {t.type === "expense" ? "-" : "+"}
-                            {t.amount.toLocaleString("vi-VN")} {t.currency}
+                            {formatMoney(t.amount, t.currency).replace(/^[^\d-]+/, "")}
                           </span>
                         </td>
                         <td className="text-center">
@@ -1133,7 +1287,7 @@ export default function TransactionsPage() {
                         </td>
                         <td className="text-end">
                           <span className="tx-amount-transfer">
-                            {t.amount.toLocaleString("vi-VN")} {t.currency}
+                            {formatMoney(t.amount, t.currency)}
                           </span>
                         </td>
                         <td className="text-center">
@@ -1190,6 +1344,7 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+      )}
 
       <TransactionViewModal
         open={!!viewing}

@@ -1,12 +1,11 @@
 // src/components/wallets/WalletCreateGroupModal.jsx
 import React, { useEffect, useState } from "react";
-import { useWalletData } from "../../home/store/WalletDataContext";
+import { walletService } from "../../services/walletService";
 
 const TYPES = ["CASH","BANK","EWALLET"];
 
 export default function WalletCreateGroupModal({ open, onClose, currencies = ["VND"], onCreated }) {
-  const { createWallet } = useWalletData();
-
+  // ✅ ALL HOOKS MUST BE AT THE TOP LEVEL
   const [form, setForm] = useState({
     name: "",
     type: "BANK",
@@ -15,11 +14,14 @@ export default function WalletCreateGroupModal({ open, onClose, currencies = ["V
     note: "",
     approvalPolicy: { enabled: false, threshold: "" },
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setForm(f => ({ ...f, currency: currencies[0] || "VND" }));
   }, [currencies]);
 
+  // ✅ EARLY RETURN AFTER ALL HOOKS
   if (!open) return null;
 
   const canSubmit = !!form.name.trim();
@@ -28,23 +30,32 @@ export default function WalletCreateGroupModal({ open, onClose, currencies = ["V
     e.preventDefault();
     if (!canSubmit) return;
 
-    const payload = {
-      name: form.name.trim(),
-      currency: form.currency,
-      type: form.type || "BANK",
-      balance: Number(form.openingBalance || 0),
-      note: form.note?.trim() || "",
-      isDefault: false,
-      isShared: true,       // ✅ là ví nhóm
-      groupId: null,        // ✅ KHÔNG gắn nhóm
-      approvalPolicy: form.approvalPolicy.enabled
-        ? { enabled: true, threshold: Number(form.approvalPolicy.threshold || 0) }
-        : { enabled: false },
-    };
+    try {
+      setLoading(true);
+      setError("");
 
-    const w = await createWallet(payload); // sẽ hiển thị ngay ở Danh sách ví
-    onCreated?.(w);
-    onClose?.();
+      // ✅ CALL API TO CREATE SHARED WALLET
+      const payload = {
+        walletName: form.name.trim(),
+        currencyCode: form.currency,
+        initialBalance: Number(form.openingBalance || 0),
+        description: form.note?.trim() || "",
+        setAsDefault: false,
+      };
+
+      const response = await walletService.createWallet(payload);
+      
+      // ⚠️ Backend tạo wallet bình thường, không có concept "group wallet" riêng
+      // Shared wallet = chia sẻ sau khi tạo bằng shareWallet API
+      
+      onCreated?.(response.wallet);
+      onClose?.();
+    } catch (err) {
+      console.error("❌ Error creating group wallet:", err);
+      setError(err.response?.data?.error || "Không thể tạo ví nhóm");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,12 +68,20 @@ export default function WalletCreateGroupModal({ open, onClose, currencies = ["V
           </div>
 
           <div className="modal-body">
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                <i className="bi bi-exclamation-triangle me-2"></i>
+                {error}
+              </div>
+            )}
+            
             <div className="mb-3">
               <label className="form-label">Tên ví nhóm *</label>
               <input
                 className="form-control"
                 value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
+                disabled={loading}
               />
             </div>
 

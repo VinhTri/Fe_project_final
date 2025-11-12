@@ -3,10 +3,8 @@ import { Link } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
+import { authService } from "../../services/authService";
 import "../../styles/AuthForms.css";
-
-// NOTE: API_URL không còn dùng khi ở chế độ offline/fake
-// const API_URL = "http://localhost:8080/auth";
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -21,94 +19,63 @@ export default function LoginPage() {
     setError("");
   };
 
-  // helper: read/write fake users from localStorage
-  const readFakeUsers = () => {
-    try {
-      const raw = localStorage.getItem("fakeUsers");
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  };
-  const writeFakeUsers = (arr) => {
-    localStorage.setItem("fakeUsers", JSON.stringify(arr));
-  };
-
   const onSubmit = async (e) => {
     e.preventDefault();
 
     if (!form.email || !form.password) {
       return setError("Vui lòng nhập đầy đủ email và mật khẩu!");
     }
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.email)) {
       return setError("Email không hợp lệ! Vui lòng nhập đúng định dạng.");
     }
 
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'\",.<>\/?~]).{8,}$/;
-
     if (form.password.length < 8) {
       return setError("Mật khẩu phải có ít nhất 8 ký tự!");
-    }
-    if (!passwordRegex.test(form.password)) {
-      return setError(
-        "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt!"
-      );
     }
 
     try {
       setLoading(true);
+      
+      // ✅ GỌI API BACKEND THẬT
+      const response = await authService.login({
+        email: form.email,
+        password: form.password
+      });
 
-      // --- OFFLINE / FAKE LOGIN LOGIC ---
-      // Lấy danh sách fakeUsers từ localStorage
-      const users = readFakeUsers();
-      const existing = users.find((u) => u.email === form.email);
-
-      if (existing) {
-        // user đã tồn tại -> verify password
-        if (existing.password === form.password) {
-          // thành công
-          const fakeToken = `fake-token-${Date.now()}`;
-          localStorage.setItem("accessToken", fakeToken);
-          // lưu user (không lưu password)
-          const safeUser = { email: existing.email, fullName: existing.fullName || existing.email };
-          localStorage.setItem("user", JSON.stringify(safeUser));
-          setShowSuccess(true);
-        } else {
-          // mật khẩu sai
-          setShowInvalid(true);
-        }
-      } else {
-        // user chưa tồn tại -> tự động tạo tài khoản ảo rồi login
-        const newUser = {
-          email: form.email,
-          password: form.password, // chỉ lưu nội bộ fakeUsers; không dùng ngoài
-          fullName: form.email.split("@")[0],
-          createdAt: new Date().toISOString(),
-        };
-        users.push(newUser);
-        writeFakeUsers(users);
-
-        const fakeToken = `fake-token-${Date.now()}`;
-        localStorage.setItem("accessToken", fakeToken);
-        const safeUser = { email: newUser.email, fullName: newUser.fullName };
-        localStorage.setItem("user", JSON.stringify(safeUser));
-        setShowSuccess(true);
-      }
-      // --- END OFFLINE LOGIC ---
+      // authService đã tự động lưu tokens và user vào localStorage
+      console.log("✅ Đăng nhập thành công:", response);
+      setShowSuccess(true);
+      
     } catch (err) {
-      console.error(err);
-      setError("Có lỗi nội bộ khi xử lý tài khoản ảo.");
+      console.error("❌ Login error:", err);
+      
+      // Xử lý các lỗi từ backend
+      const errorMsg = err.response?.data?.error || 
+                      err.response?.data?.message || 
+                      "Đăng nhập thất bại. Vui lòng thử lại.";
+      
+      // Nếu là lỗi sai email/password, hiển thị modal
+      if (err.response?.status === 400 || err.response?.status === 401) {
+        setShowInvalid(true);
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleGoogleLogin = () => {
+    // Redirect đến Google OAuth endpoint của backend
+    window.location.href = "http://localhost:8080/auth/oauth2/authorization/google";
+  };
+
   return (
     <AuthLayout>
       <form className="auth-form" onSubmit={onSubmit}>
-        <h3 className="text-center mb-4">Đăng nhập (Chế độ giả lập)</h3>
+        <h3 className="text-center mb-4">Đăng nhập</h3>
 
         <div className="mb-3 input-group">
           <span className="input-group-text">
@@ -152,7 +119,7 @@ export default function LoginPage() {
 
         <div className="d-grid mb-3 mt-2">
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "Đang xử lý..." : "Đăng nhập / Tạo tài khoản ảo"}
+            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </div>
 
@@ -161,7 +128,7 @@ export default function LoginPage() {
             Quên mật khẩu?
           </Link>
           <Link to="/register" className="text-decoration-none link-hover">
-            (Hoặc trang đăng ký)
+            Đăng ký tài khoản
           </Link>
         </div>
 
@@ -175,9 +142,9 @@ export default function LoginPage() {
           <button
             type="button"
             className="btn btn-outline-danger"
-            onClick={() => alert("Oauth Google tắt trong chế độ giả lập (offline).")}
+            onClick={handleGoogleLogin}
           >
-            <i className="bi bi-google me-2"></i> Google (disabled)
+            <i className="bi bi-google me-2"></i> Google
           </button>
         </div>
       </form>
@@ -187,7 +154,7 @@ export default function LoginPage() {
         onClose={() => setShowSuccess(false)}
         seconds={3}
         title="Đăng nhập"
-        message="Đăng nhập thành công (chế độ giả lập)!"
+        message="Đăng nhập thành công!"
         redirectUrl="/home"
       />
 
@@ -195,8 +162,8 @@ export default function LoginPage() {
         open={showInvalid}
         onClose={() => setShowInvalid(false)}
         seconds={3}
-        title="Đăng nhập"
-        message="Sai email hoặc mật khẩu!"
+        title="Đăng nhập thất bại"
+        message="Email hoặc mật khẩu không chính xác!"
       />
     </AuthLayout>
   );

@@ -1,58 +1,21 @@
 import React, { useState, useEffect } from "react";
+import { walletService } from "../../services/walletService";
+import { categoryService } from "../../services/categoryService";
 
 const EMPTY_FORM = {
   type: "expense",
-  walletName: "",
+  walletId: "", // ✅ Change to walletId instead of walletName
   amount: "",
   date: "",
-  category: "Ăn uống",
+  categoryId: "", // ✅ Change to categoryId instead of category name
   note: "",
   currency: "VND",
   attachment: "",
-  sourceWallet: "",
-  targetWallet: "",
+  fromWalletId: "", // ✅ For transfers
+  toWalletId: "", // ✅ For transfers
 };
 
-const CATEGORIES = [
-  "Ăn uống",
-  "Di chuyển",
-  "Quà tặng",
-  "Giải trí",
-  "Hóa đơn",
-  "Khác",
-];
-
-const WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng A", "Ngân hàng B"];
-
-// Input + datalist: gõ để search, chọn được option
-function AutocompleteInput({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  options,
-  required = false,
-}) {
-  return (
-    <div className="mb-3">
-      <label className="form-label fw-semibold">{label}</label>
-      <input
-        list={id}
-        className="form-control"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-      />
-      <datalist id={id}>
-        {options.map((opt) => (
-          <option key={opt} value={opt} />
-        ))}
-      </datalist>
-    </div>
-  );
-}
+// ✅ REMOVED AutocompleteInput - now using <select> with API data
 
 export default function TransactionFormModal({
   open,
@@ -65,7 +28,61 @@ export default function TransactionFormModal({
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
+  
+  // ✅ LOAD DATA FROM API
+  const [wallets, setWallets] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  // Load wallets and categories when modal opens
+  useEffect(() => {
+    if (!open) return;
+    
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // ✅ Load wallets
+        const walletsRes = await walletService.getWallets();
+        setWallets(walletsRes.wallets || []);
+        
+        // ✅ Load categories based on type
+        let categoriesRes;
+        if (variant === "external") {
+          // For external transactions, load by type (expense/income)
+          categoriesRes = await categoryService.getCategoriesByType(form.type);
+        } else {
+          // For internal transfers, try to load ALL categories to find "Chuyển tiền"
+          categoriesRes = await categoryService.getAllCategories();
+        }
+        
+        const cats = categoriesRes.categories || [];
+        setCategories(cats);
+        
+        // ✅ AUTO-SELECT transfer category for internal transfers
+        if (variant === "internal" && cats.length > 0) {
+          const transferCat = cats.find(c => 
+            c.name?.includes("Chuyển") || 
+            c.name?.includes("Transfer") ||
+            c.name?.toLowerCase().includes("transfer")
+          );
+          
+          if (transferCat && !form.categoryId) {
+            setForm(f => ({ ...f, categoryId: String(transferCat.categoryId) }));
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error loading transaction form data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form.type, variant]);
+
+  // Initialize form when modal opens or data changes
   useEffect(() => {
     if (!open) return;
 
@@ -86,11 +103,11 @@ export default function TransactionFormModal({
         setForm({
           ...EMPTY_FORM,
           type: "transfer",
-          sourceWallet: initialData.sourceWallet || "",
-          targetWallet: initialData.targetWallet || "",
+          fromWalletId: String(initialData.fromWalletId || ""),
+          toWalletId: String(initialData.toWalletId || ""),
           amount: String(initialData.amount ?? ""),
           date: dateValue,
-          category: initialData.category || "Chuyển tiền giữa các ví",
+          categoryId: String(initialData.categoryId || ""),
           note: initialData.note || "",
           currency: initialData.currency || "VND",
           attachment: initialData.attachment || "",
@@ -101,7 +118,6 @@ export default function TransactionFormModal({
           ...EMPTY_FORM,
           type: "transfer",
           date: now,
-          category: "Chuyển tiền giữa các ví",
         });
         setAttachmentPreview("");
       }
@@ -119,18 +135,18 @@ export default function TransactionFormModal({
 
         setForm({
           ...EMPTY_FORM,
-          type: initialData.type,
-          walletName: initialData.walletName,
-          amount: String(initialData.amount),
+          type: initialData.type || "expense",
+          walletId: String(initialData.walletId || ""),
+          amount: String(initialData.amount ?? ""),
           date: dateValue,
-          category: initialData.category,
+          categoryId: String(initialData.categoryId || ""),
           note: initialData.note || "",
           currency: initialData.currency || "VND",
           attachment: initialData.attachment || "",
         });
         setAttachmentPreview(initialData.attachment || "");
       } else {
-        setForm({ ...EMPTY_FORM, date: now });
+        setForm({ ...EMPTY_FORM, date: now, type: "expense" });
         setAttachmentPreview("");
       }
     }
@@ -148,6 +164,19 @@ export default function TransactionFormModal({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // ✅ SPECIAL HANDLING for fromWalletId change
+    if (name === "fromWalletId" && variant === "internal") {
+      const fromWallet = wallets.find(w => w.walletId === Number(value));
+      const toWallet = wallets.find(w => w.walletId === Number(form.toWalletId));
+      
+      // Reset toWalletId nếu khác currency
+      if (fromWallet && toWallet && fromWallet.currencyCode !== toWallet.currencyCode) {
+        setForm((f) => ({ ...f, [name]: value, toWalletId: "" }));
+        return;
+      }
+    }
+    
     setForm((f) => ({ ...f, [name]: value }));
   };
 
@@ -167,21 +196,66 @@ export default function TransactionFormModal({
     e.preventDefault();
 
     if (variant === "internal") {
+      // ✅ Submit with wallet IDs for transfer
+      // ⚠️ Validate required fields
+      if (!form.fromWalletId || !form.toWalletId) {
+        alert("Vui lòng chọn ví gửi và ví nhận!");
+        return;
+      }
+      
+      // ✅ VALIDATE SAME CURRENCY
+      const fromWallet = wallets.find(w => w.walletId === Number(form.fromWalletId));
+      const toWallet = wallets.find(w => w.walletId === Number(form.toWalletId));
+      
+      if (fromWallet && toWallet && fromWallet.currencyCode !== toWallet.currencyCode) {
+        alert(
+          `❌ Chỉ có thể chuyển tiền giữa các ví cùng loại tiền tệ!\n\n` +
+          `Ví gửi: ${fromWallet.walletName} (${fromWallet.currencyCode})\n` +
+          `Ví nhận: ${toWallet.walletName} (${toWallet.currencyCode})\n\n` +
+          `Vui lòng chọn 2 ví cùng loại tiền.`
+        );
+        return;
+      }
+      
+      // ✅ Find or use first category for transfer
+      let categoryId = Number(form.categoryId);
+      if (!categoryId && categories.length > 0) {
+        // Use first available category as fallback
+        categoryId = categories[0].categoryId;
+        console.warn("⚠️ No transfer category found, using first category:", categories[0]);
+      }
+      
+      if (!categoryId) {
+        alert("❌ Không tìm thấy danh mục cho chuyển tiền. Vui lòng tạo danh mục trước!");
+        return;
+      }
+      
+      // ✅ Backend API /wallets/transfer chỉ nhận: fromWalletId, toWalletId, amount, categoryId, note
       const payload = {
-        sourceWallet: form.sourceWallet,
-        targetWallet: form.targetWallet,
+        fromWalletId: Number(form.fromWalletId),
+        toWalletId: Number(form.toWalletId),
         amount: Number(form.amount || 0),
-        date: form.date,
+        categoryId: categoryId,
         note: form.note || "",
-        currency: form.currency || "VND",
-        attachment: form.attachment,
+        // ⚠️ Backend KHÔNG nhận date, currency, attachment cho transfer
+        // Backend tự động dùng timestamp hiện tại
       };
       onSubmit?.(payload);
     } else {
+      // ✅ Submit with walletId and categoryId
+      if (!form.walletId || !form.categoryId) {
+        alert("Vui lòng chọn ví và danh mục!");
+        return;
+      }
+      
       const payload = {
-        ...form,
+        type: form.type,
+        walletId: Number(form.walletId),
+        categoryId: Number(form.categoryId),
         amount: Number(form.amount || 0),
         date: form.date,
+        note: form.note || "",
+        attachment: form.attachment,
       };
       onSubmit?.(payload);
     }
@@ -256,17 +330,22 @@ export default function TransactionFormModal({
                   <div className="row g-3">
                     {/* Ví */}
                     <div className="col-md-6">
-                      <AutocompleteInput
-                        id="wallet-options"
-                        label="Ví"
-                        value={form.walletName}
-                        onChange={(v) =>
-                          setForm((f) => ({ ...f, walletName: v }))
-                        }
-                        placeholder="Chọn ví hoặc gõ để tìm..."
-                        options={WALLETS}
+                      <label className="form-label fw-semibold">Ví</label>
+                      <select
+                        name="walletId"
+                        className="form-select"
+                        value={form.walletId}
+                        onChange={handleChange}
                         required
-                      />
+                        disabled={loading}
+                      >
+                        <option value="">-- Chọn ví --</option>
+                        {wallets.map((w) => (
+                          <option key={w.walletId} value={w.walletId}>
+                            {w.walletName} ({w.currencyCode})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Số tiền */}
@@ -279,10 +358,12 @@ export default function TransactionFormModal({
                           className="form-control"
                           value={form.amount}
                           onChange={handleChange}
+                          min="0"
+                          step="0.01"
                           required
                         />
                         <span className="input-group-text">
-                          {form.currency}
+                          {wallets.find(w => w.walletId === Number(form.walletId))?.currencyCode || "VND"}
                         </span>
                       </div>
                     </div>
@@ -304,17 +385,22 @@ export default function TransactionFormModal({
 
                     {/* Danh mục */}
                     <div className="col-md-6">
-                      <AutocompleteInput
-                        id="category-options"
-                        label="Danh mục"
-                        value={form.category}
-                        onChange={(v) =>
-                          setForm((f) => ({ ...f, category: v }))
-                        }
-                        placeholder="Chọn danh mục hoặc gõ để tìm..."
-                        options={CATEGORIES}
+                      <label className="form-label fw-semibold">Danh mục</label>
+                      <select
+                        name="categoryId"
+                        className="form-select"
+                        value={form.categoryId}
+                        onChange={handleChange}
                         required
-                      />
+                        disabled={loading}
+                      >
+                        <option value="">-- Chọn danh mục --</option>
+                        {categories.map((c) => (
+                          <option key={c.categoryId} value={c.categoryId}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Ghi chú */}
@@ -371,35 +457,65 @@ export default function TransactionFormModal({
                     </div>
                   </div>
 
+                  {/* Ví gửi */}
                   <div className="col-md-6">
-                    <AutocompleteInput
-                      id="source-wallet-options"
-                      label="Ví gửi"
-                      value={form.sourceWallet}
-                      onChange={(v) =>
-                        setForm((f) => ({ ...f, sourceWallet: v }))
-                      }
-                      placeholder="Chọn ví gửi..."
-                      options={WALLETS}
+                    <label className="form-label fw-semibold">Ví gửi</label>
+                    <select
+                      name="fromWalletId"
+                      className="form-select"
+                      value={form.fromWalletId}
+                      onChange={handleChange}
                       required
-                    />
+                      disabled={loading}
+                    >
+                      <option value="">-- Chọn ví gửi --</option>
+                      {wallets.map((w) => (
+                        <option key={w.walletId} value={w.walletId}>
+                          {w.walletName} ({w.currencyCode})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
+                  {/* Ví nhận */}
                   <div className="col-md-6">
-                    <AutocompleteInput
-                      id="target-wallet-options"
-                      label="Ví nhận"
-                      value={form.targetWallet}
-                      onChange={(v) =>
-                        setForm((f) => ({ ...f, targetWallet: v }))
-                      }
-                      placeholder="Chọn ví nhận..."
-                      options={WALLETS}
+                    <label className="form-label fw-semibold">Ví nhận</label>
+                    <select
+                      name="toWalletId"
+                      className="form-select"
+                      value={form.toWalletId}
+                      onChange={handleChange}
                       required
-                    />
+                      disabled={loading || !form.fromWalletId}
+                    >
+                      <option value="">
+                        {!form.fromWalletId ? "-- Chọn ví gửi trước --" : "-- Chọn ví nhận --"}
+                      </option>
+                      {wallets
+                        .filter(w => {
+                          // Loại bỏ ví gửi
+                          if (w.walletId === Number(form.fromWalletId)) return false;
+                          
+                          // ✅ CHỈ HIỂN THỊ VÍ CÙNG CURRENCY
+                          const fromWallet = wallets.find(fw => fw.walletId === Number(form.fromWalletId));
+                          if (fromWallet && w.currencyCode !== fromWallet.currencyCode) return false;
+                          
+                          return true;
+                        })
+                        .map((w) => (
+                          <option key={w.walletId} value={w.walletId}>
+                            {w.walletName} ({w.currencyCode})
+                          </option>
+                        ))}
+                    </select>
+                    {form.fromWalletId && (
+                      <small className="text-muted">
+                        Chỉ hiển thị ví cùng loại tiền với ví gửi
+                      </small>
+                    )}
                   </div>
 
-                  <div className="col-md-6">
+                  <div className="col-12">
                     <label className="form-label fw-semibold">Số tiền</label>
                     <div className="input-group">
                       <input
@@ -408,25 +524,21 @@ export default function TransactionFormModal({
                         className="form-control"
                         value={form.amount}
                         onChange={handleChange}
+                        min="0"
+                        step="0.01"
                         required
                       />
-                      <span className="input-group-text">{form.currency}</span>
+                      <span className="input-group-text">
+                        {wallets.find(w => w.walletId === Number(form.fromWalletId))?.currencyCode || "VND"}
+                      </span>
                     </div>
+                    <small className="text-muted">
+                      ⚠️ Chỉ chuyển được giữa các ví cùng loại tiền tệ
+                    </small>
                   </div>
 
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">
-                      Ngày & giờ
-                    </label>
-                    <input
-                      type="datetime-local"
-                      name="date"
-                      className="form-control"
-                      value={form.date}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
+                  {/* ⚠️ HIDDEN: Backend không cho phép set custom date cho transfer */}
+                  {/* Backend tự động dùng timestamp hiện tại */}
 
                   <div className="col-12">
                     <label className="form-label fw-semibold">Ghi chú</label>
@@ -440,32 +552,8 @@ export default function TransactionFormModal({
                     />
                   </div>
 
-                  <div className="col-12">
-                    <label className="form-label fw-semibold">
-                      Ảnh đính kèm
-                    </label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                    {attachmentPreview && (
-                      <div className="mt-2">
-                        <img
-                          src={attachmentPreview}
-                          alt="Đính kèm"
-                          style={{
-                            maxWidth: 180,
-                            maxHeight: 140,
-                            borderRadius: 12,
-                            objectFit: "cover",
-                            border: "1px solid #e5e7eb",
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  {/* ⚠️ HIDDEN: Backend không hỗ trợ attachment cho transfer */}
+                  {/* Backend chỉ hỗ trợ: fromWalletId, toWalletId, amount, categoryId, note */}
                 </div>
               )}
             </div>

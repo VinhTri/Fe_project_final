@@ -47,9 +47,7 @@ export default function WalletEditModal({
     else if (name.length > 40) e.name = "Tên ví tối đa 40 ký tự";
     else if (exists.has(name.toLowerCase())) e.name = "Tên ví đã tồn tại";
 
-    if (!values.currency) e.currency = "Vui lòng chọn loại tiền tệ";
-    else if (!currencies.includes(values.currency))
-      e.currency = "Loại tiền tệ không hợp lệ";
+    // ✅ REMOVED currency validation - cannot change currency
 
     if (values.balance === "" || values.balance === null)
       e.balance = "Vui lòng nhập số dư";
@@ -74,16 +72,16 @@ export default function WalletEditModal({
     setErrors(v);
     setTouched({
       name: true,
-      currency: true,
       balance: true,
       note: true,
     });
     if (Object.keys(v).length > 0) return;
 
+    // ✅ KHÔNG GỬI currency (backend không cho đổi)
     onSubmit({
       id: wallet.id,
       name: form.name.trim(),
-      currency: form.currency,
+      currency: wallet.currency, // ✅ Giữ nguyên currency gốc
       balance: Number(form.balance),
       note: form.note?.trim() || "",
       isDefault: !!form.isDefault,
@@ -221,18 +219,16 @@ export default function WalletEditModal({
                   Loại tiền tệ<span className="req">*</span>
                 </label>
                 <select
-                  className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
+                  className="fm-select"
                   value={form.currency}
-                  onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
-                  onChange={(e) => setField("currency", e.target.value)}
+                  disabled
+                  style={{ opacity: 0.6, cursor: "not-allowed" }}
                 >
-                  {currencies.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  <option value={form.currency}>{form.currency}</option>
                 </select>
-                {touched.currency && errors.currency && (
-                  <div className="fm-feedback">{errors.currency}</div>
-                )}
+                <div className="fm-hint" style={{ color: "#fbbf24" }}>
+                  ⚠️ Không thể đổi loại tiền của ví đã tồn tại
+                </div>
               </div>
 
               <div className="fm-row">

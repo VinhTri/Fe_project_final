@@ -5,14 +5,11 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./styles/variables.css";
 
-// ✅ Thêm dòng này
-import { WalletDataProvider } from "./home/store/WalletDataContext";
+// ✅ REMOVED WalletDataProvider - Now using API calls directly
+// ⚠️ WalletDataContext is kept for backward compatibility but not used
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {/* ✅ Bọc toàn bộ App trong Provider */}
-    <WalletDataProvider>
-      <App />
-    </WalletDataProvider>
+    <App />
   </React.StrictMode>
 );

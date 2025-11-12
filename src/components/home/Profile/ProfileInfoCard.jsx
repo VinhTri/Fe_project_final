@@ -1,49 +1,8 @@
-import { useMemo, useState, useRef } from "react";
+import { useState } from "react";
+import { profileService } from "../../../services/profileService";
 import "../../../styles/home/Profile.css";
 
-const API_BASE_URL = "http://localhost:8080/auth";
-
-/* ===== OTP 6 Ô ===== */
-function Otp6({ value = "", onChange }) {
-  const len = 6;
-  const refs = useRef([]);
-
-  const digits = useMemo(() => {
-    const s = (value || "").slice(0, len);
-    return Array.from({ length: len }, (_, i) => s[i] ?? "");
-  }, [value]);
-
-  const set = (i, v) => {
-    if (!/^\d?$/.test(v)) return;
-    const next = [...digits];
-    next[i] = v;
-    onChange?.(next.join(""));
-    if (v && i < len - 1) refs.current[i + 1]?.focus();
-  };
-
-  const onKey = (i, e) => {
-    if (e.key === "Backspace" && !digits[i] && i > 0) refs.current[i - 1]?.focus();
-  };
-
-  return (
-    <div className="otp6">
-      {digits.map((d, i) => (
-        <input
-          key={i}
-          ref={(el) => (refs.current[i] = el)}
-          className="otp6__box"
-          inputMode="numeric"
-          maxLength={1}
-          value={d}
-          onChange={(e) => set(i, e.target.value)}
-          onKeyDown={(e) => onKey(i, e)}
-        />
-      ))}
-    </div>
-  );
-}
-
-export default function ProfileInfoCard({ user }) {
+export default function ProfileInfoCard({ user, onUpdate }) {
   const u = user || {
     name: "Trần Vinh Trí",
     email: "admin@example.com",
@@ -56,13 +15,10 @@ export default function ProfileInfoCard({ user }) {
   const [nameOk, setNameOk] = useState("");
 
   // --- đổi mật khẩu ---
-  const [step, setStep] = useState(1);
   const [pw, setPw] = useState({ old: "", next: "", confirm: "" });
   const [show, setShow] = useState({ old: false, next: false, confirm: false });
   const [hint, setHint] = useState({ old: "", next: "", confirm: "" });
   const [okMsg, setOkMsg] = useState({ old: "", next: "", confirm: "" });
-  const [otp, setOtp] = useState("");
-  const [otpMsg, setOtpMsg] = useState({ error: "", ok: "" });
   const [loading, setLoading] = useState(false);
 
   const PASS_RULE =
@@ -134,147 +90,68 @@ export default function ProfileInfoCard({ user }) {
   };
 
   /* =========================
-   * STEP 1: Gửi yêu cầu đổi mật khẩu → gửi OTP email
-   * API: POST /auth/change-password/request-otp (Bearer)
-   * body: { oldPassword, newPassword, confirmPassword }
+   * ✅ SIMPLE PASSWORD CHANGE (No OTP)
+   * API: POST /profile/change-password (Bearer)
+   * body: { oldPassword?, newPassword, confirmPassword }
    * ========================= */
   const submitStep1 = async (e) => {
     e.preventDefault();
     if (!validateStep1()) return;
 
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      setHint((h) => ({ ...h, old: "Bạn chưa đăng nhập." }));
-      return;
-    }
-
     setLoading(true);
-    setOtp("");
-    setOtpMsg({ ok: "", error: "" });
 
     try {
-      const res = await fetch(`${API_BASE_URL}/change-password/request-otp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          oldPassword: pw.old,
-          newPassword: pw.next,
-          confirmPassword: pw.confirm,
-        }),
+      // ✅ CALL profileService
+      await profileService.changePassword({
+        oldPassword: pw.old,
+        newPassword: pw.next,
+        confirmPassword: pw.confirm,
       });
 
-      let data = null;
-      try { data = await res.json(); } catch (_) {}
-
-      if (!res.ok) {
-        setHint((h) => ({ ...h, old: data?.error || `Yêu cầu thất bại: ${res.status}` }));
-        return;
-      }
-
-      setOtpMsg({ ok: data?.message || "Đã gửi mã xác minh tới email của bạn.", error: "" });
-      setStep(2);
-    } catch (err) {
-      setHint((h) => ({ ...h, old: "Không thể kết nối máy chủ. Kiểm tra backend." }));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* (tuỳ chọn) Gửi lại OTP */
-  const resendOtp = async () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-
-    setLoading(true);
-    setOtpMsg({ ok: "", error: "" });
-    try {
-      const res = await fetch(`${API_BASE_URL}/change-password/resend-otp`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      // Success
+      setOkMsg({ 
+        old: "", 
+        next: "", 
+        confirm: "✅ Đổi mật khẩu thành công!" 
       });
-      let data = null;
-      try { data = await res.json(); } catch (_) {}
-
-      if (!res.ok) {
-        setOtpMsg({ error: data?.error || `Gửi lại mã thất bại (${res.status})`, ok: "" });
-        return;
-      }
-      setOtpMsg({ ok: data?.message || "Đã gửi lại mã xác minh.", error: "" });
-    } catch {
-      setOtpMsg({ error: "Không thể kết nối máy chủ.", ok: "" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* =========================
-   * STEP 2: Xác thực OTP để chốt đổi mật khẩu
-   * API: POST /auth/change-password/confirm (Bearer)
-   * body: { code, newPassword }  (kèm newPassword để backend chắc chắn)
-   * ========================= */
-  const submitOtp = async (e) => {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      setOtpMsg({ error: "Vui lòng nhập đủ 6 số.", ok: "" });
-      return;
-    }
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      setOtpMsg({ error: "Bạn chưa đăng nhập.", ok: "" });
-      return;
-    }
-
-    setLoading(true);
-    setOtpMsg({ error: "", ok: "" });
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/change-password/confirm`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          code: otp,
-          newPassword: pw.next, // gửi lại để backend chốt
-        }),
-      });
-
-      let data = null;
-      try { data = await res.json(); } catch (_) {}
-
-      if (!res.ok) {
-        setOtpMsg({ error: data?.error || `Xác thực thất bại: ${res.status}`, ok: "" });
-        return;
-      }
-
-      setOtpMsg({ error: "", ok: data?.message || "Đổi mật khẩu thành công." });
-      // reset form sau khi thành công
+      
+      // Reset form after 2 seconds
       setTimeout(() => {
-        setStep(1);
         setPw({ old: "", next: "", confirm: "" });
         setHint({ old: "", next: "", confirm: "" });
         setOkMsg({ old: "", next: "", confirm: "" });
-        setOtp("");
-        setOtpMsg({ ok: "", error: "" });
-      }, 1000);
-    } catch {
-      setOtpMsg({ error: "Không thể kết nối máy chủ.", ok: "" });
+      }, 2000);
+      
+      // Callback to parent to reload profile
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      console.error("❌ Error changing password:", error);
+      const errorMsg = error.response?.data?.error || "Không thể đổi mật khẩu";
+      setHint((h) => ({ ...h, old: errorMsg }));
     } finally {
       setLoading(false);
     }
   };
 
-  const saveName = () => {
+  const saveName = async () => {
     if (!name.trim()) return setNameOk("Tên không được để trống.");
-    // TODO: call API cập nhật tên hiển thị nếu backend có
-    setNameOk("Đã lưu tên hiển thị.");
-    setTimeout(() => setNameOk(""), 1200);
+    
+    try {
+      // ✅ CALL API UPDATE PROFILE
+      await profileService.updateProfile({
+        fullName: name.trim(),
+      });
+      
+      setNameOk("✅ Đã lưu tên hiển thị.");
+      setTimeout(() => setNameOk(""), 2000);
+      
+      // Callback to parent to reload profile
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      console.error("❌ Error updating name:", error);
+      setNameOk("❌ Không thể cập nhật tên.");
+      setTimeout(() => setNameOk(""), 2000);
+    }
   };
 
   return (
@@ -310,87 +187,58 @@ export default function ProfileInfoCard({ user }) {
 
       <hr className="my-3" />
 
-      {step === 1 ? (
-        <form onSubmit={submitStep1}>
-          <h6 className="mb-2">Thay đổi mật khẩu</h6>
+      <form onSubmit={submitStep1}>
+        <h6 className="mb-2">Thay đổi mật khẩu</h6>
 
-          <label className="form-label">Mật khẩu hiện tại</label>
-          <div className="pw-input">
-            <input
-              type={show.old ? "text" : "password"}
-              name="old"
-              value={pw.old}
-              onChange={onChangePw}
-              placeholder="Nhập mật khẩu hiện tại"
-              disabled={loading}
-            />
-            {eye("old")}
-          </div>
-          {hint.old && <div className="form-hint error">{hint.old}</div>}
-          {okMsg.old && <div className="form-hint success">{okMsg.old}</div>}
+        <label className="form-label">Mật khẩu hiện tại</label>
+        <div className="pw-input">
+          <input
+            type={show.old ? "text" : "password"}
+            name="old"
+            value={pw.old}
+            onChange={onChangePw}
+            placeholder="Nhập mật khẩu hiện tại"
+            disabled={loading}
+          />
+          {eye("old")}
+        </div>
+        {hint.old && <div className="form-hint error">{hint.old}</div>}
+        {okMsg.old && <div className="form-hint success">{okMsg.old}</div>}
 
-          <label className="form-label mt-2">Mật khẩu mới</label>
-          <div className="pw-input">
-            <input
-              type={show.next ? "text" : "password"}
-              name="next"
-              value={pw.next}
-              onChange={onChangePw}
-              placeholder="Nhập mật khẩu mới"
-              disabled={loading}
-            />
-            {eye("next")}
-          </div>
-          {hint.next && <div className="form-hint error">{hint.next}</div>}
-          {okMsg.next && <div className="form-hint success">{okMsg.next}</div>}
+        <label className="form-label mt-2">Mật khẩu mới</label>
+        <div className="pw-input">
+          <input
+            type={show.next ? "text" : "password"}
+            name="next"
+            value={pw.next}
+            onChange={onChangePw}
+            placeholder="Nhập mật khẩu mới"
+            disabled={loading}
+          />
+          {eye("next")}
+        </div>
+        {hint.next && <div className="form-hint error">{hint.next}</div>}
+        {okMsg.next && <div className="form-hint success">{okMsg.next}</div>}
 
-          <label className="form-label mt-2">Nhập lại mật khẩu mới</label>
-          <div className="pw-input">
-            <input
-              type={show.confirm ? "text" : "password"}
-              name="confirm"
-              value={pw.confirm}
-              onChange={onChangePw}
-              placeholder="Nhập lại mật khẩu mới"
-              disabled={loading}
-            />
-            {eye("confirm")}
-          </div>
-          {hint.confirm && <div className="form-hint error">{hint.confirm}</div>}
-          {okMsg.confirm && <div className="form-hint success">{okMsg.confirm}</div>}
+        <label className="form-label mt-2">Nhập lại mật khẩu mới</label>
+        <div className="pw-input">
+          <input
+            type={show.confirm ? "text" : "password"}
+            name="confirm"
+            value={pw.confirm}
+            onChange={onChangePw}
+            placeholder="Nhập lại mật khẩu mới"
+            disabled={loading}
+          />
+          {eye("confirm")}
+        </div>
+        {hint.confirm && <div className="form-hint error">{hint.confirm}</div>}
+        {okMsg.confirm && <div className="form-hint success">{okMsg.confirm}</div>}
 
-          <button type="submit" className="btn btn-primary mt-3 w-100" disabled={loading}>
-            {loading ? "Đang gửi mã..." : "Gửi mã xác minh"}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={submitOtp} className="otp-form">
-          <h6 className="text-center mb-2">Xác thực OTP</h6>
-          <p className="text-center text-muted mb-2">
-            Nhập mã xác thực gồm 6 số được gửi tới email của bạn.
-          </p>
-
-          <div className="otp-wrapper">
-            <Otp6 value={otp} onChange={setOtp} />
-            {otpMsg.error && <div className="form-hint error text-center mt-2">{otpMsg.error}</div>}
-            {otpMsg.ok && <div className="form-hint success text-center mt-2">{otpMsg.ok}</div>}
-          </div>
-
-          <div className="d-flex justify-content-between">
-            <button type="button" className="btn btn-link p-0" disabled={loading}
-                    onClick={() => { setStep(1); setOtp(""); setOtpMsg({ ok: "", error: "" }); }}>
-              Quay lại
-            </button>
-            <button type="button" className="btn btn-link p-0" onClick={resendOtp} disabled={loading}>
-              Gửi lại mã
-            </button>
-          </div>
-
-          <button type="submit" className="btn btn-primary mt-2 w-100" disabled={loading}>
-            {loading ? "Đang xác nhận..." : "Xác nhận"}
-          </button>
-        </form>
-      )}
+        <button type="submit" className="btn btn-primary mt-3 w-100" disabled={loading}>
+          {loading ? "Đang đổi mật khẩu..." : "Đổi mật khẩu"}
+        </button>
+      </form>
     </div>
   );
 }

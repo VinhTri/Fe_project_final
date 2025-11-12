@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from "react";
-import { useWalletData } from "../../home/store/WalletDataContext";
+import React, { useState } from "react";
 
-export default function WalletGroupCreateModal({ open, onClose }) {
-  const { wallets, createGroup, createWallet, linkBudgetWallet } = useWalletData();
+export default function WalletGroupCreateModal({ open, onClose, onSubmit }) {
+  // ⚠️ Backend không có concept "Wallet Groups"
+  // Component này giữ lại để UI không bị lỗi, nhưng sẽ show message "not supported"
+  
   const [form, setForm] = useState({ name: "", description: "", isDefault: false, budgetWalletId: "" });
-
-  const sharedWallets = useMemo(() => wallets.filter(w => w.isShared), [wallets]);
+  
+  const wallets = []; // Empty since no context
+  const sharedWallets = [];
 
   const [quickOpen, setQuickOpen] = useState(false);
   const [quick, setQuick] = useState({ name: "", currency: "VND", type: "BANK", openingBalance: 0 });
@@ -15,18 +17,8 @@ export default function WalletGroupCreateModal({ open, onClose }) {
   const canSubmit = !!form.name.trim();
 
   const handleQuickCreateWallet = async () => {
-    if (!quick.name.trim()) return;
-    const w = await createWallet({
-      name: quick.name.trim(),
-      currency: quick.currency,
-      type: quick.type,
-      balance: Number(quick.openingBalance || 0),
-      note: "",
-      isDefault: false,
-      isShared: true,   // ví nhóm
-      groupId: null,    // sẽ gắn sau khi nhóm tạo xong
-    });
-    setForm(f => ({ ...f, budgetWalletId: String(w.id) })); // auto chọn
+    // ⚠️ Not supported
+    console.warn("Quick create wallet in group not supported");
     setQuickOpen(false);
   };
 
@@ -34,14 +26,9 @@ export default function WalletGroupCreateModal({ open, onClose }) {
     e.preventDefault();
     if (!canSubmit) return;
 
-    const g = await createGroup({
-      name: form.name,
-      description: form.description,
-      isDefault: form.isDefault
-    });
-
-    if (form.budgetWalletId) {
-      linkBudgetWallet(g.id, Number(form.budgetWalletId)); // gán 2 chiều
+    // ⚠️ Backend không có Wallet Groups API
+    if (onSubmit) {
+      onSubmit(form);
     }
     onClose?.();
   };

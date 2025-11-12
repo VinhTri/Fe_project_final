@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { useWalletData } from "../../home/store/WalletDataContext";
 
 import WalletGroupCreateModal from "../../components/walletGroups/WalletGroupCreateModal";
 import WalletGroupEditModal from "../../components/walletGroups/WalletGroupEditModal";
@@ -11,7 +10,13 @@ import SuccessToast from "../../components/common/Toast/SuccessToast";
 import "../../styles/home/WalletsPage.css";
 
 export default function WalletGroupsPage() {
-  const { groups, wallets, createGroup /*, updateGroup, deleteGroup*/ } = useWalletData();
+  // ⚠️ Backend không có concept "Wallet Groups" riêng
+  // Wallet Groups trong UI là một cách tổ chức frontend-only
+  // Backend chỉ có "Shared Wallets" (wallets được share với nhiều users)
+  
+  // Tạm thời giữ mock data, hoặc có thể remove tính năng này
+  const groups = [];
+  const wallets = [];
 
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState(null);
@@ -25,11 +30,10 @@ export default function WalletGroupsPage() {
   );
 
   const handleCreateGroup = async (form) => {
-    const g = await createGroup({
-      name: form.name, description: form.description, isDefault: !!form.isDefault
-    });
+    // ⚠️ Backend không có Wallet Groups API
+    console.warn("Wallet Groups not supported by backend");
     setShowCreate(false);
-    setToast({ open: true, message: `Tạo nhóm ví "${g.name}" thành công` });
+    setToast({ open: true, message: "Tính năng chưa hỗ trợ bởi backend" });
   };
 
   const handleView = (g) => setViewing(g);

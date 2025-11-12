@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { authService } from "../../../services/authService";
 import useOnClickOutside from "../../../hooks/useOnClickOutside";
 import ConfirmModal from "../../common/Modal/ConfirmModal";
 
@@ -21,10 +22,10 @@ export default function UserMenu({ avatarUrl }) {
   const onLogout = () => setConfirm(true);
 
   const doLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("auth_token");
+    // ✅ USE authService.logout()
+    authService.logout();
     setConfirm(false);
-    navigate("/login", { replace: true });
+    // authService.logout() already redirects to login
   };
 
   return (

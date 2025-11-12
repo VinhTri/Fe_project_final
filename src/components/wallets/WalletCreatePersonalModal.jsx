@@ -96,6 +96,17 @@ export default function WalletCreatePersonalModal({
       isDefault: !!form.isDefault,
       note: form.note?.trim() || "",
     });
+
+    // ✅ RESET FORM sau khi submit
+    setForm({
+      name: "",
+      currency: currencies[0] || "VND",
+      openingBalance: "0",
+      isDefault: false,
+      note: "",
+    });
+    setErrors({});
+    setTouched({});
   };
 
   if (!open) return null;

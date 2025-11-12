@@ -1,11 +1,9 @@
 import React, { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authService } from "../../services/authService";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
-import "../../styles/AuthForms.css"; // Đảm bảo file CSS này tồn tại
-
-// ⚠️ Thay thế bằng URL thực tế của Backend Auth Controller
-const API_BASE_URL = "http://localhost:8080/auth";
+import "../../styles/AuthForms.css";
 
 export default function ForgotPasswordPage() {
   // 1: nhập email, 2: nhập mã OTP, 3: đổi mật khẩu
@@ -52,32 +50,20 @@ export default function ForgotPasswordPage() {
     setSuccessMsg("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: form.email }),
-      });
+      // ✅ USE authService
+      const response = await authService.forgotPassword(form.email);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Backend trả về: { message: "Mã xác thực đã gửi đến email" }
-        setSuccessMsg(data.message || "Mã xác minh đã được gửi tới email của bạn!");
-        setTimeout(() => {
-          setStep(2);
-          setSuccessMsg("");
-          // focus ô OTP đầu tiên
-          otpRefs.current[0]?.focus();
-        }, 1200);
-      } else {
-        // Backend trả về: { error: "Email không tồn tại" }
-        setError(data.error || "Gửi mã thất bại. Vui lòng thử lại.");
-      }
+      setSuccessMsg(response.message || "Mã xác minh đã được gửi tới email của bạn!");
+      setTimeout(() => {
+        setStep(2);
+        setSuccessMsg("");
+        // focus ô OTP đầu tiên
+        otpRefs.current[0]?.focus();
+      }, 1200);
     } catch (err) {
-      console.error("Lỗi gọi API gửi email:", err);
-      setError("Lỗi kết nối máy chủ. Vui lòng thử lại sau.");
+      console.error("❌ Forgot password error:", err);
+      const errorMsg = err.response?.data?.error || "Gửi mã thất bại. Vui lòng thử lại.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -143,28 +129,19 @@ export default function ForgotPasswordPage() {
   };
 
   const handleResendCode = async () => {
-    // Thực hiện lại API call của Step 1 để gửi lại mã
     if (!form.email) return setError("Không có email để gửi lại.");
     setLoading(true);
     setError("");
     setSuccessMsg("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccessMsg("Đã gửi lại mã xác minh vào email của bạn!");
-      } else {
-        setError(data.error || "Gửi lại mã thất bại. Vui lòng thử lại.");
-      }
+      // ✅ USE authService
+      const response = await authService.forgotPassword(form.email);
+      setSuccessMsg(response.message || "Đã gửi lại mã xác minh vào email của bạn!");
     } catch (err) {
-      setError("Lỗi kết nối máy chủ khi gửi lại mã.");
+      console.error("❌ Resend error:", err);
+      const errorMsg = err.response?.data?.error || "Gửi lại mã thất bại.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -196,32 +173,20 @@ export default function ForgotPasswordPage() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/reset-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: form.email,
-          // ⚠️ Tên trường phải là "Mã xác thực" để khớp với Backend
-          "Mã xác thực": form.code,
-          newPassword: form.newPassword,
-          confirmPassword: form.confirmPassword,
-        }),
+      // ✅ USE authService
+      const response = await authService.resetPassword({
+        email: form.email,
+        "Mã xác thực": form.code, // ⚠️ Key name theo backend
+        newPassword: form.newPassword,
+        confirmPassword: form.confirmPassword,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Backend trả về: { message: "Đổi mật khẩu thành công" }
-        setShowSuccess(true); // Hiển thị modal thành công
-      } else {
-        // Backend trả về: { error: "Mã xác thực sai" } hoặc lỗi khác
-        setError(data.error || "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại.");
-      }
+      console.log("✅ Reset password success:", response);
+      setShowSuccess(true);
     } catch (err) {
-      console.error("Lỗi gọi API đổi mật khẩu:", err);
-      setError("Lỗi kết nối máy chủ. Vui lòng thử lại sau.");
+      console.error("❌ Reset password error:", err);
+      const errorMsg = err.response?.data?.error || "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
