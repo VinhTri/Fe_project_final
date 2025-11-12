@@ -14,6 +14,9 @@ export const profileService = {
     // Cập nhật localStorage
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // ✅ DISPATCH CUSTOM EVENT để notify các component khác
+      window.dispatchEvent(new Event('userProfileUpdated'));
     }
     
     return response.data;
@@ -30,6 +33,10 @@ export const profileService = {
     // Cập nhật localStorage
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // ✅ DISPATCH CUSTOM EVENT để notify các component khác (như Topbar)
+      window.dispatchEvent(new Event('userProfileUpdated'));
+      console.log("📢 Dispatched userProfileUpdated event");
     }
     
     return response.data;

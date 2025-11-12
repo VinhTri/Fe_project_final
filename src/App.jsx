@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ToastProvider } from "./contexts/ToastContext";
 
 // AUTH
 import LoginPage from "./pages/Auth/LoginPage";
@@ -11,6 +12,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import HomeLayout from "./layouts/HomeLayout";
 import DashboardPage from "./pages/Home/DashboardPage";
 import WalletsPage from "./pages/Home/WalletsPage"
+import CategoriesPage from "./pages/Home/CategoriesPage";
 import WalletGroupsPage from "./pages/Home/WalletGroupsPage";
 import TransactionsPage from "./pages/Home/TransactionsPage";
 import BudgetsPage from "./pages/Home/BudgetsPage";
@@ -21,6 +23,7 @@ import ProfilePage from "./pages/Home/ProfilePage";
 
 export default function App() {
   return (
+    <ToastProvider>
     <BrowserRouter>
   <Routes>
     {/* "/" -> /login */}
@@ -36,6 +39,7 @@ export default function App() {
   <Route path="/home/*" element={<HomeLayout />}>  {/* thêm /* ở đây */}
     <Route index element={<DashboardPage />} />
     <Route path="wallets" element={<WalletsPage />} />
+    <Route path="categories" element={<CategoriesPage />} />
     <Route path="wallet-groups" element={<WalletGroupsPage />} />
     <Route path="transactions" element={<TransactionsPage />} />
     <Route path="budgets" element={<BudgetsPage />} />
@@ -58,5 +62,6 @@ export default function App() {
 />
   </Routes>
 </BrowserRouter>
+    </ToastProvider>
   );
 }

@@ -8,20 +8,52 @@ export default function HomeTopbar() {
   const [userAvatar, setUserAvatar] = useState("https://www.gravatar.com/avatar/?d=mp&s=40");
   const [q, setQ] = useState("");
 
-  useEffect(() => {
+  // ✅ LOAD USER FROM LOCALSTORAGE
+  const loadUser = () => {
     try {
       const raw = localStorage.getItem("user");
       if (!raw) return;
       const u = JSON.parse(raw) || {};
       setUserName(u.fullName || u.username || u.email || "Người dùng");
       const avatar =
+        u.avatar ||
         u.picture ||
         u.avatarUrl ||
         "https://www.gravatar.com/avatar/?d=mp&s=40";
       setUserAvatar(avatar);
-    } catch {
+      
+      console.log("🔄 Topbar user updated:", { fullName: u.fullName, avatar });
+    } catch (error) {
+      console.error("❌ Error loading user from localStorage:", error);
       // giữ fallback mặc định
     }
+  };
+
+  // ✅ LOAD ON MOUNT
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  // ✅ LISTEN TO LOCALSTORAGE CHANGES (from ProfilePage)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      // Listen to custom event dispatched after profile update
+      if (e.key === "user" || e.type === "userProfileUpdated") {
+        console.log("🔔 Storage change detected, reloading user...");
+        loadUser();
+      }
+    };
+
+    // Listen to storage event (cross-tab)
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Listen to custom event (same tab)
+    window.addEventListener("userProfileUpdated", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("userProfileUpdated", handleStorageChange);
+    };
   }, []);
 
   const onSearch = (e) => {

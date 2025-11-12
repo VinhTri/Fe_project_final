@@ -1,13 +1,15 @@
 import React, { useState } from "react";
+import { useToast } from "../../contexts/ToastContext";
 import "../../styles/home/BudgetsPage.css";
 
 export default function BudgetsPage() {
+  const { showToast } = useToast();
   const [budgets] = useState([
     { id: 1, name: "Gia đình", limit: 5000000, spent: 3200000, month: "11/2025" },
     { id: 2, name: "Cá nhân", limit: 3000000, spent: 2800000, month: "11/2025" },
   ]);
 
-  const handleAddBudget = () => alert("Thêm hạn mức chi tiêu mới!");
+  const handleAddBudget = () => showToast("Thêm hạn mức chi tiêu mới!");
 
   return (
     <div className="budget-page container py-4">

@@ -1,46 +1,57 @@
 import React, { useState, useEffect } from "react";
-import { categoryService } from "../../services/categoryService";
+// import { categoryService } from "../../services/categoryService"; // ⚠️ Backend chưa có API
 import Loading from "../../components/common/Loading";
 import "../../styles/home/CategoriesPage.css";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
 
+// ⚠️ MOCK DATA - Backend chưa có API quản lý categories
+const MOCK_EXPENSE_CATEGORIES = [
+  { id: 1, name: "Ăn uống", description: "Chi phí ăn uống hàng ngày", type: "expense" },
+  { id: 2, name: "Di chuyển", description: "Xăng xe, xe bus, grab...", type: "expense" },
+  { id: 3, name: "Mua sắm", description: "Quần áo, đồ dùng cá nhân", type: "expense" },
+  { id: 4, name: "Giải trí", description: "Xem phim, cafe, du lịch", type: "expense" },
+  { id: 5, name: "Hóa đơn", description: "Điện, nước, internet, điện thoại", type: "expense" },
+  { id: 6, name: "Y tế", description: "Khám bệnh, thuốc men", type: "expense" },
+  { id: 7, name: "Giáo dục", description: "Học phí, sách vở", type: "expense" },
+  { id: 8, name: "Nhà cửa", description: "Tiền thuê nhà, sửa chữa", type: "expense" },
+  { id: 9, name: "Chuyển tiền", description: "Chuyển tiền giữa các ví", type: "expense" },
+  { id: 10, name: "Khác", description: "Chi phí khác", type: "expense" },
+];
+
+const MOCK_INCOME_CATEGORIES = [
+  { id: 11, name: "Lương", description: "Lương tháng", type: "income" },
+  { id: 12, name: "Thưởng", description: "Tiền thưởng, KPI", type: "income" },
+  { id: 13, name: "Đầu tư", description: "Lãi đầu tư, cổ tức", type: "income" },
+  { id: 14, name: "Bán đồ", description: "Bán đồ cũ, không dùng", type: "income" },
+  { id: 15, name: "Làm thêm", description: "Thu nhập từ công việc phụ", type: "income" },
+  { id: 16, name: "Quà tặng", description: "Tiền quà, mừng tuổi", type: "income" },
+  { id: 17, name: "Chuyển tiền", description: "Chuyển tiền giữa các ví", type: "income" },
+  { id: 18, name: "Khác", description: "Thu nhập khác", type: "income" },
+];
+
 export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
   
-  // ✅ REPLACE MOCK DATA WITH API STATE
-  const [expenseCategories, setExpenseCategories] = useState([]);
-  const [incomeCategories, setIncomeCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // ⚠️ USING LOCAL STATE - Backend chưa có API
+  const [expenseCategories, setExpenseCategories] = useState(MOCK_EXPENSE_CATEGORIES);
+  const [incomeCategories, setIncomeCategories] = useState(MOCK_INCOME_CATEGORIES);
+  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   
   const [nameInput, setNameInput] = useState("");
   const [descInput, setDescInput] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "" });
+  const [nextId, setNextId] = useState(19); // For generating new IDs
 
-  // ✅ LOAD CATEGORIES FROM API
+  // ⚠️ MOCK FUNCTION - Backend chưa có API
   const loadCategories = async () => {
-    try {
-      setLoading(true);
-      setApiError("");
-      
-      // Load both expense and income categories
-      const [expenseRes, incomeRes] = await Promise.all([
-        categoryService.getCategoriesByType("expense"),
-        categoryService.getCategoriesByType("income")
-      ]);
-
-      setExpenseCategories(expenseRes.categories || []);
-      setIncomeCategories(incomeRes.categories || []);
-    } catch (error) {
-      console.error("❌ Error loading categories:", error);
-      setApiError(error.response?.data?.error || "Không thể tải danh sách danh mục");
-    } finally {
-      setLoading(false);
-    }
+    // Do nothing - using mock data
+    console.warn("⚠️ Backend chưa có API quản lý categories");
+    console.warn("📝 Hiện tại dùng mock data local");
   };
 
-  // Load categories on mount and when tab changes
+  // Load categories on mount
   useEffect(() => {
     loadCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,32 +72,46 @@ export default function CategoriesPage() {
 
     try {
       if (editingId) {
-        // ✅ UPDATE CATEGORY
-        await categoryService.updateCategory(editingId, {
-          name: nameInput.trim(),
-          description: descInput.trim(),
-        });
-        
-        setToast({ open: true, message: "Đã cập nhật danh mục." });
+        // ✅ UPDATE CATEGORY (LOCAL)
+        const updater = (cats) =>
+          cats.map((c) =>
+            c.id === editingId
+              ? { ...c, name: nameInput.trim(), description: descInput.trim() }
+              : c
+          );
+
+        if (activeTab === "expense") {
+          setExpenseCategories(updater);
+        } else {
+          setIncomeCategories(updater);
+        }
+
+        setToast({ open: true, message: "✅ Đã cập nhật danh mục." });
       } else {
-        // ✅ CREATE CATEGORY
-        await categoryService.createCategory({
+        // ✅ CREATE CATEGORY (LOCAL)
+        const newCat = {
+          id: nextId,
           name: nameInput.trim(),
-          type: activeTab, // "expense" hoặc "income"
           description: descInput.trim(),
-        });
-        
-        setToast({ open: true, message: "Đã thêm danh mục mới." });
+          type: activeTab,
+        };
+
+        if (activeTab === "expense") {
+          setExpenseCategories([...expenseCategories, newCat]);
+        } else {
+          setIncomeCategories([...incomeCategories, newCat]);
+        }
+
+        setNextId(nextId + 1);
+        setToast({ open: true, message: "✅ Đã thêm danh mục mới." });
       }
 
       resetForm();
-      // Reload categories from backend
-      await loadCategories();
     } catch (error) {
       console.error("❌ Error saving category:", error);
-      setToast({ 
-        open: true, 
-        message: error.response?.data?.error || "Không thể lưu danh mục" 
+      setToast({
+        open: true,
+        message: "Không thể lưu danh mục",
       });
     }
   };
@@ -101,18 +126,20 @@ export default function CategoriesPage() {
     if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
 
     try {
-      await categoryService.deleteCategory(cat.id);
-      
-      setToast({ open: true, message: "Đã xóa danh mục." });
+      // ✅ DELETE CATEGORY (LOCAL)
+      if (activeTab === "expense") {
+        setExpenseCategories(expenseCategories.filter((c) => c.id !== cat.id));
+      } else {
+        setIncomeCategories(incomeCategories.filter((c) => c.id !== cat.id));
+      }
+
+      setToast({ open: true, message: "✅ Đã xóa danh mục." });
       if (editingId === cat.id) resetForm();
-      
-      // Reload categories from backend
-      await loadCategories();
     } catch (error) {
       console.error("❌ Error deleting category:", error);
-      setToast({ 
-        open: true, 
-        message: error.response?.data?.error || "Không thể xóa danh mục" 
+      setToast({
+        open: true,
+        message: "Không thể xóa danh mục",
       });
     }
   };
@@ -214,6 +241,18 @@ export default function CategoriesPage() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ⚠️ WARNING MESSAGE */}
+      <div className="alert alert-warning d-flex align-items-start gap-2 mb-3">
+        <i className="bi bi-exclamation-triangle fs-5 mt-1"></i>
+        <div className="flex-grow-1">
+          <h6 className="mb-1 fw-semibold">⚠️ Danh mục chỉ lưu trữ local</h6>
+          <p className="mb-0 small">
+            Backend chưa có API quản lý categories. Các thay đổi bạn thực hiện (thêm/sửa/xóa) chỉ tồn tại trong phiên làm việc hiện tại.
+            Refresh trang = mất data. Tuy nhiên, các danh mục mặc định vẫn luôn có sẵn khi tạo giao dịch.
+          </p>
         </div>
       </div>
 

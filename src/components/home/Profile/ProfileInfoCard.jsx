@@ -112,7 +112,7 @@ export default function ProfileInfoCard({ user, onUpdate }) {
       setOkMsg({ 
         old: "", 
         next: "", 
-        confirm: "✅ Đổi mật khẩu thành công!" 
+        confirm: "Đổi mật khẩu thành công!" 
       });
       
       // Reset form after 2 seconds
@@ -134,7 +134,10 @@ export default function ProfileInfoCard({ user, onUpdate }) {
   };
 
   const saveName = async () => {
-    if (!name.trim()) return setNameOk("Tên không được để trống.");
+    if (!name.trim()) {
+      setNameOk("Tên không được để trống.");
+      return;
+    }
     
     try {
       // ✅ CALL API UPDATE PROFILE
@@ -142,15 +145,15 @@ export default function ProfileInfoCard({ user, onUpdate }) {
         fullName: name.trim(),
       });
       
-      setNameOk("✅ Đã lưu tên hiển thị.");
-      setTimeout(() => setNameOk(""), 2000);
+      setNameOk("Đã lưu tên hiển thị.");
+      setTimeout(() => setNameOk(""), 3000);
       
       // Callback to parent to reload profile
       if (onUpdate) onUpdate();
     } catch (error) {
       console.error("❌ Error updating name:", error);
-      setNameOk("❌ Không thể cập nhật tên.");
-      setTimeout(() => setNameOk(""), 2000);
+      setNameOk("Không thể cập nhật tên: " + (error.response?.data?.error || error.message));
+      setTimeout(() => setNameOk(""), 3000);
     }
   };
 

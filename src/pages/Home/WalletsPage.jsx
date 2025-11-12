@@ -2,6 +2,7 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { walletService } from "../../services/walletService";
 import { transactionService } from "../../services/transactionService";
+import { useToast } from "../../contexts/ToastContext";
 
 import WalletCard from "../../components/wallets/WalletCard";
 import WalletEditModal from "../../components/wallets/WalletEditModal";
@@ -126,6 +127,9 @@ const formatMoney = (amount = 0, currency = "VND") => {
 };
 
 export default function WalletsPage() {
+  // ✅ USE TOAST HOOK
+  const { showToast } = useToast();
+  
   // ✅ REPLACE MOCK DATA WITH API STATE
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -420,7 +424,7 @@ export default function WalletsPage() {
                    `Vui lòng liên hệ admin hoặc xóa giao dịch thủ công.`;
       }
       
-      alert(errorMsg);
+      showToast(errorMsg);
       setToast({ 
         open: true, 
         message: "Xóa ví thất bại - Còn giao dịch liên quan" 
@@ -501,8 +505,8 @@ export default function WalletsPage() {
         await walletService.setDefaultWallet(data.id);
       }
 
-      setEditing(null);
-      setToast({ open: true, message: "Cập nhật ví thành công" });
+    setEditing(null);
+    setToast({ open: true, message: "Cập nhật ví thành công" });
       
       // ✅ Reload wallets và update selected wallet
       const newWallets = await loadWallets();
@@ -586,7 +590,7 @@ export default function WalletsPage() {
       if (targetWallet) {
         setSelectedWallet(targetWallet);
         console.log("✅ Selected merged wallet:", targetWallet);
-      } else {
+    } else {
         setSelectedWallet(null);
       }
     } catch (error) {
@@ -614,8 +618,8 @@ export default function WalletsPage() {
       
       console.log("✅ Transfer success:", result);
       
-      setToast({ 
-        open: true, 
+      setToast({
+        open: true,
         message: `Chuyển tiền thành công: ${formatMoney(amount, currencyFrom)}` 
       });
       
@@ -632,7 +636,7 @@ export default function WalletsPage() {
       console.error("❌ Error transferring money:", error);
       const errorMsg = error.response?.data?.error || error.response?.data?.message || "Không thể chuyển tiền";
       
-      alert(`❌ Chuyển tiền thất bại\n\n${errorMsg}`);
+      showToast(`Chuyển tiền thất bại: ${errorMsg}`);
       setToast({ 
         open: true, 
         message: "Chuyển tiền thất bại" 
@@ -657,7 +661,7 @@ export default function WalletsPage() {
         // Validate email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-          alert("Email không hợp lệ!");
+          showToast("Email không hợp lệ!");
           return;
         }
         
@@ -694,18 +698,16 @@ export default function WalletsPage() {
           await loadWallets();
           setSelectedWallet(null);
         } else {
-          alert(
-            "⚠️ Không thể chuyển ví nhóm về ví cá nhân\n\n" +
-            "Chỉ có thể:\n" +
-            "- Xóa thành viên khỏi ví (nếu bạn là OWNER)\n" +
-            "- Rời khỏi ví (nếu bạn là MEMBER)"
+          showToast(
+            "Không thể chuyển ví nhóm về ví cá nhân. " +
+            "Chỉ có thể xóa thành viên khỏi ví (nếu bạn là OWNER) hoặc rời khỏi ví (nếu bạn là MEMBER)."
           );
         }
       }
     } catch (error) {
       console.error("❌ Error converting wallet:", error);
       const errorMsg = error.response?.data?.error || "Không thể chuyển đổi ví";
-      alert(errorMsg);
+      showToast(errorMsg);
       setToast({ open: true, message: errorMsg });
     }
   };
@@ -964,7 +966,7 @@ export default function WalletsPage() {
               {/* ✅ FIX: Dùng formatMoney trực tiếp */}
               {showTotalAll 
                 ? formatMoney(totalAll, currencyOfChoice || "VND")
-                : "••••••"
+                  : "••••••"
               }
               <i
                 role="button"
@@ -1024,7 +1026,7 @@ export default function WalletsPage() {
                         {/* ✅ FIX: Dùng formatMoney trực tiếp */}
                         {showTotalPersonal 
                           ? formatMoney(totalPersonal, currencyOfChoice || "VND")
-                          : "••••••"
+                            : "••••••"
                         }
                         <i
                           role="button"
@@ -1190,7 +1192,7 @@ export default function WalletsPage() {
                         {/* ✅ FIX: Dùng formatMoney trực tiếp, KHÔNG replace */}
                         {showTotalGroup 
                           ? formatMoney(totalGroup, currencyOfChoice || "VND")
-                          : "••••••"
+                            : "••••••"
                         }
                         <i
                           role="button"
