@@ -19,7 +19,7 @@ const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
 
 /** Bảng màu cho ví mới (theo 2 ảnh bạn gửi) */
 const WALLET_COLORS = [
-  "#9B5DE5",
+  "#2D99AE",
   
 ];
 
