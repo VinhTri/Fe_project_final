@@ -242,3 +242,110 @@
     box-shadow: 0 2px 12px rgba(0,0,0,0.12) !important;
   }
 }
+/* =========================================================
+   TOPBAR – Clean & Grouped (Glass-synced, refined layout)
+   ========================================================= */
+
+/* 1) WRAPPER & LAYOUT */
+.tb__wrap {
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(var(--glass-blur, 22px)) saturate(var(--glass-sat, 180%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 22px)) saturate(var(--glass-sat, 180%));
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  border-radius: var(--radius, 14px);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Giữ 2 bên rõ ràng */
+  padding: 10px 16px;
+  gap: 16px;
+}
+
+/* Bên trái: chào & actions */
+.tb__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Bên phải: search + actions */
+.tb__right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+/* WELCOME */
+.tb__welcome {
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  white-space: nowrap;
+}
+
+/* 2) SEARCH (đưa sang bên phải cạnh thông báo) */
+.tb__search--pill {
+  flex: none;
+  width: 280px;
+  height: 34px;
+
+  background: rgba(255,255,255,0.66);
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 999px;
+
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  position: relative;
+  transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.tb__search--pill:hover {
+  background: rgba(255,255,255,0.78);
+  border-color: rgba(15,23,42,0.12);
+}
+
+.tb__search--pill:focus-within {
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+  border-color: rgba(59,130,246,0.45);
+  background: rgba(255,255,255,0.9);
+}
+
+.tb__search--pill input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  height: 100%;
+  color: #0f172a;
+}
+
+/* 🔄 Nút tìm kiếm: đổi sang trắng có viền */
+.tb__search-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 26px;
+  border-radius: 999px;
+
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,0.15);
+  color: #475569;
+
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.tb__search-btn:hover {
+  background: #f8fafc;
+  border-color: rgba(15,23,42,0.3);
+  color: #1e293b;
+}
+.tb__search-btn:active {
+  transform: translateY(-50%) scale(0.97);
+}
