@@ -2,33 +2,12 @@ import React, { useState } from "react";
 import "../../styles/home/CategoriesPage.css";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
-
-// 5 danh mục mẫu – Chi phí
-const INITIAL_EXPENSE_CATEGORIES = [
-  { id: 1, name: "Ăn uống", description: "Cơm, nước, cafe, đồ ăn vặt" },
-  { id: 2, name: "Di chuyển", description: "Xăng xe, gửi xe, phương tiện công cộng" },
-  { id: 3, name: "Mua sắm", description: "Quần áo, giày dép, đồ dùng cá nhân" },
-  { id: 4, name: "Hóa đơn", description: "Điện, nước, internet, điện thoại" },
-  { id: 5, name: "Giải trí", description: "Xem phim, game, du lịch, hội họp bạn bè" },
-];
-
-// 5 danh mục mẫu – Thu nhập
-const INITIAL_INCOME_CATEGORIES = [
-  { id: 101, name: "Lương", description: "Lương chính hàng tháng" },
-  { id: 102, name: "Thưởng", description: "Thưởng dự án, thưởng KPI" },
-  { id: 103, name: "Bán hàng", description: "Bán đồ cũ, bán online" },
-  { id: 104, name: "Lãi tiết kiệm", description: "Lãi ngân hàng, lãi đầu tư an toàn" },
-  { id: 105, name: "Khác", description: "Các khoản thu nhập khác" },
-];
+import { useCategoryData } from "../../home/store/CategoryDataContext";
 
 export default function CategoriesPage() {
+  const { expenseCategories, incomeCategories, createExpenseCategory, createIncomeCategory, updateExpenseCategory, updateIncomeCategory, deleteExpenseCategory, deleteIncomeCategory } = useCategoryData();
+
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
-  const [expenseCategories, setExpenseCategories] = useState(
-    INITIAL_EXPENSE_CATEGORIES
-  );
-  const [incomeCategories, setIncomeCategories] = useState(
-    INITIAL_INCOME_CATEGORIES
-  );
   // search inputs (the inline form will be used for search)
   const [searchName, setSearchName] = useState("");
   const [searchDesc, setSearchDesc] = useState("");
@@ -88,22 +67,19 @@ export default function CategoriesPage() {
   const handleModalSubmit = (payload) => {
     // payload = { name, description }
     if (modalMode === "create") {
-      const data = { id: Date.now(), name: payload.name, description: payload.description };
-      // insert at the beginning so new categories appear at top
       if (activeTab === "expense") {
-        setExpenseCategories((list) => [data, ...list]);
+        createExpenseCategory(payload);
       } else {
-        setIncomeCategories((list) => [data, ...list]);
+        createIncomeCategory(payload);
       }
       // go to first page to show the new item
       setPage(1);
       setToast({ open: true, message: "Đã thêm danh mục mới." });
     } else if (modalMode === "edit") {
-      const updater = (list) => list.map((c) => (c.id === modalEditingId ? { ...c, name: payload.name, description: payload.description } : c));
       if (activeTab === "expense") {
-        setExpenseCategories(updater);
+        updateExpenseCategory(modalEditingId, payload);
       } else {
-        setIncomeCategories(updater);
+        updateIncomeCategory(modalEditingId, payload);
       }
       setToast({ open: true, message: "Đã cập nhật danh mục." });
     }
@@ -119,9 +95,9 @@ export default function CategoriesPage() {
     if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
 
     if (activeTab === "expense") {
-      setExpenseCategories((list) => list.filter((c) => c.id !== cat.id));
+      deleteExpenseCategory(cat.id);
     } else {
-      setIncomeCategories((list) => list.filter((c) => c.id !== cat.id));
+      deleteIncomeCategory(cat.id);
     }
 
     setToast({ open: true, message: "Đã xóa danh mục." });

@@ -1,6 +1,8 @@
 // src/components/transactions/TransactionFormModal.jsx
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { useWalletData } from "../../home/store/WalletDataContext";
 
 /* ================== CẤU HÌNH MẶC ĐỊNH ================== */
 const EMPTY_FORM = {
@@ -16,8 +18,11 @@ const EMPTY_FORM = {
   targetWallet: "",
 };
 
-const CATEGORIES = ["Ăn uống", "Di chuyển", "Quà tặng", "Giải trí", "Hóa đơn", "Khác"];
-const WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng A", "Ngân hàng B"];
+// static defaults kept as fallback
+const DEFAULT_CATEGORIES = ["Ăn uống", "Di chuyển", "Quà tặng", "Giải trí", "Hóa đơn", "Khác"];
+
+/* WALLETS will be sourced from WalletDataContext; keep default fallback */
+const DEFAULT_WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng A", "Ngân hàng B"];
 
 /* ================== Autocomplete + Select Input ================== */
 function WalletSelectInput({ label, value, onChange, options, placeholder, id }) {
@@ -103,7 +108,7 @@ export default function TransactionFormModal({
   useEffect(() => {
     if (!open) return;
     const now = new Date().toISOString().slice(0, 16);
-    if (variant === "internal") {
+  if (variant === "internal") {
       if (mode === "edit" && initialData) {
         let dateValue = "";
         if (initialData.date) {
@@ -157,6 +162,28 @@ export default function TransactionFormModal({
       }
     }
   }, [open, mode, initialData, variant]);
+
+  // get shared categories and wallets
+  const { expenseCategories, incomeCategories } = useCategoryData();
+  const { wallets: walletList } = useWalletData();
+
+  const categoryOptions = form.type === "income"
+    ? (incomeCategories?.map(c => c.name) || DEFAULT_CATEGORIES)
+    : (expenseCategories?.map(c => c.name) || DEFAULT_CATEGORIES);
+
+  const walletOptions = (walletList && walletList.length > 0)
+    ? walletList.map(w => w.name)
+    : DEFAULT_WALLETS;
+
+  // Keep form.category in sync when type changes or categories update
+  useEffect(() => {
+    if (variant === "internal") return; // internal uses fixed category
+    if (!categoryOptions || categoryOptions.length === 0) return;
+    if (!form.category || !categoryOptions.includes(form.category)) {
+      setForm(f => ({ ...f, category: categoryOptions[0] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.type, expenseCategories, incomeCategories]);
 
   /* ========== Handlers ========== */
   const handleChange = (e) => {
@@ -282,7 +309,7 @@ export default function TransactionFormModal({
                         value={form.walletName}
                         onChange={(v) => setForm((f) => ({ ...f, walletName: v }))}
                         placeholder="Nhập hoặc chọn ví..."
-                        options={WALLETS}
+                        options={walletOptions}
                       />
                     </div>
 
@@ -320,7 +347,7 @@ export default function TransactionFormModal({
                         value={form.category}
                         onChange={(v) => setForm((f) => ({ ...f, category: v }))}
                         placeholder="Nhập hoặc chọn danh mục..."
-                        options={CATEGORIES}
+                        options={categoryOptions}
                       />
                     </div>
 
@@ -379,7 +406,7 @@ export default function TransactionFormModal({
                       value={form.sourceWallet}
                       onChange={(v) => setForm((f) => ({ ...f, sourceWallet: v }))}
                       placeholder="Nhập hoặc chọn ví gửi..."
-                      options={WALLETS}
+                      options={walletOptions}
                     />
                   </div>
 
@@ -390,7 +417,7 @@ export default function TransactionFormModal({
                       value={form.targetWallet}
                       onChange={(v) => setForm((f) => ({ ...f, targetWallet: v }))}
                       placeholder="Nhập hoặc chọn ví nhận..."
-                      options={WALLETS}
+                      options={walletOptions}
                     />
                   </div>
 

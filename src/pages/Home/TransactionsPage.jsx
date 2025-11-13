@@ -1,9 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import "../../styles/home/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
+import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
+import { useBudgetData } from "../../home/store/BudgetDataContext";
+import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { useWalletData } from "../../home/store/WalletDataContext";
 
 // ===== GIAO DỊCH NGOÀI – 20 dữ liệu mẫu =====
 const MOCK_TRANSACTIONS = [
@@ -567,10 +571,26 @@ function toDateObj(str) {
 }
 
 export default function TransactionsPage() {
+  // Persist transactions to localStorage so newly-created items survive navigation
+  const STORAGE_EXTERNAL = "app_external_transactions_v1";
+  const STORAGE_INTERNAL = "app_internal_transfers_v1";
+
+  const readStored = (key, fallback) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : fallback;
+    } catch (e) {
+      console.warn("Failed to read from storage", key, e);
+      return fallback;
+    }
+  };
+
   const [externalTransactions, setExternalTransactions] =
-    useState(MOCK_TRANSACTIONS);
-  const [internalTransactions, setInternalTransactions] = useState(
-    MOCK_INTERNAL_TRANSFERS
+    useState(() => readStored(STORAGE_EXTERNAL, MOCK_TRANSACTIONS));
+  const [internalTransactions, setInternalTransactions] = useState(() =>
+    readStored(STORAGE_INTERNAL, MOCK_INTERNAL_TRANSFERS)
   );
   const [activeTab, setActiveTab] = useState(TABS.EXTERNAL);
 
@@ -588,6 +608,15 @@ export default function TransactionsPage() {
   const [toast, setToast] = useState({ open: false, message: "" });
 
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Get shared data from contexts
+  const { budgets, getSpentAmount, updateTransactionsByCategory } = useBudgetData();
+  const { expenseCategories, incomeCategories } = useCategoryData();
+  const { wallets } = useWalletData();
+  
+  // Budget warning state
+  const [budgetWarning, setBudgetWarning] = useState(null);
+  const [pendingTransaction, setPendingTransaction] = useState(null);
 
   const nextCode = () => {
     const all = [...externalTransactions, ...internalTransactions];
@@ -616,6 +645,52 @@ export default function TransactionsPage() {
   };
 
   const handleCreate = (payload) => {
+    // Check for budget warning if this is an external expense transaction with a category
+    if (activeTab === TABS.EXTERNAL && payload.type === "expense") {
+      const categoryBudget = budgets.find((b) => b.categoryName === payload.category);
+      if (categoryBudget) {
+        // Match budget type:
+        // - If budget is for specific wallet, check only category:walletName transactions
+        // - If budget is for all wallets, check only category:all transactions
+        let shouldCheckBudget = false;
+        
+        if (categoryBudget.walletName === "Tất cả ví") {
+          // Budget applies to all wallets - will track category:all
+          shouldCheckBudget = true;
+        } else if (categoryBudget.walletName === payload.walletName) {
+          // Budget is for this specific wallet
+          shouldCheckBudget = true;
+        }
+
+        if (shouldCheckBudget) {
+          // Get spent amount for the matching category:wallet or category:all
+          const spent = getSpentAmount(payload.category, payload.walletName);
+          const totalAfterTx = spent + payload.amount;
+          const remaining = categoryBudget.limitAmount - spent;
+          const percentAfterTx = (totalAfterTx / categoryBudget.limitAmount) * 100;
+
+          // Show warning if: would exceed budget OR would reach 90% or more (sắp đạt hạn mức)
+          if (payload.amount > remaining || percentAfterTx >= 90) {
+            // Determine if this is an alert (approaching) or a warning (exceeding)
+            const isExceeding = payload.amount > remaining;
+            
+            setBudgetWarning({
+              categoryName: payload.category,
+              budgetLimit: categoryBudget.limitAmount,
+              spent,
+              transactionAmount: payload.amount,
+              totalAfterTx,
+              isExceeding,
+            });
+            setPendingTransaction(payload);
+            setCreating(false);
+            return;
+          }
+        }
+      }
+    }
+
+    // Proceed with transaction creation
     if (activeTab === TABS.EXTERNAL) {
       const tx = {
         id: Date.now(),
@@ -646,6 +721,35 @@ export default function TransactionsPage() {
     setCreating(false);
     setToast({ open: true, message: "Đã thêm giao dịch mới." });
     setCurrentPage(1);
+  };
+
+  // Handle budget warning confirmation (user wants to continue)
+  const handleBudgetWarningConfirm = () => {
+    if (!pendingTransaction) return;
+
+    // Create the transaction anyway
+    if (activeTab === TABS.EXTERNAL) {
+      const tx = {
+        id: Date.now(),
+        code: nextCode(),
+        creatorCode: "USR001",
+        attachment: pendingTransaction.attachment || "",
+        ...pendingTransaction,
+      };
+      setExternalTransactions((list) => [tx, ...list]);
+    }
+
+    setBudgetWarning(null);
+    setPendingTransaction(null);
+    setToast({ open: true, message: "Đã thêm giao dịch mới (vượt hạn mức)." });
+    setCurrentPage(1);
+  };
+
+  // Handle budget warning cancellation
+  const handleBudgetWarningCancel = () => {
+    setBudgetWarning(null);
+    setPendingTransaction(null);
+    setCreating(true); // Go back to create form
   };
 
   const handleUpdate = (payload) => {
@@ -700,6 +804,50 @@ export default function TransactionsPage() {
     setConfirmDel(null);
     setToast({ open: true, message: "Đã xóa giao dịch." });
   };
+
+  // Update budget data when transactions change
+  useEffect(() => {
+    // Build transaction map keyed by category:wallet and category:all
+    // category:walletName = spent for transactions of that category in that specific wallet
+    // category:all = sum of all wallets for that category (for "apply to all wallets" budgets)
+    const categoryMap = {};
+    const categoryAllTotals = {}; // Temp to sum by category
+
+    externalTransactions.forEach((t) => {
+      if (t.type === "expense" && t.category && t.walletName) {
+        // Add to specific wallet key
+        const walletKey = `${t.category}:${t.walletName}`;
+        categoryMap[walletKey] = (categoryMap[walletKey] || 0) + t.amount;
+
+        // Track total for category:all calculation
+        categoryAllTotals[t.category] = (categoryAllTotals[t.category] || 0) + t.amount;
+      }
+    });
+
+    // Add category:all totals to map
+    Object.entries(categoryAllTotals).forEach(([category, total]) => {
+      categoryMap[`${category}:all`] = total;
+    });
+
+    updateTransactionsByCategory(categoryMap);
+  }, [externalTransactions, updateTransactionsByCategory]);
+
+  // Persist lists to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_EXTERNAL, JSON.stringify(externalTransactions));
+    } catch (e) {
+      console.warn("Failed to persist externalTransactions", e);
+    }
+  }, [externalTransactions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_INTERNAL, JSON.stringify(internalTransactions));
+    } catch (e) {
+      console.warn("Failed to persist internalTransactions", e);
+    }
+  }, [internalTransactions]);
 
   const currentTransactions = useMemo(
     () =>
@@ -1230,6 +1378,18 @@ export default function TransactionsPage() {
         cancelText="Hủy"
         onOk={handleDelete}
         onClose={() => setConfirmDel(null)}
+      />
+
+      <BudgetWarningModal
+        open={!!budgetWarning}
+        categoryName={budgetWarning?.categoryName}
+        budgetLimit={budgetWarning?.budgetLimit || 0}
+        spent={budgetWarning?.spent || 0}
+        transactionAmount={budgetWarning?.transactionAmount || 0}
+        totalAfterTx={budgetWarning?.totalAfterTx || 0}
+        isExceeding={budgetWarning?.isExceeding || false}
+        onConfirm={handleBudgetWarningConfirm}
+        onCancel={handleBudgetWarningCancel}
       />
 
       <SuccessToast
