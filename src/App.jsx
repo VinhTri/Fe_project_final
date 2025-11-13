@@ -19,6 +19,7 @@ import SettingsPage from "./pages/Home/SettingsPage";
 import FeedbackPage from "./pages/Home/FeedbackPage";
 import ProfilePage from "./pages/Home/ProfilePage";
 import FundsPage from "./pages/Home/FundsPage"; 
+import CategoriesPage from "./pages/Home/CategoriesPage";
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
     <Route path="wallets" element={<WalletsPage />} />
     <Route path="wallet-groups" element={<WalletGroupsPage />} />
     <Route path="transactions" element={<TransactionsPage />} />
+  <Route path="categories" element={<CategoriesPage />} />
     <Route path="budgets" element={<BudgetsPage />} />
     <Route path="reports" element={<ReportsPage />} /> 
     <Route path="settings" element={<SettingsPage />} />

@@ -1000,6 +1000,7 @@ export default function TransactionsPage() {
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
+                  <th style={{ width: 60 }}>STT</th>
                   <th>Ngày</th>
                   <th>Thời gian</th>
                   <th>Loại</th>
@@ -1013,12 +1014,13 @@ export default function TransactionsPage() {
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-muted py-4">
+                    <td colSpan={9} className="text-center text-muted py-4">
                       Không có giao dịch nào.
                     </td>
                   </tr>
                 ) : (
-                  paginated.map((t) => {
+                  paginated.map((t, i) => {
+                    const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
                     const d = toDateObj(t.date);
                     const dateStr = d
                       ? d.toLocaleDateString("vi-VN", {
@@ -1036,6 +1038,7 @@ export default function TransactionsPage() {
 
                     return (
                       <tr key={t.id}>
+                        <td>{serial}</td>
                         <td>{dateStr}</td>
                         <td>{timeStr}</td>
                         <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
@@ -1089,6 +1092,7 @@ export default function TransactionsPage() {
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
+                  <th style={{ width: 60 }}>STT</th>
                   <th>Ngày</th>
                   <th>Thời gian</th>
                   <th>Ví gửi</th>
@@ -1101,12 +1105,13 @@ export default function TransactionsPage() {
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center text-muted py-4">
+                    <td colSpan={8} className="text-center text-muted py-4">
                       Không có giao dịch nào.
                     </td>
                   </tr>
                 ) : (
-                  paginated.map((t) => {
+                  paginated.map((t, i) => {
+                    const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
                     const d = toDateObj(t.date);
                     const dateStr = d
                       ? d.toLocaleDateString("vi-VN", {
@@ -1124,6 +1129,7 @@ export default function TransactionsPage() {
 
                     return (
                       <tr key={t.id}>
+                        <td>{serial}</td>
                         <td>{dateStr}</td>
                         <td>{timeStr}</td>
                         <td>{t.sourceWallet}</td>

@@ -3,6 +3,18 @@
   padding: 18px 24px 32px;
 }
 
+/* Aliases for component classNames (component uses .cat-... names) */
+.cat-page {
+  padding: 18px 24px 32px;
+}
+
+/* small alias so header styling doesn't completely vanish if component uses .cat-header */
+.cat-header {
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
 /* Header card */
 .category-header-card {
   background: #ffffff;

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "../../styles/home/CategoriesPage.css";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
+import CategoryFormModal from "../../components/categories/CategoryFormModal";
 
 // 5 danh mục mẫu – Chi phí
 const INITIAL_EXPENSE_CATEGORIES = [
@@ -28,57 +29,90 @@ export default function CategoriesPage() {
   const [incomeCategories, setIncomeCategories] = useState(
     INITIAL_INCOME_CATEGORIES
   );
-  const [nameInput, setNameInput] = useState("");
-  const [descInput, setDescInput] = useState("");
-  const [editingId, setEditingId] = useState(null);
+  // search inputs (the inline form will be used for search)
+  const [searchName, setSearchName] = useState("");
+  const [searchDesc, setSearchDesc] = useState("");
+
+  // modal for create/edit
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("create"); // 'create' | 'edit'
+  const [modalInitial, setModalInitial] = useState("");
+  const [modalEditingId, setModalEditingId] = useState(null);
+  // pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [toast, setToast] = useState({ open: false, message: "" });
 
   const currentList =
     activeTab === "expense" ? expenseCategories : incomeCategories;
+  const displayedList = currentList.filter((c) => {
+    const nameMatch = (c.name || "").toLowerCase().includes((searchName || "").toLowerCase());
+    const descMatch = (c.description || "").toLowerCase().includes((searchDesc || "").toLowerCase());
+    return nameMatch && descMatch;
+  });
+  const totalPages = Math.max(1, Math.ceil(displayedList.length / pageSize));
+  const paginatedList = displayedList.slice((page - 1) * pageSize, page * pageSize);
 
-  const resetForm = () => {
-    setNameInput("");
-    setDescInput("");
-    setEditingId(null);
+  // adjust page if current page is out of bounds after filters/changes
+  React.useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+    if (page < 1) setPage(1);
+  }, [page, totalPages, displayedList.length]);
+
+  const resetSearch = () => {
+    setSearchName("");
+    setSearchDesc("");
+    setPage(1);
   };
 
-  const handleAddOrUpdate = (e) => {
+  // inline form becomes search; add/edit handled by modal
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (!nameInput.trim()) return;
+    // search is reactive via searchName/searchDesc
+  };
 
-    const data = {
-      id: editingId || Date.now(),
-      name: nameInput.trim(),
-      description: descInput.trim(),
-    };
+  const openAddModal = () => {
+    setModalMode("create");
+    setModalInitial("");
+    setModalEditingId(null);
+    setModalOpen(true);
+  };
 
-    if (activeTab === "expense") {
-      setExpenseCategories((list) => {
-        if (editingId) {
-          return list.map((c) => (c.id === editingId ? data : c));
-        }
-        return [...list, data];
-      });
-    } else {
-      setIncomeCategories((list) => {
-        if (editingId) {
-          return list.map((c) => (c.id === editingId ? data : c));
-        }
-        return [...list, data];
-      });
+  const openEditModal = (cat) => {
+    setModalMode("edit");
+    setModalInitial({ name: cat.name, description: cat.description || "" });
+    setModalEditingId(cat.id);
+    setModalOpen(true);
+  };
+
+  const handleModalSubmit = (payload) => {
+    // payload = { name, description }
+    if (modalMode === "create") {
+      const data = { id: Date.now(), name: payload.name, description: payload.description };
+      // insert at the beginning so new categories appear at top
+      if (activeTab === "expense") {
+        setExpenseCategories((list) => [data, ...list]);
+      } else {
+        setIncomeCategories((list) => [data, ...list]);
+      }
+      // go to first page to show the new item
+      setPage(1);
+      setToast({ open: true, message: "Đã thêm danh mục mới." });
+    } else if (modalMode === "edit") {
+      const updater = (list) => list.map((c) => (c.id === modalEditingId ? { ...c, name: payload.name, description: payload.description } : c));
+      if (activeTab === "expense") {
+        setExpenseCategories(updater);
+      } else {
+        setIncomeCategories(updater);
+      }
+      setToast({ open: true, message: "Đã cập nhật danh mục." });
     }
-
-    setToast({
-      open: true,
-      message: editingId ? "Đã cập nhật danh mục." : "Đã thêm danh mục mới.",
-    });
-    resetForm();
+    setModalOpen(false);
+    setModalEditingId(null);
   };
 
   const handleEdit = (cat) => {
-    setEditingId(cat.id);
-    setNameInput(cat.name);
-    setDescInput(cat.description || "");
+    openEditModal(cat);
   };
 
   const handleDelete = (cat) => {
@@ -91,7 +125,10 @@ export default function CategoriesPage() {
     }
 
     setToast({ open: true, message: "Đã xóa danh mục." });
-    if (editingId === cat.id) resetForm();
+    if (modalEditingId === cat.id) {
+      setModalEditingId(null);
+      setModalOpen(false);
+    }
   };
 
   return (
@@ -108,7 +145,7 @@ export default function CategoriesPage() {
       >
         <div className="card-body d-flex justify-content-between align-items-center">
           {/* BÊN TRÁI: ICON + TEXT */}
-          <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-2">
             <div className="cat-header-icon-wrap">
               {/* icon giống ở sidebar: Danh mục = bi-tags */}
               <i className="bi bi-tags cat-header-icon" />
@@ -122,6 +159,7 @@ export default function CategoriesPage() {
                 đây.
               </p>
             </div>
+          
           </div>
 
           {/* BÊN PHẢI: NÚT TAB */}
@@ -141,7 +179,8 @@ export default function CategoriesPage() {
                 }
                 onClick={() => {
                   setActiveTab("expense");
-                  resetForm();
+                  resetSearch();
+                  setPage(1);
                 }}
               >
                 Chi phí
@@ -157,32 +196,41 @@ export default function CategoriesPage() {
                 }
                 onClick={() => {
                   setActiveTab("income");
-                  resetForm();
+                  resetSearch();
+                  setPage(1);
                 }}
               >
                 Thu nhập
+              </button>
+            </div>
+            <div className="ms-3">
+              <button
+                type="button"
+                className="btn btn-sm btn-success rounded-pill category-add-header-btn"
+                onClick={openAddModal}
+                style={{ padding: "6px 14px" }}
+              >
+                Thêm danh mục
               </button>
             </div>
           </div>
         </div>
       </div>
 
+      
+
       {/* FORM THÊM / SỬA */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
-          <form
-            className="row g-3 align-items-end"
-            onSubmit={handleAddOrUpdate}
-          >
+          <form className="row g-3 align-items-end" onSubmit={handleSearchSubmit}>
             <div className="col-md-4">
               <label className="form-label fw-semibold">Tên danh mục</label>
               <input
                 className="form-control"
                 placeholder="VD: Ăn uống, Lương..."
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
                 maxLength={40}
-                required
               />
             </div>
             <div className="col-md-5">
@@ -190,24 +238,18 @@ export default function CategoriesPage() {
               <input
                 className="form-control"
                 placeholder="Mô tả ngắn cho danh mục (tùy chọn)"
-                value={descInput}
-                onChange={(e) => setDescInput(e.target.value)}
+                value={searchDesc}
+                onChange={(e) => setSearchDesc(e.target.value)}
                 maxLength={80}
               />
             </div>
             <div className="col-md-3 d-flex gap-2">
               <button type="submit" className="btn btn-primary flex-grow-1">
-                {editingId ? "Lưu thay đổi" : "Thêm danh mục"}
+                Tìm kiếm
               </button>
-              {editingId && (
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary"
-                  onClick={resetForm}
-                >
-                  Hủy
-                </button>
-              )}
+              <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
+                Xóa
+              </button>
             </div>
           </form>
         </div>
@@ -224,7 +266,7 @@ export default function CategoriesPage() {
               </span>
             </h5>
             <span className="text-muted small">
-              Tổng: {currentList.length} danh mục
+              Tổng: {displayedList.length} danh mục
             </span>
           </div>
 
@@ -241,25 +283,20 @@ export default function CategoriesPage() {
                 </tr>
               </thead>
               <tbody>
-                {currentList.length === 0 ? (
+                {displayedList.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center text-muted py-4">
                       Chưa có danh mục nào.
                     </td>
                   </tr>
                 ) : (
-                  currentList.map((c, idx) => (
+                  paginatedList.map((c, idx) => (
                     <tr key={c.id}>
-                      <td>{idx + 1}</td>
+                      <td>{(page - 1) * pageSize + idx + 1}</td>
                       <td className="fw-semibold">{c.name}</td>
                       <td>{c.description || "-"}</td>
                       <td className="text-center">
-                        <button
-                          className="btn btn-link btn-sm text-muted me-2"
-                          type="button"
-                          onClick={() => handleEdit(c)}
-                          title="Sửa"
-                        >
+                        <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title="Sửa">
                           <i className="bi bi-pencil-square" />
                         </button>
                         <button
@@ -277,8 +314,31 @@ export default function CategoriesPage() {
               </tbody>
             </table>
           </div>
+          {/* PAGINATION (bottom-right) */}
+          <div className="d-flex justify-content-end align-items-center mt-3">
+            <div className="text-muted small me-3">Trang {page} / {totalPages}</div>
+            <nav aria-label="Page navigation">
+              <ul className="pagination mb-0">
+                <li className={`page-item ${page <= 1 ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="Previous">« Trước</button>
+                </li>
+                <li className={`page-item ${page >= totalPages ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label="Next">Sau »</button>
+                </li>
+              </ul>
+            </nav>
+          </div>
         </div>
       </div>
+
+      <CategoryFormModal
+        open={modalOpen}
+        mode={modalMode}
+        initialValue={modalInitial}
+        typeLabel={activeTab === "expense" ? "chi phí" : "thu nhập"}
+        onSubmit={handleModalSubmit}
+        onClose={() => setModalOpen(false)}
+      />
 
       <SuccessToast
         open={toast.open}
