@@ -15,18 +15,31 @@
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
-/* Header card */
+/* Header card – căn trái tiêu đề, phần bên phải nằm sát mép phải (giống hình 2) */
 .category-header-card {
   background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* trái – phải */
+  gap: 24px;
 }
 
-/* Bên phải header: toggle + nút Thêm */
+/* Nếu phần tiêu đề được bọc trong .category-header-left thì sẽ nằm gọn bên trái */
+.category-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Bên phải header: toggle + nút Thêm (hoặc select + nút như hình 2) */
 .category-header-right {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto; /* đẩy cụm bên phải sát mép phải */
 }
 
 .category-title {
@@ -190,7 +203,10 @@
   }
 
   .category-header-card {
-    padding-inline: 8px;
+    padding-inline: 12px;
+    flex-direction: column;
+    align-items: flex-start; /* mobile: tiêu đề + mô tả trên, nút bên dưới */
+    gap: 12px;
   }
 
   .category-header-right {
@@ -198,8 +214,10 @@
     justify-content: flex-start;
     gap: 8px;
     flex-wrap: wrap;
+    margin-left: 0;
   }
 }
+
 .cat-header-icon-wrap {
   width: 38px;
   height: 38px;

@@ -102,15 +102,20 @@ export default function BudgetsPage() {
             </div>
           </div>
 
-          {/* BÊN PHẢI: THÊM HẠN MỨC */}
-          <button
-            className="btn btn-primary budget-add-btn d-flex align-items-center"
-            style={{ whiteSpace: "nowrap" }}
-            onClick={handleAddBudget}
-          >
-            <i className="bi bi-plus-lg me-2" />
-            Thêm Hạn mức
-          </button>
+          {/* BÊN PHẢI: DROPDOWN + THÊM HẠN MỨC */}
+          <div className="d-flex align-items-center gap-2">
+            <select className="form-select form-select-sm" style={{ minWidth: 200 }}>
+              <option>Tất cả danh mục</option>
+            </select>
+            <button
+              className="btn btn-primary budget-add-btn d-flex align-items-center"
+              style={{ whiteSpace: "nowrap" }}
+              onClick={handleAddBudget}
+            >
+              <i className="bi bi-plus-lg me-2" />
+              Thêm Hạn mức
+            </button>
+          </div>
         </div>
       </div>
 

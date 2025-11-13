@@ -1,12 +1,12 @@
 import "../../../styles/home/Topbar.css";
 import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
+import GlobalSearch from "../../common/GlobalSearch";
 import { useEffect, useState } from "react";
 
 export default function HomeTopbar() {
   const [userName, setUserName] = useState("Người dùng");
   const [userAvatar, setUserAvatar] = useState("https://www.gravatar.com/avatar/?d=mp&s=40");
-  const [q, setQ] = useState("");
 
   useEffect(() => {
     try {
@@ -24,14 +24,6 @@ export default function HomeTopbar() {
     }
   }, []);
 
-  const onSearch = (e) => {
-    e.preventDefault();
-    const query = q.trim();
-    if (!query) return;
-    // TODO: gọi navigate hoặc dispatch sự kiện tìm kiếm ở đây
-    // console.log("search:", query);
-  };
-
   return (
     <header className="tb__wrap" role="banner">
       {/* Trái: chào người dùng */}
@@ -39,19 +31,9 @@ export default function HomeTopbar() {
         <div className="tb__welcome">Xin chào, {userName}!</div>
       </div>
 
-      {/* Phải: search kề sát actions */}
+      {/* Phải: Global Search + actions */}
       <div className="tb__right">
-        <form className="tb__search tb__search--pill" onSubmit={onSearch} role="search">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Tìm kiếm..."
-            aria-label="Tìm kiếm"
-          />
-          <button className="tb__search-btn" aria-label="Thực hiện tìm kiếm" type="submit">
-            <i className="bi bi-search" aria-hidden="true"></i>
-          </button>
-        </form>
+        <GlobalSearch />
 
         <div className="tb__actions" role="group" aria-label="Tác vụ topbar">
           <div className="tb__divider" aria-hidden="true" />
