@@ -5,11 +5,9 @@
   background-color: #f8f9fa;
 }
 
-/* Header Style */
+/* ================= HEADER ================= */
+
 .budget-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   border-radius: 18px;
   background: linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%);
   color: #ffffff;
@@ -17,8 +15,28 @@
   box-shadow: 0 4px 12px rgba(0, 50, 93, 0.2);
 }
 
-.budget-header .card-body {
+/* Bên trong header: chia trái / phải giống trang Giao dịch */
+.budget-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   padding: 20px !important;
+}
+
+/* Cụm bên trái: icon + tiêu đề + mô tả */
+.budget-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Cụm bên phải: nút, select... */
+.budget-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .budget-header-icon-wrap {
@@ -43,6 +61,12 @@
   margin: 0;
 }
 
+.budget-subtitle {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0;
+}
+
 .budget-add-btn {
   background-color: #0066cc;
   color: #ffffff;
@@ -51,6 +75,7 @@
   padding: 10px 20px;
   border-radius: 6px;
   transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
 .budget-add-btn:hover {
@@ -60,7 +85,8 @@
   box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
 }
 
-/* Empty State */
+/* ================= EMPTY STATE ================= */
+
 .budget-empty-state {
   display: flex;
   flex-direction: column;
@@ -93,6 +119,8 @@
   max-width: 400px;
   line-height: 1.5;
 }
+
+/* ================= CARD ================= */
 
 .budget-card {
   background: white;
@@ -130,6 +158,7 @@
   color: #495057;
 }
 
+/* Progress bar */
 .progress {
   height: 12px;
   background-color: #e9ecef;
@@ -152,6 +181,7 @@
   background: linear-gradient(90deg, #ffc107 0%, #ffb300 100%) !important;
 }
 
+/* Stats */
 .budget-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -190,6 +220,7 @@
   color: #ffc107;
 }
 
+/* Actions */
 .budget-card-actions {
   display: flex;
   gap: 0.5rem;
@@ -228,6 +259,7 @@
   color: #c82333;
 }
 
+/* Thông tin cảnh báo */
 .budget-warning-info {
   background-color: #fff8e1;
   border-left: 4px solid #ffc107;
@@ -247,19 +279,25 @@
   color: #212529;
 }
 
-/* Responsive */
+/* =============== RESPONSIVE =============== */
+
 @media (max-width: 768px) {
-  .budget-header {
+  .budget-header-inner {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 12px;
   }
 
-  .budget-header h2 {
-    font-size: 1.5rem;
+  .budget-title {
+    font-size: 1.4rem;
   }
 
-  .btn-gradient {
+  .budget-header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .budget-add-btn {
     width: 100%;
     text-align: center;
   }

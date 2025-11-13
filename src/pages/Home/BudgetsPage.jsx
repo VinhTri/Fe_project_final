@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import "../../styles/home/BudgetsPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
@@ -10,7 +10,13 @@ import SuccessToast from "../../components/common/Toast/SuccessToast";
 // Use centralized categories from CategoryDataContext
 
 export default function BudgetsPage() {
-  const { budgets, getSpentAmount, createBudget, updateBudget, deleteBudget } = useBudgetData();
+  const {
+    budgets,
+    getSpentAmount,
+    createBudget,
+    updateBudget,
+    deleteBudget,
+  } = useBudgetData();
   const { expenseCategories } = useCategoryData();
   const { wallets } = useWalletData();
 
@@ -36,8 +42,18 @@ export default function BudgetsPage() {
       categoryType: budget.categoryType,
       limitAmount: budget.limitAmount,
       // If walletId is null and walletName is missing or equals the special label, treat as ALL
-      walletId: budget.walletId != null ? budget.walletId : (budget.walletName === "Tất cả ví" ? "ALL" : (budget.walletName || null)),
-      walletName: budget.walletName != null ? budget.walletName : (budget.walletId == null ? "Tất cả ví" : null),
+      walletId:
+        budget.walletId != null
+          ? budget.walletId
+          : budget.walletName === "Tất cả ví"
+          ? "ALL"
+          : budget.walletName || null,
+      walletName:
+        budget.walletName != null
+          ? budget.walletName
+          : budget.walletId == null
+          ? "Tất cả ví"
+          : null,
     });
     setEditingId(budget.id);
     setModalOpen(true);
@@ -71,42 +87,33 @@ export default function BudgetsPage() {
     return set;
   }, [budgets, modalMode, modalInitial]);
 
-  const filteredCategories = (expenseCategories || []).filter((c) => !categoryBudgets.has(c.name));
+  const filteredCategories = (expenseCategories || []).filter(
+    (c) => !categoryBudgets.has(c.name)
+  );
 
   return (
     <div className="budget-page container py-4">
-      {/* HEADER – dùng màu giống trang Giao dịch */}
-      <div
-        className="budget-header card border-0 mb-3"
-        style={{
-          borderRadius: 18,
-          background:
-            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
-          color: "#ffffff",
-        }}
-      >
-        <div className="card-body d-flex justify-content-between align-items-center">
-          {/* BÊN TRÁI: ICON + TEXT */}
-          <div className="d-flex align-items-center gap-2">
+      {/* HEADER – bố cục giống trang Giao dịch: trái = icon + text, phải = nút */}
+      <div className="budget-header card border-0 mb-3">
+        <div className="card-body budget-header-inner">
+          {/* BÊN TRÁI: ICON + TIÊU ĐỀ + MÔ TẢ */}
+          <div className="budget-header-left">
             <div className="budget-header-icon-wrap">
               {/* icon tương ứng chức năng: hạn mức = bi-graph-up-arrow */}
               <i className="bi bi-graph-up-arrow budget-header-icon" />
             </div>
             <div>
-              <h2 className="budget-title mb-1" style={{ color: "#ffffff" }}>
+              <h2 className="budget-title mb-1">
                 Quản lý Hạn mức Chi tiêu
               </h2>
-              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
+              <p className="mb-0 budget-subtitle">
                 Thiết lập và theo dõi hạn mức chi tiêu cho từng danh mục.
               </p>
             </div>
           </div>
 
-          {/* BÊN PHẢI: DROPDOWN + THÊM HẠN MỨC */}
-          <div className="d-flex align-items-center gap-2">
-            <select className="form-select form-select-sm" style={{ minWidth: 200 }}>
-              <option>Tất cả danh mục</option>
-            </select>
+          {/* BÊN PHẢI: NÚT THÊM HẠN MỨC */}
+          <div className="budget-header-right">
             <button
               className="btn btn-primary budget-add-btn d-flex align-items-center"
               style={{ whiteSpace: "nowrap" }}
@@ -136,14 +143,21 @@ export default function BudgetsPage() {
               strokeLinecap="round"
             />
             <circle cx="75" cy="35" r="8" fill="#28a745" />
-            <path d="M72 35l2 2 4-4" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M72 35l2 2 4-4"
+              stroke="white"
+              strokeWidth="2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           <h3>Bạn chưa thiết lập Hạn mức Chi tiêu</h3>
-          <p>Hãy bắt đầu bằng cách tạo hạn mức cho một danh mục để kiểm soát chi tiêu của bạn.</p>
-          <button
-            className="btn btn-primary"
-            onClick={handleAddBudget}
-          >
+          <p>
+            Hãy bắt đầu bằng cách tạo hạn mức cho một danh mục để kiểm soát
+            chi tiêu của bạn.
+          </p>
+          <button className="btn btn-primary" onClick={handleAddBudget}>
             Thiết lập Hạn mức Chi tiêu đầu tiên
           </button>
         </div>
@@ -152,9 +166,15 @@ export default function BudgetsPage() {
         <div className="row g-4">
           {budgets.map((budget) => {
             // Get spent amount for this budget's category+wallet combo
-            const spent = getSpentAmount(budget.categoryName, budget.walletName);
+            const spent = getSpentAmount(
+              budget.categoryName,
+              budget.walletName
+            );
             const remaining = budget.limitAmount - spent;
-            const percent = Math.min((spent / budget.limitAmount) * 100, 100);
+            const percent = Math.min(
+              (spent / budget.limitAmount) * 100,
+              100
+            );
             const isOver = percent >= 100;
             const isWarning = percent >= 80 && percent < 100;
 
@@ -162,17 +182,27 @@ export default function BudgetsPage() {
               <div className="col-lg-4 col-md-6" key={budget.id}>
                 <div className="budget-card">
                   <div className="budget-card-header">
-                    <h5 className="budget-card-title">{budget.categoryName}</h5>
-                    {budget.walletName && (
-                      <div className="text-muted small">Ví: {budget.walletName}</div>
-                    )}
+                    <div>
+                      <h5 className="budget-card-title">
+                        {budget.categoryName}
+                      </h5>
+                      {budget.walletName && (
+                        <div className="text-muted small">
+                          Ví: {budget.walletName}
+                        </div>
+                      )}
+                    </div>
                     <span className="budget-card-month">{budget.month}</span>
                   </div>
 
                   <div className="progress">
                     <div
                       className={`progress-bar ${
-                        isOver ? "bg-danger" : isWarning ? "bg-warning" : ""
+                        isOver
+                          ? "bg-danger"
+                          : isWarning
+                          ? "bg-warning"
+                          : ""
                       }`}
                       style={{ width: `${percent}%` }}
                       role="progressbar"
@@ -191,19 +221,35 @@ export default function BudgetsPage() {
                     </div>
                     <div className="budget-stat-item">
                       <label className="budget-stat-label">Đã chi</label>
-                      <div className={`budget-stat-value ${isOver ? "danger" : ""}`}>
+                      <div
+                        className={`budget-stat-value ${
+                          isOver ? "danger" : ""
+                        }`}
+                      >
                         {spent.toLocaleString("vi-VN")}
                       </div>
                     </div>
                     <div className="budget-stat-item">
                       <label className="budget-stat-label">Còn lại</label>
-                      <div className={`budget-stat-value ${remaining < 0 ? "danger" : "success"}`}>
+                      <div
+                        className={`budget-stat-value ${
+                          remaining < 0 ? "danger" : "success"
+                        }`}
+                      >
                         {remaining.toLocaleString("vi-VN")}
                       </div>
                     </div>
                     <div className="budget-stat-item">
                       <label className="budget-stat-label">Sử dụng</label>
-                      <div className={`budget-stat-value ${isOver ? "danger" : isWarning ? "warning" : ""}`}>
+                      <div
+                        className={`budget-stat-value ${
+                          isOver
+                            ? "danger"
+                            : isWarning
+                            ? "warning"
+                            : ""
+                        }`}
+                      >
                         {Math.round(percent)}%
                       </div>
                     </div>
