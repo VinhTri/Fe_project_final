@@ -27,8 +27,7 @@ export default function HomeLayout() {
             </div>
           </div>
 
-          {/* spacer để chừa chỗ cho topbar */}
-          <div className="home__topbar-spacer" />
+         
 
           {/* Vùng nội dung cuộn */}
           <div className="home__content">

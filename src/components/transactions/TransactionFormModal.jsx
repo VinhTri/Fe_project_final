@@ -19,27 +19,49 @@ const EMPTY_FORM = {
 const CATEGORIES = ["Ăn uống", "Di chuyển", "Quà tặng", "Giải trí", "Hóa đơn", "Khác"];
 const WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng A", "Ngân hàng B"];
 
-/* ================== AutocompleteInput ================== */
-function AutocompleteInput({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  options,
-  required = false,
-}) {
+/* ================== Autocomplete + Select Input ================== */
+function WalletSelectInput({ label, value, onChange, options, placeholder, id }) {
+  const [inputValue, setInputValue] = useState(value);
+
+  useEffect(() => setInputValue(value), [value]);
+
+  const handleInput = (e) => {
+    setInputValue(e.target.value);
+    onChange(e.target.value);
+  };
+
+  const handleSelect = (e) => {
+    const selected = e.target.value;
+    setInputValue(selected);
+    onChange(selected);
+  };
+
   return (
     <div className="mb-3">
       <label className="form-label fw-semibold">{label}</label>
-      <input
-        list={id}
-        className="form-control"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-      />
+      <div className="d-flex gap-2">
+        <input
+          list={id}
+          className="form-control flex-grow-1"
+          placeholder={placeholder}
+          value={inputValue}
+          onChange={handleInput}
+          required
+        />
+        <select
+          className="form-select"
+          style={{ width: "auto", flexShrink: 0 }}
+          onChange={handleSelect}
+          value={options.includes(inputValue) ? inputValue : ""}
+        >
+          <option value="">Chọn</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </div>
       <datalist id={id}>
         {options.map((opt) => (
           <option key={opt} value={opt} />
@@ -56,7 +78,7 @@ export default function TransactionFormModal({
   initialData,
   onSubmit,
   onClose,
-  variant = "external", // "external" = giao dịch ngoài; "internal" = chuyển giữa các ví
+  variant = "external",
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
@@ -102,7 +124,12 @@ export default function TransactionFormModal({
         });
         setAttachmentPreview(initialData.attachment || "");
       } else {
-        setForm({ ...EMPTY_FORM, type: "transfer", date: now, category: "Chuyển tiền giữa các ví" });
+        setForm({
+          ...EMPTY_FORM,
+          type: "transfer",
+          date: now,
+          category: "Chuyển tiền giữa các ví",
+        });
         setAttachmentPreview("");
       }
     } else {
@@ -249,14 +276,13 @@ export default function TransactionFormModal({
 
                   <div className="row g-3">
                     <div className="col-md-6">
-                      <AutocompleteInput
+                      <WalletSelectInput
                         id="wallet-options"
                         label="Ví"
                         value={form.walletName}
                         onChange={(v) => setForm((f) => ({ ...f, walletName: v }))}
-                        placeholder="Chọn ví hoặc gõ để tìm..."
+                        placeholder="Nhập hoặc chọn ví..."
                         options={WALLETS}
-                        required
                       />
                     </div>
 
@@ -288,14 +314,13 @@ export default function TransactionFormModal({
                     </div>
 
                     <div className="col-md-6">
-                      <AutocompleteInput
+                      <WalletSelectInput
                         id="category-options"
                         label="Danh mục"
                         value={form.category}
                         onChange={(v) => setForm((f) => ({ ...f, category: v }))}
-                        placeholder="Chọn danh mục hoặc gõ để tìm..."
+                        placeholder="Nhập hoặc chọn danh mục..."
                         options={CATEGORIES}
-                        required
                       />
                     </div>
 
@@ -338,7 +363,7 @@ export default function TransactionFormModal({
                   </div>
                 </>
               ) : (
-                /* ===== CHUYỂN TIỀN GIỮA CÁC VÍ ===== */
+                /* ===== CHUYỂN TIỀN ===== */
                 <div className="row g-3">
                   <div className="col-12">
                     <div className="form-label fw-semibold mb-0">Chuyển tiền giữa các ví</div>
@@ -348,26 +373,24 @@ export default function TransactionFormModal({
                   </div>
 
                   <div className="col-md-6">
-                    <AutocompleteInput
+                    <WalletSelectInput
                       id="source-wallet"
                       label="Ví gửi"
                       value={form.sourceWallet}
                       onChange={(v) => setForm((f) => ({ ...f, sourceWallet: v }))}
-                      placeholder="Chọn ví gửi..."
+                      placeholder="Nhập hoặc chọn ví gửi..."
                       options={WALLETS}
-                      required
                     />
                   </div>
 
                   <div className="col-md-6">
-                    <AutocompleteInput
+                    <WalletSelectInput
                       id="target-wallet"
                       label="Ví nhận"
                       value={form.targetWallet}
                       onChange={(v) => setForm((f) => ({ ...f, targetWallet: v }))}
-                      placeholder="Chọn ví nhận..."
+                      placeholder="Nhập hoặc chọn ví nhận..."
                       options={WALLETS}
-                      required
                     />
                   </div>
 

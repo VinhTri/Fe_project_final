@@ -5,6 +5,7 @@ import "../../../styles/home/Sidebar.css";
 const MENU = [
   { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
   { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
+  { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
   { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
   { to: "/home/categories", label: "Danh mục", icon: "bi-tags" },
   { to: "/home/wallet-groups", label: "Nhóm ví", icon: "bi-collection" },
@@ -25,7 +26,28 @@ export default function HomeSidebar() {
 
   return (
     <>
-      {/* Header: nút 3 gạch + MENU (dùng data-title thay vì title) */}
+      {/* ============================
+          BRAND / LOGO VIDEO
+         ============================ */}
+      <div className="sb__brand">
+        <video
+          className="sb__brand-video"
+          src="/videos/logo.mp4" // đổi đường dẫn video của bạn ở đây
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+
+        <div className="sb__brand-text">
+          <div className="sb__brand-title">HỆ THỐNG QUẢN LÝ</div>
+          <div className="sb__brand-sub">Quản lý ví cá nhân</div>
+        </div>
+      </div>
+
+      {/* ============================
+          HEADER BUTTON (MENU)
+         ============================ */}
       <button
         type="button"
         className="sb__link sb__link--header"
@@ -41,7 +63,9 @@ export default function HomeSidebar() {
 
       <div className="sb__divider" />
 
-      {/* Danh sách menu đặt trong vùng cuộn riêng */}
+      {/* ============================
+          NAVIGATION
+         ============================ */}
       <nav className="sb__nav sb__scroll" aria-label="Sidebar">
         {MENU.map((m) => (
           <NavLink
@@ -51,8 +75,7 @@ export default function HomeSidebar() {
             className={({ isActive }) =>
               "sb__link" + (isActive ? " is-active" : "")
             }
-            // ❌ KHÔNG dùng title để tránh tooltip mặc định
-            // ✅ Dùng data-title + aria-label
+            // dùng data-title để tooltip CSS, tránh title mặc định
             data-title={collapsed ? m.label : undefined}
             aria-label={collapsed ? m.label : undefined}
           >

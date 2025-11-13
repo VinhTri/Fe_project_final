@@ -18,6 +18,7 @@ import ReportsPage from "./pages/Home/ReportsPage";
 import SettingsPage from "./pages/Home/SettingsPage";
 import FeedbackPage from "./pages/Home/FeedbackPage";
 import ProfilePage from "./pages/Home/ProfilePage";
+import FundsPage from "./pages/Home/FundsPage"; 
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
     <Route path="settings" element={<SettingsPage />} />
     <Route path="feedback" element={<FeedbackPage />} />
     <Route path="profile" element={<ProfilePage />} />
+    <Route path="funds" element={<FundsPage />} />
   </Route>
 </Route>
 

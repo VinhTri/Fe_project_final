@@ -1,4 +1,6 @@
-/* ======================== TOKENS (phiên bản nền đặc) ======================== */
+/* =========================================================
+   TOKENS
+   ========================================================= */
 :root {
   --radius: 22px;
   --gap: 18px;
@@ -6,215 +8,247 @@
   --content-pad: 24px;
 
   /* Nền & viền */
-  --main-bg: #f8fafc;      /* nền sáng */
-  --sidebar-bg: #ffffff;   /* sidebar sáng */
-  --header-bg: #ffffff;    /* topbar */
-  --content-bg: #f9fafb;   /* nền nội dung */
-  --border-color: #e5e7eb; /* viền nhạt */
+  --main-bg: #f8fafc;
+  --sidebar-bg: #ffffff;
+  --header-bg: #ffffff;
+  --content-bg: #f9fafb;
+  --border-color: #e5e7eb;
 
-  /* Sidebar width */
-  --sb-w: 260px;
-  --sb-wc: 78px;
+  /* Sidebar / Topbar */
+  --sb-w: 260px;       /* sidebar mở */
+  --sb-wc: 78px;       /* sidebar thu gọn */
+  --tb-h: 64px;        /* chiều cao topbar */
 
-  /* Topbar height */
-  --tb-h: 64px;
+  /* Seam: chồng 1px để che border sidebar (liền mạch) */
+  --sb-seam: 1px;
+
+  /* Hiệu ứng chung sidebar/topbar/content */
+  --sb-anim: 0.36s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* ======================== TOÀN TRANG ======================== */
+/* =========================================================
+   PAGE WRAPPER
+   ========================================================= */
 .home-page {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
   color: var(--text);
   background: var(--main-bg);
+  overflow: hidden;
+
+  /* mặc định: sidebar đang mở */
+  --sb-current: var(--sb-w);
 }
 
-/* ẢNH NỀN (tuỳ chọn) */
-.home-page__bg { position: fixed; inset: 0; z-index: -2; }
-.home-page__bg-img { width: 100%; height: 100%; object-fit: cover; filter: none; }
-.home-page__overlay { display: none; }
+/* Khi body (hoặc wrapper cha) có class sb-collapsed */
+.sb-collapsed .home-page {
+  --sb-current: var(--sb-wc);
+}
 
-/* ======================== SIDEBAR CỐ ĐỊNH ======================== */
+/* BG optional */
+.home-page__bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+}
+.home-page__bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.home-page__overlay {
+  display: none;
+}
+
+/* =========================================================
+   SIDEBAR — FLUSH
+   ========================================================= */
 .home__sidebar {
   position: fixed;
-  top: var(--content-pad);
-  left: var(--content-pad);
-  width: var(--sb-w);
-  height: calc(100vh - var(--content-pad) * 2);
+  top: 0;
+  left: 0;
+  width: var(--sb-current);       /* chạy theo biến */
+  height: 100vh;
   z-index: 200;
-  overflow: visible;
   background: var(--sidebar-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   color: var(--text);
-  padding: 12px;
-}
-.sb-collapsed .home__sidebar { width: var(--sb-wc); }
+  border-right: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
 
-/* ======================== BỐ CỤC CHÍNH ======================== */
+  transition: width var(--sb-anim);
+}
+
+/* fallback nếu JS chưa apply biến (có cũng được, không có cũng ok) */
+.sb-collapsed .home__sidebar {
+  width: var(--sb-wc);
+}
+
+/* =========================================================
+   MAIN WRAP
+   ========================================================= */
 .home__wrap {
   display: flex;
   align-items: stretch;
   min-height: 100vh;
-  padding: var(--content-pad);
   gap: var(--gap);
+  padding: 0;
 }
 
-/* MAIN dịch phải theo chiều rộng sidebar, chỉ content cuộn */
+/* Phần main bên phải sidebar */
 .home__main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
-  min-width: 0;
-  margin-left: calc(var(--sb-w) + var(--gap));
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  overflow: hidden;
-  transition: margin-left .25s ease;
-}
-.sb-collapsed .home__main {
-  margin-left: calc(var(--sb-wc) + var(--gap));
+
+  margin-left: var(--sb-current);
+  transition: margin-left var(--sb-anim);
 }
 
-/* ======================== TOPBAR CỐ ĐỊNH ======================== */
-/* ======================== TOPBAR CỐ ĐỊNH ======================== */
+.sb-collapsed .home__main {
+  margin-left: var(--sb-wc); /* fallback */
+}
+
+/* =========================================================
+   TOPBAR — FIXED, CHẠY THEO SIDEBAR
+   ========================================================= */
 .home__topbar {
   position: fixed;
-  z-index: 300;
-  top: var(--content-pad);
-  left: calc(var(--content-pad) + var(--sb-w) + var(--gap));
-  right: var(--content-pad);
+  top: 0;
+  left: calc(var(--sb-current) - var(--sb-seam)); /* dính mép sidebar */
+  width: calc(100% - (var(--sb-current) - var(--sb-seam)));
   height: var(--tb-h);
+  z-index: 600;
   display: flex;
-  align-items: stretch;
-
-  /* Bo góc và chặn tràn */
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-/* Nền mờ (glass) */
-.home__topbar .tb__wrap {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(var(--glass-blur, 22px)) saturate(var(--glass-sat, 180%));
-  -webkit-backdrop-filter: blur(var(--glass-blur, 22px)) saturate(var(--glass-sat, 180%));
-  border: none;
+  align-items: center;
+  background: var(--header-bg);   /* nền base, bên trong tb__wrap bạn phủ màu */
+  border-bottom: 1px solid var(--border-color);
   box-shadow: none;
-  border-radius: inherit;
+  overflow: visible;              /* cho dropdown tràn xuống */
+
+  transition:
+    left var(--sb-anim),
+    width var(--sb-anim);
 }
 
-/* Spacer: cho content gần như dính sát topbar */
-.home__topbar-spacer {
-  height: calc(var(--tb-h) - 8px); /* giảm mạnh khoảng trống, có thể về 0 nếu muốn chạm hoàn toàn */
-  flex: 0 0 auto;
-  margin-bottom: -4px; /* tinh chỉnh nhỏ để khít hơn */
-}
-
-/* Khi sidebar thu gọn, topbar dịch trái theo sb-wc */
+/* fallback khi thu gọn */
 .sb-collapsed .home__topbar {
-  left: calc(var(--content-pad) + var(--sb-wc) + var(--gap));
+  left: calc(var(--sb-wc) - var(--sb-seam));
+  width: calc(100% - (var(--sb-wc) - var(--sb-seam)));
 }
 
+/* tb__wrap được style chi tiết trong Topbar.css,
+   ở đây chỉ lo layer cho dropdown */
+.home__topbar .tb__wrap {
+  position: relative;   /* mốc cho dd__panel */
+  z-index: 601;
+  overflow: visible;
+}
 
-/* ======================== CONTENT ======================== */
+/* Panel dropdown trong topbar */
+.dd__panel {
+  position: absolute;
+  top: calc(100% + 8px);  /* cách topbar 8px */
+  right: 0;
+  z-index: 9999;
+}
+
+/* =========================================================
+   CONTENT (CUỘN DƯỚI TOPBAR)
+   ========================================================= */
 .home__content {
   flex: 1;
-  padding: var(--content-pad);
+  padding: calc(var(--content-pad) + var(--tb-h))
+           var(--content-pad)
+           var(--content-pad);
   background: var(--content-bg);
   overflow-y: auto;
+  position: relative;
+  z-index: 1;
 }
 
-/* Scrollbar */
-.home__content::-webkit-scrollbar { width: 8px; }
+.home__content::-webkit-scrollbar {
+  width: 8px;
+}
 .home__content::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.25);
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 8px;
 }
 .home__content::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0,0.35);
+  background: rgba(0, 0, 0, 0.35);
 }
 
-/* ======================== EDGE BLEED ======================== */
+/* =========================================================
+   EDGE BLEED (optional – block full width)
+   ========================================================= */
 .edge-bleed {
   margin-inline: calc(var(--content-pad) * -1);
   border-radius: 16px;
   background: var(--header-bg);
   border: 1px solid var(--border-color);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
-/* ======================== RESPONSIVE ======================== */
-@media (max-width: 1024px) {
-  :root { --content-pad: 20px; }
-}
-
-@media (max-width: 768px) {
-  :root { --content-pad: 12px; }
-
-  .home__main { margin-left: 0; }
-
-  .home__sidebar {
-    left: var(--content-pad);
-    top: var(--content-pad);
-    width: 220px;
-    height: calc(100vh - var(--content-pad) * 2);
-  }
-
-  .home__topbar {
-    left: var(--content-pad);
-    right: var(--content-pad);
-  }
-
-  .home__content { padding: var(--content-pad); }
-}
-
-/* ======================== TOAST DƯỚI TOPBAR ======================== */
+/* =========================================================
+   TOAST dưới topbar
+   ========================================================= */
 .toast-portal {
   position: fixed;
   z-index: 350;
-  top: calc(var(--content-pad) + var(--tb-h) + 10px);
+  top: calc(var(--tb-h) + 10px);
   right: var(--content-pad);
 }
-.sb-collapsed .toast-portal { right: var(--content-pad); }
 
-@media (max-width: 768px) {
-  .toast-portal { right: var(--content-pad); }
+.sb-collapsed .toast-portal {
+  right: var(--content-pad);
 }
 
-/* ======================== DỌN DẸP MAIN-HEADER CŨ ======================== */
-.home__main-header { display: none; }
-.home__main-header .tb__wrap { display: none; }
-/* 1) Cho topbar không cắt con (để dropdown tràn ra) */
-.home__topbar {
-  overflow: visible !important;   /* thay vì overflow: hidden */
-  z-index: 500;                   /* cao hơn mọi phần main */
-}
-
-/* 2) Đảm bảo wrap là mốc định vị và nổi trên overlay glass */
-.home__topbar .tb__wrap {
-  position: relative;
-  z-index: 600;                   /* cao hơn .home__topbar */
-}
-
-/* 3) Panel dropdown nổi hẳn lên trên */
-.dd__panel {
-  position: absolute;             /* bạn đã dùng absolute rồi */
-  top: calc(100% + 8px);          /* bung ngay dưới topbar */
-  right: 0;
-  z-index: 9999;                  /* cao nhất trang */
-}
-
-/* 4) Nội dung main luôn nằm dưới dropdown */
+/* =========================================================
+   LAYER ƯU TIÊN NỘI DUNG
+   ========================================================= */
 .home__content,
 .home__main,
 main {
   position: relative;
   z-index: 1;
+}
+
+/* =========================================================
+   RESPONSIVE (TABLET / MOBILE)
+   ========================================================= */
+@media (max-width: 768px) {
+  /* padding nội dung nhỏ lại */
+  :root {
+    --content-pad: 12px;
+  }
+
+  /* Sidebar mobile nhỏ hơn chút, vẫn push layout (không overlay) */
+  .home__sidebar {
+    width: 220px;
+    height: 100vh;
+  }
+
+  /* Khi sidebar đang MỞ trên mobile */
+  .home__main {
+    margin-left: 220px;
+  }
+
+  .home__topbar {
+    left: 220px;
+    right: 0;
+    width: calc(100% - 220px);
+  }
+
+  /* Khi sidebar THU GỌN trên mobile */
+  body.sb-collapsed .home__sidebar {
+    width: var(--sb-wc);
+  }
+  body.sb-collapsed .home__main {
+    margin-left: var(--sb-wc);
+  }
+  body.sb-collapsed .home__topbar {
+    left: var(--sb-wc);
+    width: calc(100% - var(--sb-wc));
+  }
 }
