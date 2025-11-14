@@ -13,19 +13,21 @@ export default function BudgetsPage() {
   const {
     budgets,
     getSpentAmount,
+    getSpentForBudget,
     createBudget,
     updateBudget,
     deleteBudget,
   } = useBudgetData();
   const { expenseCategories } = useCategoryData();
   const { wallets } = useWalletData();
-
+  const [modalMode, setModalMode] = useState("create");
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("create"); // 'create' or 'edit'
   const [modalInitial, setModalInitial] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "" });
+  const [searchName, setSearchName] = useState("");
+  const [searchDesc, setSearchDesc] = useState("");
 
   const handleAddBudget = () => {
     setModalMode("create");
@@ -41,19 +43,11 @@ export default function BudgetsPage() {
       categoryName: budget.categoryName,
       categoryType: budget.categoryType,
       limitAmount: budget.limitAmount,
+      startDate: budget.startDate,
+      endDate: budget.endDate,
       // If walletId is null and walletName is missing or equals the special label, treat as ALL
-      walletId:
-        budget.walletId != null
-          ? budget.walletId
-          : budget.walletName === "Tất cả ví"
-          ? "ALL"
-          : budget.walletName || null,
-      walletName:
-        budget.walletName != null
-          ? budget.walletName
-          : budget.walletId == null
-          ? "Tất cả ví"
-          : null,
+      walletId: budget.walletId != null ? budget.walletId : (budget.walletName === "Tất cả ví" ? "ALL" : (budget.walletName || null)),
+      walletName: budget.walletName != null ? budget.walletName : (budget.walletId == null ? "Tất cả ví" : null),
     });
     setEditingId(budget.id);
     setModalOpen(true);
@@ -91,6 +85,20 @@ export default function BudgetsPage() {
     (c) => !categoryBudgets.has(c.name)
   );
 
+  // Filter budgets by search criteria
+  const filteredBudgets = useMemo(() => {
+    return budgets.filter((budget) => {
+      const nameMatch = (budget.categoryName || "").toLowerCase().includes((searchName || "").toLowerCase());
+      const descMatch = (budget.walletName || "").toLowerCase().includes((searchDesc || "").toLowerCase());
+      return nameMatch && descMatch;
+    });
+  }, [budgets, searchName, searchDesc]);
+
+  const handleSearchReset = () => {
+    setSearchName("");
+    setSearchDesc("");
+  };
+
   return (
     <div className="budget-page container py-4">
       {/* HEADER – bố cục giống trang Giao dịch: trái = icon + text, phải = nút */}
@@ -126,8 +134,42 @@ export default function BudgetsPage() {
         </div>
       </div>
 
+      {/* FORM TÌM KIẾM */}
+      <div className="card border-0 shadow-sm mb-3">
+        <div className="card-body">
+          <form className="row g-3 align-items-end" onSubmit={(e) => e.preventDefault()}>
+            <div className="col-md-4">
+              <label className="form-label fw-semibold">Tên danh mục</label>
+              <input
+                className="form-control"
+                placeholder="VD: Ăn uống, Lương..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+              />
+            </div>
+            <div className="col-md-5">
+              <label className="form-label fw-semibold">Mô tả</label>
+              <input
+                className="form-control"
+                placeholder="Mô tả ngắn cho danh mục (tùy chọn)"
+                value={searchDesc}
+                onChange={(e) => setSearchDesc(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3 d-flex gap-2">
+              <button type="submit" className="btn btn-primary flex-grow-1">
+                Tìm kiếm
+              </button>
+              <button type="button" className="btn btn-outline-secondary" onClick={handleSearchReset}>
+                Xóa
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       {/* Empty State */}
-      {budgets.length === 0 ? (
+      {filteredBudgets.length === 0 ? (
         <div className="budget-empty-state">
           <svg
             className="budget-empty-icon"
@@ -164,9 +206,10 @@ export default function BudgetsPage() {
       ) : (
         /* Budget Cards Grid */
         <div className="row g-4">
-          {budgets.map((budget) => {
+          {filteredBudgets.map((budget) => {
             // Get spent amount for this budget's category+wallet combo
-            const spent = getSpentAmount(
+            // Use period-aware calculation if available, otherwise fall back to regular calculation
+            const spent = getSpentForBudget ? getSpentForBudget(budget) : getSpentAmount(
               budget.categoryName,
               budget.walletName
             );
@@ -192,7 +235,11 @@ export default function BudgetsPage() {
                         </div>
                       )}
                     </div>
-                    <span className="budget-card-month">{budget.month}</span>
+                    <span className="budget-card-month">
+                      {budget.startDate && budget.endDate
+                        ? `Từ ${new Date(budget.startDate).toLocaleDateString("vi-VN")} đến ${new Date(budget.endDate).toLocaleDateString("vi-VN")}`
+                        : "N/A"}
+                    </span>
                   </div>
 
                   <div className="progress">

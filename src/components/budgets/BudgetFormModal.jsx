@@ -13,6 +13,8 @@ export default function BudgetFormModal({
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedWallet, setSelectedWallet] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -21,10 +23,15 @@ export default function BudgetFormModal({
       setLimitAmount(initialData.limitAmount);
       // If wallet info exists on initialData, preselect
       setSelectedWallet(initialData.walletId || initialData.walletName || "");
+      // Set dates from initialData if available
+      setStartDate(initialData.startDate || "");
+      setEndDate(initialData.endDate || "");
     } else {
       setSelectedCategory("");
       setSelectedWallet("");
       setLimitAmount("");
+      setStartDate("");
+      setEndDate("");
     }
     setErrors({});
   }, [open, mode, initialData]);
@@ -54,6 +61,15 @@ export default function BudgetFormModal({
     if (!limitAmount || limitAmount === "0") {
       newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
     }
+    if (!startDate) {
+      newErrors.startDate = "Vui lòng chọn ngày bắt đầu";
+    }
+    if (!endDate) {
+      newErrors.endDate = "Vui lòng chọn ngày kết thúc";
+    }
+    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+      newErrors.dateRange = "Ngày kết thúc phải sau ngày bắt đầu";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -67,6 +83,8 @@ export default function BudgetFormModal({
       categoryName: selectedCategory,
       categoryType: "expense",
       limitAmount: parseInt(limitAmount, 10),
+      startDate,
+      endDate,
     };
 
     if (selectedWallet === "ALL") {
@@ -148,6 +166,43 @@ export default function BudgetFormModal({
             {errors.limit && (
               <div className="invalid-feedback d-block">{errors.limit}</div>
             )}
+          </div>
+
+          {/* Date Range Selector */}
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Khoảng thời gian áp dụng</label>
+            <div className="row g-2">
+              <div className="col-6">
+                <label className="form-text small mb-1 d-block">Từ ngày</label>
+                <input
+                  type="date"
+                  className={`form-control ${errors.startDate ? "is-invalid" : ""}`}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                {errors.startDate && (
+                  <div className="invalid-feedback d-block">{errors.startDate}</div>
+                )}
+              </div>
+              <div className="col-6">
+                <label className="form-text small mb-1 d-block">Đến ngày</label>
+                <input
+                  type="date"
+                  className={`form-control ${errors.endDate ? "is-invalid" : ""}`}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+                {errors.endDate && (
+                  <div className="invalid-feedback d-block">{errors.endDate}</div>
+                )}
+              </div>
+            </div>
+            {errors.dateRange && (
+              <div className="invalid-feedback d-block" style={{ marginTop: "0.5rem" }}>
+                {errors.dateRange}
+              </div>
+            )}
+            <div className="form-text mt-2">Hạn mức sẽ được theo dõi trong khoảng thời gian này.</div>
           </div>
 
           {/* Buttons */}

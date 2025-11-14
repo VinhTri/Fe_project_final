@@ -235,22 +235,15 @@ export default function CategoriesPage() {
       <div className="card border-0 shadow-sm">
         <div className="card-body">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">
-              Danh sách danh mục{" "}
-              <span className="badge bg-light text-secondary ms-1">
-                {activeTab === "expense" ? "Chi phí" : "Thu nhập"}
-              </span>
-            </h5>
-            <span className="text-muted small">
-              Tổng: {displayedList.length} danh mục
-            </span>
+            <h5 className="mb-0">Danh sách danh mục</h5>
+            <span className="text-muted small">Tổng: {displayedList.length} danh mục</span>
           </div>
 
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th style={{ width: "5%" }}>#</th>
+                  <th style={{ width: "5%" }}>STT</th>
                   <th style={{ width: "25%" }}>Tên danh mục</th>
                   <th>Mô tả</th>
                   <th className="text-center" style={{ width: "15%" }}>

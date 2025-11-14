@@ -141,6 +141,7 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1rem;
+  gap: 1rem;
 }
 
 .budget-card-title {
@@ -152,10 +153,12 @@
 
 .budget-card-month {
   background-color: #e9ecef;
-  padding: 0.25rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: #495057;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Progress bar */

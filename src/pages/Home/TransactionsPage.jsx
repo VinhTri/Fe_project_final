@@ -610,7 +610,7 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Get shared data from contexts
-  const { budgets, getSpentAmount, updateTransactionsByCategory } = useBudgetData();
+  const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets } = useWalletData();
   
@@ -663,8 +663,8 @@ export default function TransactionsPage() {
         }
 
         if (shouldCheckBudget) {
-          // Get spent amount for the matching category:wallet or category:all
-          const spent = getSpentAmount(payload.category, payload.walletName);
+          // Get spent amount using date-range-aware calculation
+          const spent = getSpentForBudget ? getSpentForBudget(categoryBudget) : getSpentAmount(payload.category, payload.walletName);
           const totalAfterTx = spent + payload.amount;
           const remaining = categoryBudget.limitAmount - spent;
           const percentAfterTx = (totalAfterTx / categoryBudget.limitAmount) * 100;
@@ -830,6 +830,8 @@ export default function TransactionsPage() {
     });
 
     updateTransactionsByCategory(categoryMap);
+    // also provide the full transactions list to budget context for period-based calculations
+    updateAllExternalTransactions(externalTransactions);
   }, [externalTransactions, updateTransactionsByCategory]);
 
   // Persist lists to localStorage when they change
