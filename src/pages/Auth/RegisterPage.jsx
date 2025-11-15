@@ -247,14 +247,7 @@ export default function RegisterPage() {
                 onChange={onChange}
                 required
               />
-              <span
-                className="input-group-text eye-toggle"
-                role="button"
-                onClick={() => setShowPassword((v) => !v)}
-                title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              >
-                <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`} />
-              </span>
+              
             </div>
 
             <div className="form-text mb-3" style={{ marginLeft: 2 }}>
@@ -273,14 +266,7 @@ export default function RegisterPage() {
                 onChange={onChange}
                 required
               />
-              <span
-                className="input-group-text eye-toggle"
-                role="button"
-                onClick={() => setShowConfirm((v) => !v)}
-                title={showConfirm ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              >
-                <i className={`bi ${showConfirm ? "bi-eye-slash" : "bi-eye"}`} />
-              </span>
+              
             </div>
 
             {error && <div className="auth-error">{error}</div>}
