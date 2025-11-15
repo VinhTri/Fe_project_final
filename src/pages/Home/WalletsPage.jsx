@@ -17,10 +17,9 @@ import "../../styles/home/WalletsPage.css";
 
 const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
 
-/** Bảng màu cho ví mới (theo 2 ảnh bạn gửi) */
+/** Bảng màu cho ví mới — mặc định sử dụng màu chủ đạo yêu cầu */
 const WALLET_COLORS = [
-  "#2D99AE",
-  
+  "#7bbac7",
 ];
 
 /** Chọn màu ít dùng nhất để hạn chế trùng màu liên tiếp */
@@ -712,7 +711,7 @@ export default function WalletsPage() {
                   <aside
                     className="col-12 col-lg-4"
                     ref={personalInspectorRef}
-                    style={{ "--wi-accent": selectedWallet?.color || "#6C7EE1" }}
+                    style={{ "--wi-accent": selectedWallet?.color || "#7bbac7" }}
                   >
                     <WalletInspector
                       wallet={selectedWallet}
@@ -883,7 +882,7 @@ export default function WalletsPage() {
                   <aside
                     className="col-12 col-lg-4"
                     ref={groupInspectorRef}
-                    style={{ "--wi-accent": selectedWallet?.color || "#6C7EE1" }}
+                    style={{ "--wi-accent": selectedWallet?.color || "#7bbac7" }}
                   >
                     <WalletInspector
                       wallet={selectedWallet}

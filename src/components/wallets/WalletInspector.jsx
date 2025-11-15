@@ -605,7 +605,7 @@ export default function WalletInspector({
                     className="btn btn-accent"
                     onClick={() => setTStep(4)}
                   >
-                    Cảnh báo →
+                    Tiếp tục →
                   </button>
                 </div>
               </>
@@ -900,7 +900,7 @@ export default function WalletInspector({
                     className="btn btn-accent"
                     onClick={() => setMStep(4)}
                   >
-                    Cảnh báo →
+                    Tiếp tục →
                   </button>
                 </div>
               </>

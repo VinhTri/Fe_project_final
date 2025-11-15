@@ -214,6 +214,15 @@ main {
   z-index: 1;
 }
 
+/* When a modal is open, blur the underlying page content like the screenshot */
+/* previously we used `.modal-blur` rules; now use a dim overlay + `.modal-exempt` to keep
+   central content sharp. `.modal-exempt` is applied dynamically by the Modal component. */
+
+.modal-exempt {
+  position: relative;
+  z-index: 1055; /* above the dim layer (1040) but below modal backdrop (1060) */
+}
+
 /* =========================================================
    RESPONSIVE (TABLET / MOBILE)
    ========================================================= */

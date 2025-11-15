@@ -31,7 +31,7 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
   // Màu nền (phủ full thẻ)
   const bg = wallet.color
     ? `linear-gradient(145deg, ${wallet.color}, ${wallet.color}CC)`
-    : "#fff";
+    : `linear-gradient(145deg, #7bbac7, #7bbac7CC)`;
 
   return (
     <div
@@ -104,6 +104,26 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
         .wallet-card .wc-label{ color:#f1f1f1; font-size:.9rem; }
         .wallet-card .wc-value{ color:#fff; font-weight:600; }
         .wallet-card .wc-value.text-primary{ color:#fff !important; }
+
+        /* Default: keep card's original gradient/background for the selected item
+           and make non-selected cards visually muted (white background + dark text)
+        */
+        .wallet-grid__item:not(.is-selected) .wallet-card{
+          background: #ffffff !important;
+          color: #111 !important;
+          box-shadow: 0 6px 14px rgba(17,24,39,0.06) !important;
+        }
+        .wallet-grid__item:not(.is-selected) .wallet-card .wallet-name,
+        .wallet-grid__item:not(.is-selected) .wallet-card .wc-label,
+        .wallet-grid__item:not(.is-selected) .wallet-card .wc-value{
+          color: #111 !important;
+        }
+        .wallet-grid__item:not(.is-selected) .wallet-card .badge{
+          background: rgba(17,24,39,0.06) !important; color:#111 !important; border:none;
+        }
+        .wallet-grid__item:not(.is-selected) .wallet-card .wc-dots > .dropdown > .btn{
+          background: rgba(17,24,39,0.06) !important; color:#111 !important;
+        }
 
         /* Cho dropdown không bị cắt */
         .wallet-grid, .wallet-grid__item, .wallet-section, .wallet-section .card-body{ overflow:visible !important; }
