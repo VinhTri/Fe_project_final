@@ -5,9 +5,16 @@ import ConfirmModal from "../../common/Modal/ConfirmModal";
 export default function UserMenu({ avatarUrl }) {
  const [open, setOpen] = useState(false);
  const [confirm, setConfirm] = useState(false);
+ const [currentAvatar, setCurrentAvatar] = useState(avatarUrl);
  const ref = useRef(null);
  const navigate = useNavigate();
  useOnClickOutside(ref, () => setOpen(false));
+ 
+ // Cập nhật avatar khi prop avatarUrl thay đổi
+ useEffect(() => {
+   setCurrentAvatar(avatarUrl);
+ }, [avatarUrl]);
+ 
  // Đóng bằng ESC (không thay đổi cấu trúc DOM)
  useEffect(() => {
    const onKey = (e) => {
@@ -32,7 +39,14 @@ export default function UserMenu({ avatarUrl }) {
        aria-haspopup="menu"
        aria-expanded={open}
 >
-<img src={avatarUrl} alt="avatar" />
+<img 
+         src={currentAvatar} 
+         alt="avatar" 
+         key={currentAvatar} 
+         onError={(e) => {
+           e.target.src = "https://www.gravatar.com/avatar/?d=mp&s=40";
+         }}
+       />
 </button>
      {open && (
 <div
