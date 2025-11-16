@@ -3,10 +3,19 @@ import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
 import { useEffect, useState } from "react";
+import { useAuth, ROLES } from "../../../home/store/AuthContext";
 
 export default function HomeTopbar() {
   const [userName, setUserName] = useState("Người dùng");
-  const [userAvatar, setUserAvatar] = useState("https://www.gravatar.com/avatar/?d=mp&s=40");
+  const [userAvatar, setUserAvatar] = useState(
+    "https://www.gravatar.com/avatar/?d=mp&s=40"
+  );
+
+  const { currentUser } = useAuth();
+
+  // Xác định role cho chuông: admin / user
+  const bellRole =
+    currentUser?.role === ROLES.ADMIN ? "admin" : "user";
 
   useEffect(() => {
     try {
@@ -37,7 +46,8 @@ export default function HomeTopbar() {
 
         <div className="tb__actions" role="group" aria-label="Tác vụ topbar">
           <div className="tb__divider" aria-hidden="true" />
-          <NotificationBell />
+          {/* 👇 Chuông dùng đúng role theo tài khoản hiện tại */}
+          <NotificationBell role={bellRole} />
           <div className="tb__divider" aria-hidden="true" />
           <UserMenu avatarUrl={userAvatar} />
         </div>
