@@ -18,20 +18,43 @@ export default function HomeTopbar() {
     currentUser?.role === ROLES.ADMIN ? "admin" : "user";
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("user");
-      if (!raw) return;
-      const u = JSON.parse(raw) || {};
-      setUserName(u.fullName || u.username || u.email || "Người dùng");
-      const avatar =
-        u.picture ||
-        u.avatarUrl ||
-        "https://www.gravatar.com/avatar/?d=mp&s=40";
-      setUserAvatar(avatar);
-    } catch {
-      // giữ fallback mặc định
-    }
-  }, []);
+    // 1. Tạo một hàm riêng để load/reload user từ localStorage
+    const loadUserFromStorage = () => {
+      console.log("HomeTopbar: Hàm loadUserFromStorage() ĐƯỢC GỌI.");
+      try {
+        const raw = localStorage.getItem("user");
+        if (!raw) return;
+        
+        const u = JSON.parse(raw) || {};
+        const newFullName = u.fullName || u.username || u.email || "Người dùng";
+        
+        // 2. Đọc 'u.avatar' (đã bao gồm ảnh Google hoặc ảnh Base64)
+        const newAvatar =
+          u.avatar || // 👈 Đọc avatar đã thống nhất
+          "https://www.gravatar.com/avatar/?d=mp&s=40"; // Ảnh dự phòng
+        
+        // Cập nhật state để trigger re-render
+        setUserName(newFullName);
+        setUserAvatar(newAvatar);
+        
+        console.log("HomeTopbar: Đã cập nhật avatar mới:", newAvatar?.substring(0, 50) + "...");
+      } catch (error) {
+        console.error("HomeTopbar: Lỗi khi load user từ localStorage:", error);
+        // Giữ fallback mặc định nếu parse JSON lỗi
+      }
+    };
+
+    // 3. Chạy hàm này lần đầu khi component mount
+    loadUserFromStorage();
+
+    // 4. ✅ Lắng nghe tín hiệu từ SettingsPage khi profile được cập nhật
+    window.addEventListener('storageUpdated', loadUserFromStorage);
+
+    // 5. Dọn dẹp: Xóa listener khi component unmount (rời khỏi trang)
+    return () => {
+      window.removeEventListener('storageUpdated', loadUserFromStorage);
+    };
+  }, []); // useEffect này chỉ chạy 1 lần duy nhất khi component mount
 
   return (
     <header className="tb__wrap" role="banner">
@@ -49,6 +72,7 @@ export default function HomeTopbar() {
           {/* 👇 Chuông dùng đúng role theo tài khoản hiện tại */}
           <NotificationBell role={bellRole} />
           <div className="tb__divider" aria-hidden="true" />
+          {/* Truyền avatarUrl đã được cập nhật vào UserMenu */}
           <UserMenu avatarUrl={userAvatar} />
         </div>
       </div>

@@ -999,8 +999,7 @@ export default function TransactionsPage() {
         className="tx-header card border-0 mb-3"
         style={{
           borderRadius: 18,
-          background:
-            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
+          background: "linear-gradient(90deg, #0c5776 0%, #2d99ae 100%)",
           color: "#ffffff",
         }}
       >
@@ -1238,6 +1237,7 @@ export default function TransactionsPage() {
                 )}
               </tbody>
             </table>
+            
           ) : (
             <table className="table table-hover align-middle mb-0">
               <thead>
@@ -1321,8 +1321,101 @@ export default function TransactionsPage() {
                 )}
               </tbody>
             </table>
+            
+            
           )}
         </div>
+
+        {/* Mobile card lists (visible only on small screens) */}
+        {activeTab === TABS.EXTERNAL && (
+          <div className="tx-card-list d-lg-none mt-2">
+            {paginated.map((t, i) => {
+              const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
+              const d = toDateObj(t.date);
+              const dateStr = d
+                ? d.toLocaleDateString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })
+                : "";
+              const timeStr = d
+                ? d.toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "";
+              return (
+                <div className="tx-card card mb-2" key={t.id}>
+                  <div className="card-body p-2">
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div className="text-muted small">{dateStr} {timeStr && `· ${timeStr}`}</div>
+                        <div className="fw-semibold">{t.type === "income" ? "Thu" : t.type === "expense" ? "Chi" : "Chuyển"} • {t.walletName}</div>
+                        <div className="text-muted small">{t.category}</div>
+                      </div>
+                      <div className="text-end">
+                        <div className={t.type === "expense" ? "tx-amount-expense" : "tx-amount-income"}>
+                          {t.type === "expense" ? "-" : "+"}{t.amount.toLocaleString("vi-VN")} {t.currency}
+                        </div>
+                        <div className="mt-1">
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setViewing(t)} title="Xem chi tiết"><i className="bi bi-eye" /></button>
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setEditing(t)} title="Chỉnh sửa"><i className="bi bi-pencil-square" /></button>
+                          <button className="btn btn-link btn-sm text-danger" onClick={() => setConfirmDel(t)} title="Xóa"><i className="bi bi-trash" /></button>
+                        </div>
+                      </div>
+                    </div>
+                    {t.note && <div className="mt-2 text-muted small">{t.note}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === TABS.INTERNAL && (
+          <div className="tx-card-list d-lg-none mt-2">
+            {paginated.map((t, i) => {
+              const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
+              const d = toDateObj(t.date);
+              const dateStr = d
+                ? d.toLocaleDateString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })
+                : "";
+              const timeStr = d
+                ? d.toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "";
+              return (
+                <div className="tx-card card mb-2" key={t.id}>
+                  <div className="card-body p-2">
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div className="text-muted small">{dateStr} {timeStr && `· ${timeStr}`}</div>
+                        <div className="fw-semibold">{t.sourceWallet} → {t.targetWallet}</div>
+                        <div className="text-muted small">{t.category}</div>
+                      </div>
+                      <div className="text-end">
+                        <div className="tx-amount-transfer">{t.amount.toLocaleString("vi-VN")} {t.currency}</div>
+                        <div className="mt-1">
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setViewing(t)} title="Xem chi tiết"><i className="bi bi-eye" /></button>
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setEditing(t)} title="Chỉnh sửa"><i className="bi bi-pencil-square" /></button>
+                          <button className="btn btn-link btn-sm text-danger" onClick={() => setConfirmDel(t)} title="Xóa"><i className="bi bi-trash" /></button>
+                        </div>
+                      </div>
+                    </div>
+                    {t.note && <div className="mt-2 text-muted small">{t.note}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="card-footer d-flex justify-content-between align-items-center">
           <span className="text-muted small">

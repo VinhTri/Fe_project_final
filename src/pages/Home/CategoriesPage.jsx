@@ -182,10 +182,11 @@ export default function CategoriesPage() {
             <div className="ms-3">
               <button
                 type="button"
-                className="btn btn-sm btn-success rounded-pill category-add-header-btn"
+                className="btn category-add-header-btn d-flex align-items-center"
                 onClick={openAddModal}
-                style={{ padding: "6px 14px" }}
+                aria-label="Thêm danh mục"
               >
+                <i className="bi bi-plus-lg me-2" />
                 Thêm danh mục
               </button>
             </div>

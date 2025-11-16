@@ -9,10 +9,10 @@
 
 .budget-header {
   border-radius: 18px;
-  background: linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%);
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
   color: #ffffff;
   margin-bottom: 18px;
-  box-shadow: 0 4px 12px rgba(0, 50, 93, 0.2);
+  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.18);
 }
 
 /* Bên trong header: chia trái / phải giống trang Giao dịch */

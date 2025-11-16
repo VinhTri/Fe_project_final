@@ -1,17 +1,187 @@
 // src/pages/Home/SettingsPage.jsx
 
-import React, { useState } from "react";
-
+import React, { useState, useEffect, useRef } from "react";
+import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
 import "../../styles/home/SettingsPage.css";
 
 export default function SettingsPage() {
 
   const [activeKey, setActiveKey] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+
+  // Refs cho các input fields
+  const fullNameRef = useRef(null);
+  const avatarRef = useRef(null);
+  const oldPasswordRef = useRef(null);
+  const newPasswordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
+
+  // Load profile khi component mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const { response, data } = await getProfile();
+      if (response.ok && data.user) {
+        setUser(data.user);
+      } else {
+        setError(data.error || "Không thể tải thông tin profile");
+      }
+    } catch (err) {
+      setError("Lỗi kết nối khi tải thông tin profile");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleItem = (key) => {
-
     setActiveKey((prev) => (prev === key ? null : key));
+    setError("");
+    setSuccess("");
+    // Reset avatar preview khi đóng form
+    if (key !== "profile") {
+      setAvatarPreview(null);
+      setAvatarFile(null);
+    }
+  };
 
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Vui lòng chọn file ảnh hợp lệ");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Kích thước ảnh không được vượt quá 5MB");
+      return;
+    }
+
+    setAvatarFile(file);
+    setError("");
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+  // Sửa trong file SettingsPage.jsx
+
+  const handleUpdateProfile = async () => {
+    const fullName = fullNameRef.current?.value?.trim();
+    
+    // Logic xác định avatar:
+    // 1. Ưu tiên file mới (avatarPreview là base64 của file)
+    // 2. Nếu không có file mới, giữ nguyên avatar cũ từ state (user.avatar)
+    const avatar = avatarFile 
+      ? avatarPreview // Base64 data URL từ file đã chọn
+      : user?.avatar; // Giữ nguyên avatar cũ nếu không chọn file mới
+
+    if (!fullName && !avatarFile) {
+      if (!fullName && !user?.fullName) {
+        setError("Vui lòng nhập tên hoặc chọn ảnh đại diện");
+        return;
+      }
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+
+      const { response, data } = await updateProfile({ 
+        fullName: fullName || undefined, 
+        avatar: avatar || undefined 
+      });
+
+      if (response.ok && data.user) {
+        // 1. Cập nhật state cục bộ (như cũ)
+        setUser(data.user);
+
+        // 2. ✅ Cập nhật localStorage với user mới nhất từ API
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        // 3. ✅ Bắn tín hiệu "storageUpdated" để HomeTopbar cập nhật avatar
+        // Sử dụng setTimeout nhỏ để đảm bảo localStorage đã được cập nhật
+        setTimeout(() => {
+          console.log("SettingsPage: Đã cập nhật localStorage và bắn tín hiệu 'storageUpdated'");
+          window.dispatchEvent(new CustomEvent('storageUpdated'));
+        }, 0);
+
+        // 4. Dọn dẹp form
+        setAvatarPreview(null);
+        setAvatarFile(null);
+        if (avatarRef.current) avatarRef.current.value = "";
+        
+        // 5. Hiển thị thông báo thành công
+        setSuccess(data.message || "Cập nhật profile thành công");
+        setTimeout(() => setSuccess(""), 3000);
+        
+      } else {
+        // Xử lý lỗi từ API
+        setError(data.error || "Cập nhật profile thất bại");
+      }
+    } catch (err) {
+      // Xử lý lỗi mạng hoặc lỗi hệ thống
+      setError("Lỗi kết nối khi cập nhật profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    const oldPassword = oldPasswordRef.current?.value;
+    const newPassword = newPasswordRef.current?.value;
+    const confirmPassword = confirmPasswordRef.current?.value;
+
+    if (!newPassword || !confirmPassword) {
+      setError("Vui lòng nhập đầy đủ mật khẩu mới và xác nhận mật khẩu");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Mật khẩu mới và xác nhận không khớp");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+      const { response, data } = await changePassword({
+        oldPassword,
+        newPassword,
+        confirmPassword,
+      });
+      if (response.ok && data.message) {
+        setSuccess(data.message);
+        // Clear password fields
+        if (oldPasswordRef.current) oldPasswordRef.current.value = "";
+        if (newPasswordRef.current) newPasswordRef.current.value = "";
+        if (confirmPasswordRef.current) confirmPasswordRef.current.value = "";
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError(data.error || "Đổi mật khẩu thất bại");
+      }
+    } catch (err) {
+      setError("Lỗi kết nối khi đổi mật khẩu");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderDetail = (key) => {
@@ -36,9 +206,10 @@ export default function SettingsPage() {
 <label>Tên hiển thị</label>
 <input
 
+                  ref={fullNameRef}
                   type="text"
 
-                  defaultValue="Trí Trần Vinh"
+                  defaultValue={user?.fullName || ""}
 
                   placeholder="Nhập tên muốn hiển thị"
 
@@ -49,7 +220,7 @@ export default function SettingsPage() {
 <div className="settings-avatar-upload">
 <img
 
-                  src="https://i.pravatar.cc/150?img=12"
+                  src={avatarPreview || user?.avatar || "https://i.pravatar.cc/150?img=12"}
 
                   alt="avatar"
 
@@ -61,19 +232,33 @@ export default function SettingsPage() {
                   Chọn ảnh
 <input
 
+                    ref={avatarRef}
                     type="file"
 
                     accept="image/*"
 
-                    className="settings-avatar-input"
+                    onChange={handleAvatarChange}
+
+                    style={{ display: 'none' }}
 
                   />
 </label>
+{avatarFile && (
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+                  Đã chọn: {avatarFile.name}
+                </p>
+              )}
 </div>
 </div>
-<button className="settings-btn settings-btn--primary">
+{error && activeKey === "profile" && <div className="settings-error" style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>{error}</div>}
+{success && activeKey === "profile" && <div className="settings-success" style={{color: 'green', marginBottom: '10px', padding: '10px', backgroundColor: '#e6ffe6', borderRadius: '4px'}}>{success}</div>}
+<button 
+              className="settings-btn settings-btn--primary"
+              onClick={handleUpdateProfile}
+              disabled={loading}
+            >
 
-              Lưu thay đổi
+              {loading ? "Đang lưu..." : "Lưu thay đổi"}
 </button>
 </div>
 
@@ -91,16 +276,25 @@ export default function SettingsPage() {
 <div className="settings-form__grid">
 <div className="settings-form__group">
 <label>Mật khẩu hiện tại</label>
-<input type="password" placeholder="Nhập mật khẩu hiện tại" />
+<input 
+                ref={oldPasswordRef}
+                type="password" 
+                placeholder="Nhập mật khẩu hiện tại" 
+              />
 </div>
 <div className="settings-form__group">
 <label>Mật khẩu mới</label>
-<input type="password" placeholder="Nhập mật khẩu mới" />
+<input 
+                ref={newPasswordRef}
+                type="password" 
+                placeholder="Nhập mật khẩu mới" 
+              />
 </div>
 <div className="settings-form__group">
 <label>Nhập lại mật khẩu mới</label>
 <input
 
+                  ref={confirmPasswordRef}
                   type="password"
 
                   placeholder="Nhập lại mật khẩu mới"
@@ -108,9 +302,15 @@ export default function SettingsPage() {
                 />
 </div>
 </div>
-<button className="settings-btn settings-btn--primary">
+{error && activeKey === "password" && <div className="settings-error" style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>{error}</div>}
+{success && activeKey === "password" && <div className="settings-success" style={{color: 'green', marginBottom: '10px', padding: '10px', backgroundColor: '#e6ffe6', borderRadius: '4px'}}>{success}</div>}
+<button 
+              className="settings-btn settings-btn--primary"
+              onClick={handleChangePassword}
+              disabled={loading}
+            >
 
-              Cập nhật mật khẩu
+              {loading ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
 </button>
 </div>
 
@@ -439,7 +639,7 @@ export default function SettingsPage() {
 <div className="settings-profile-header">
 <img
 
-          src="https://i.pravatar.cc/150?img=12"
+          src={user?.avatar || "https://i.pravatar.cc/150?img=12"}
 
           alt="avatar"
 
@@ -447,8 +647,8 @@ export default function SettingsPage() {
 
         />
 <div className="settings-profile-info">
-<h3 className="settings-profile-name">Trí Trần Vinh</h3>
-<p className="settings-profile-email">vinhtri@example.com</p>
+<h3 className="settings-profile-name">{user?.fullName || "Đang tải..."}</h3>
+<p className="settings-profile-email">{user?.email || ""}</p>
 </div>
 </div>
 <div className="settings-list">

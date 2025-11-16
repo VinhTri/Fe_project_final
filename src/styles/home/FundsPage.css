@@ -3,7 +3,7 @@
    ========================= */
 :root {
   --funds-accent: #2d99ae;
-  --funds-accent-soft: rgba(45, 153, 174, 0.08);
+  --funds-accent-soft: rgba(252, 247, 247, 0.08);
   --funds-accent-strong: rgba(45, 153, 174, 0.16);
   --funds-text: #111827;
   --funds-text-muted: #6b7280;
@@ -26,28 +26,26 @@
 
 /* HEADER */
 .funds-header {
-  background: linear-gradient(
-    120deg,
-    rgba(45, 153, 174, 0.06),
-    rgba(255, 255, 255, 0.98)
-  );
+  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
   border-radius: var(--funds-radius-lg);
-  border: 1px solid rgba(45, 153, 174, 0.22);
-  box-shadow: var(--funds-shadow-soft);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 8px 26px rgba(12, 87, 118, 0.18);
 }
 
 .funds-header h3 {
   font-weight: 600;
-  color: var(--funds-text);
+  color: #ffffff;
 }
 
-.funds-header p {
-  color: var(--funds-text-muted);
+.funds-header h3 {
+  font-weight: 600;
+  color: #ffffff;
+}
+.funds-header p,
+.funds-header .text-muted {
+  color: #ffffff !important;
 }
 
-/* =========================
-   FIELDSET / FORM LAYOUT
-   ========================= */
 .funds-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);

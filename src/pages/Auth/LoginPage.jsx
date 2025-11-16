@@ -37,7 +37,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showInvalid, setShowInvalid] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [successRedirect, setSuccessRedirect] = useState("/home"); // redirect khác nhau theo role
 
@@ -133,21 +132,14 @@ export default function LoginPage() {
             <i className="bi bi-lock-fill"></i>
           </span>
           <input
-            type={showPassword ? "text" : "password"}
+           type="password"
             className="form-control"
             name="password"
             placeholder="Nhập mật khẩu"
             onChange={onChange}
             required
           />
-          <span
-            className="input-group-text eye-toggle"
-            role="button"
-            onClick={() => setShowPassword((v) => !v)}
-            title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-          >
-            <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`} />
-          </span>
+          
         </div>
 
         {error && <div className="auth-error">{error}</div>}
