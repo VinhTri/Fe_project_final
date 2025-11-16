@@ -435,8 +435,6 @@ export default function SettingsPage() {
 <select defaultValue="VND">
 <option value="VND">VND - Việt Nam Đồng</option>
 <option value="USD">USD - Đô la Mỹ</option>
-<option value="EUR">EUR - Euro</option>
-<option value="JPY">JPY - Yên Nhật</option>
 </select>
 </div>
 <button className="settings-btn settings-btn--primary">

@@ -15,7 +15,6 @@ export default function WalletCreateGroupModal({
   const [form, setForm] = useState({
     name: "",
     currency: currencies[0] || "VND",
-    openingBalance: "0",
     note: "",
     approvalPolicy: { enabled: false, threshold: "" },
   });
@@ -56,18 +55,6 @@ export default function WalletCreateGroupModal({
     else if (!currencies.includes(values.currency))
       e.currency = "Loại tiền tệ không hợp lệ";
 
-    if (values.openingBalance === "" || values.openingBalance === null)
-      e.openingBalance = "Vui lòng nhập số dư ban đầu";
-    else {
-      const n = Number(values.openingBalance);
-      if (!isFinite(n)) e.openingBalance = "Số dư không hợp lệ";
-      else if (n < 0) e.openingBalance = "Số dư phải ≥ 0";
-      else if (String(values.openingBalance).includes("."))
-        e.openingBalance = "Chỉ nhận số nguyên";
-      else if (n > 1_000_000_000_000)
-        e.openingBalance = "Số dư quá lớn (≤ 1,000,000,000,000)";
-    }
-
     if ((values.note || "").length > 200) e.note = "Ghi chú tối đa 200 ký tự";
 
     if (values.approvalPolicy.enabled) {
@@ -93,7 +80,6 @@ export default function WalletCreateGroupModal({
     setTouched({
       name: true,
       currency: true,
-      openingBalance: true,
       note: true,
       threshold: true,
     });
@@ -102,7 +88,6 @@ export default function WalletCreateGroupModal({
     const payload = {
       name: form.name.trim(),
       currency: form.currency,
-      balance: Number(form.openingBalance || 0),
       note: form.note?.trim() || "",
       isDefault: false,
       isShared: true, // ví nhóm
@@ -212,44 +197,23 @@ export default function WalletCreateGroupModal({
               {touched.name && errors.name && <div className="fm-feedback">{errors.name}</div>}
             </div>
 
-            {/* Tiền tệ & Số dư ban đầu */}
-            <div className="grid-2">
-              <div className="fm-row">
-                <label className="fm-label">Tiền tệ<span className="req">*</span></label>
-                <select
-                  className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
-                  value={form.currency}
-                  onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
-                  onChange={(e) => setField("currency", e.target.value)}
-                >
-                  {(currencies || ["VND"]).map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                {touched.currency && errors.currency && (
-                  <div className="fm-feedback">{errors.currency}</div>
-                )}
-              </div>
-
-              <div className="fm-row">
-                <label className="fm-label">Số dư ban đầu<span className="req">*</span></label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  step="1"
-                  className={`fm-input ${touched.openingBalance && errors.openingBalance ? "is-invalid" : ""}`}
-                  value={form.openingBalance}
-                  onBlur={() => setTouched((t) => ({ ...t, openingBalance: true }))}
-                  onChange={(e) => setField("openingBalance", e.target.value)}
-                  onKeyDown={blockSci}
-                  placeholder="0"
-                />
-                {touched.openingBalance && errors.openingBalance && (
-                  <div className="fm-feedback">{errors.openingBalance}</div>
-                )}
-                <div className="fm-hint">Chỉ nhận số nguyên ≥ 0</div>
-              </div>
+            {/* Tiền tệ */}
+            <div className="fm-row">
+              <label className="fm-label">Tiền tệ<span className="req">*</span></label>
+              <select
+                className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
+                value={form.currency}
+                onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
+                onChange={(e) => setField("currency", e.target.value)}
+              >
+                {(currencies || ["VND"]).map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              {touched.currency && errors.currency && (
+                <div className="fm-feedback">{errors.currency}</div>
+              )}
+              <div className="fm-hint">Số dư ban đầu mặc định là 0. Bạn có thể thêm tiền sau bằng giao dịch "Thu nhập" hoặc chuyển từ ví khác.</div>
             </div>
 
             {/* Ghi chú */}

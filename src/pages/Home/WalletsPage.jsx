@@ -15,7 +15,7 @@ import useToggleMask from "../../hooks/useToggleMask";
 
 import "../../styles/home/WalletsPage.css";
 
-const CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"];
+const CURRENCIES = ["VND", "USD"];
 
 /** Bảng màu cho ví mới (theo 2 ảnh bạn gửi) */
 const WALLET_COLORS = [
@@ -262,7 +262,6 @@ export default function WalletsPage() {
       name: f.name.trim(),
       currency: f.currency,
       type: f.type || "CASH",
-      balance: Number(f.openingBalance || 0),
       note: f.note?.trim() || "",
       isDefault: !!f.isDefault,
       isShared: false,

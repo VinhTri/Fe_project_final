@@ -20,7 +20,7 @@ export default function WalletInspector({
   const [otherId, setOtherId] = useState("");
 
   // ===== helpers =====
-  const decimalsOf = (c) => (["VND", "JPY"].includes(String(c)) ? 0 : 2);
+  const decimalsOf = (c) => (String(c) === "VND" ? 0 : 2);
   const roundTo = (n, d = 0) => {
     const p = 10 ** d;
     return Math.round((Number(n) + Number.EPSILON) * p) / p;
@@ -54,10 +54,6 @@ export default function WalletInspector({
     if (!from || !to || from === to) return 1;
     if (from === "USD" && to === "VND") return 24350;
     if (from === "VND" && to === "USD") return 1 / 24350;
-    if (from === "EUR" && to === "VND") return 26400;
-    if (from === "VND" && to === "EUR") return 1 / 26400;
-    if (from === "JPY" && to === "VND") return 170;
-    if (from === "VND" && to === "JPY") return 1 / 170;
     return 1;
   };
 

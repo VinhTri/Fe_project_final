@@ -72,12 +72,13 @@ export default function WalletEditModal({
         e.balance = "Số dư chỉ nhận số nguyên";
     }
 
-    if ((values.note || "").length > 200)
-      e.note = "Mô tả tối đa 200 ký tự";
+    if ((values.note || "").length > 200) e.note = "Mô tả tối đa 200 ký tự";
     return e;
   }
 
   const isValid = useMemo(() => Object.keys(validate()).length === 0, [form]);
+
+  // tập tin: vinhtri/fe_project_final/Fe_project_final-feature-callAPI/src/components/wallets/WalletEditModal.jsx
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -92,13 +93,12 @@ export default function WalletEditModal({
     if (Object.keys(v).length > 0) return;
 
     onSubmit({
-      id: wallet.id,
-      name: form.name.trim(),
-      currency: form.currency,
+      walletName: form.name.trim(),
+      currencyCode: form.currency,
+
       balance: Number(form.balance),
-      note: form.note?.trim() || "",
-      isDefault: !!form.isDefault,
-      createdAt: wallet.createdAt,
+      description: form.note?.trim() || "",
+      setAsDefault: !!form.isDefault,
     });
   }
 
@@ -199,39 +199,61 @@ export default function WalletEditModal({
       `}</style>
 
       <div className="wallet-modal-overlay" onClick={onClose}>
-        <form className="wallet-modal" onClick={(e)=>e.stopPropagation()} onSubmit={handleSubmit}>
+        <form
+          className="wallet-modal"
+          onClick={(e) => e.stopPropagation()}
+          onSubmit={handleSubmit}
+        >
           <div className="wallet-modal__header">
             <h5 className="wallet-modal__title">Sửa ví</h5>
-            <button type="button" className="wallet-modal__close" onClick={onClose}>×</button>
+            <button
+              type="button"
+              className="wallet-modal__close"
+              onClick={onClose}
+            >
+              ×
+            </button>
           </div>
 
           <div className="wallet-modal__body">
             {/* Tên ví */}
             <div className="fm-row">
-              <label className="fm-label">Tên ví<span className="req">*</span></label>
+              <label className="fm-label">
+                Tên ví<span className="req">*</span>
+              </label>
               <input
-                className={`fm-input ${touched.name && errors.name ? "is-invalid" : ""}`}
+                className={`fm-input ${
+                  touched.name && errors.name ? "is-invalid" : ""
+                }`}
                 value={form.name}
                 onBlur={() => setTouched((t) => ({ ...t, name: true }))}
                 onChange={(e) => setField("name", e.target.value)}
                 placeholder="Ví tiền mặt, Ngân hàng ACB…"
                 maxLength={40}
               />
-              {touched.name && errors.name && <div className="fm-feedback">{errors.name}</div>}
+              {touched.name && errors.name && (
+                <div className="fm-feedback">{errors.name}</div>
+              )}
             </div>
 
             {/* Loại tiền & Số dư */}
             <div className="grid-2">
               <div className="fm-row">
-                <label className="fm-label">Loại tiền tệ<span className="req">*</span></label>
+                <label className="fm-label">
+                  Loại tiền tệ<span className="req">*</span>
+                </label>
                 <select
-                  className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
+                  className={`fm-select ${
+                    touched.currency && errors.currency ? "is-invalid" : ""
+                  }`}
                   value={form.currency}
                   onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
                   onChange={(e) => setField("currency", e.target.value)}
                 >
                   {currencies.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
                 {touched.currency && errors.currency && (
@@ -240,15 +262,20 @@ export default function WalletEditModal({
               </div>
 
               <div className="fm-row">
-                <label className="fm-label">Số dư<span className="req">*</span></label>
+                <label className="fm-label">
+                  Số dư<span className="req">*</span>
+                </label>
                 <input
                   type="number"
-                  className={`fm-input ${touched.balance && errors.balance ? "is-invalid" : ""}`}
+                  className={`fm-input ${
+                    touched.balance && errors.balance ? "is-invalid" : ""
+                  }`}
                   value={form.balance}
                   onBlur={() => setTouched((t) => ({ ...t, balance: true }))}
                   onChange={(e) => setField("balance", e.target.value)}
                   onKeyDown={(e) => {
-                    if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+                    if (["e", "E", "+", "-"].includes(e.key))
+                      e.preventDefault();
                   }}
                   placeholder="0"
                 />
@@ -262,7 +289,9 @@ export default function WalletEditModal({
             <div className="fm-row">
               <label className="fm-label">Mô tả (tùy chọn)</label>
               <textarea
-                className={`fm-textarea ${touched.note && errors.note ? "is-invalid" : ""}`}
+                className={`fm-textarea ${
+                  touched.note && errors.note ? "is-invalid" : ""
+                }`}
                 rows="2"
                 value={form.note}
                 onBlur={() => setTouched((t) => ({ ...t, note: true }))}
@@ -270,7 +299,9 @@ export default function WalletEditModal({
                 maxLength={200}
                 placeholder="Ghi chú cho ví này (tối đa 200 ký tự)"
               />
-              {touched.note && errors.note && <div className="fm-feedback">{errors.note}</div>}
+              {touched.note && errors.note && (
+                <div className="fm-feedback">{errors.note}</div>
+              )}
             </div>
 
             {/* Checkbox */}
@@ -295,8 +326,12 @@ export default function WalletEditModal({
           </div>
 
           <div className="wallet-modal__footer">
-            <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
-            <button type="submit" className="btn-submit" disabled={!isValid}>Lưu</button>
+            <button type="button" className="btn-cancel" onClick={onClose}>
+              Hủy
+            </button>
+            <button type="submit" className="btn-submit" disabled={!isValid}>
+              Lưu
+            </button>
           </div>
         </form>
       </div>
