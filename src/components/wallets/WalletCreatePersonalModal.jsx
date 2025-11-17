@@ -7,6 +7,7 @@ export default function WalletCreatePersonalModal({
   onSubmit,
   currencies = ["VND"],
   existingNames = [],
+  allWallets = [], // Danh sách tất cả ví để check ví mặc định
 }) {
   const [form, setForm] = useState({
     name: "",
@@ -29,6 +30,22 @@ export default function WalletCreatePersonalModal({
     () => new Set((existingNames || []).map((s) => (s || "").toLowerCase().trim())),
     [existingNames]
   );
+
+  // Kiểm tra xem đã có ví mặc định chưa
+  const hasDefaultWallet = useMemo(() => {
+    if (!allWallets || allWallets.length === 0) return false;
+    return allWallets.some((w) => w.isDefault === true);
+  }, [allWallets]);
+
+  // Reset form và isDefault khi mở modal hoặc khi đã có ví mặc định
+  useEffect(() => {
+    if (open) {
+      setForm((prev) => ({
+        ...prev,
+        isDefault: hasDefaultWallet ? false : prev.isDefault,
+      }));
+    }
+  }, [open, hasDefaultWallet]);
 
 
   const validate = (values = form) => {
@@ -67,10 +84,13 @@ export default function WalletCreatePersonalModal({
     });
     if (Object.keys(v).length) return;
 
+    // Nếu đã có ví mặc định, không cho set ví mới làm mặc định
+    const finalIsDefault = hasDefaultWallet ? false : !!form.isDefault;
+
     onSubmit?.({
       name: form.name.trim(),
       currency: form.currency,
-      isDefault: !!form.isDefault,
+      isDefault: finalIsDefault,
       note: form.note?.trim() || "",
     });
   };
@@ -220,9 +240,27 @@ export default function WalletCreatePersonalModal({
                 className="fm-check__input"
                 type="checkbox"
                 checked={form.isDefault}
-                onChange={(e) => setField("isDefault", e.target.checked)}
+                disabled={hasDefaultWallet}
+                onChange={(e) => {
+                  if (!hasDefaultWallet) {
+                    setField("isDefault", e.target.checked);
+                  }
+                }}
               />
-              <label htmlFor="createDefaultWallet">Đặt làm ví mặc định cho {form.currency}</label>
+              <label 
+                htmlFor="createDefaultWallet"
+                style={{ 
+                  opacity: hasDefaultWallet ? 0.5 : 1,
+                  cursor: hasDefaultWallet ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Đặt làm ví mặc định cho {form.currency}
+                {hasDefaultWallet && (
+                  <span style={{ fontSize: '0.85rem', display: 'block', marginTop: '4px', color: '#6b7280' }}>
+                    (Đã có ví mặc định)
+                  </span>
+                )}
+              </label>
             </div>
           </div>
 

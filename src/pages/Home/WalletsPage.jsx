@@ -1058,6 +1058,7 @@ const doDelete = async (wallet) => {
         onClose={() => setShowPersonal(false)}
         currencies={CURRENCIES}
         existingNames={existingNames}
+        allWallets={wallets}
         onSubmit={handleCreatePersonal}
       />
       <WalletCreateGroupModal
