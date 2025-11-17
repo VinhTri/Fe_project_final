@@ -12,7 +12,7 @@ const BASE_MENU = [
   { to: "/home/wallet-groups", label: "Nhóm ví", icon: "bi-collection" },
   { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
   { to: "/home/reports", label: "Báo cáo", icon: "bi-bar-chart-line" },
-  // ❌ Không còn mục “Tài khoản”
+  //Không còn mục “Tài khoản”
 ];
 
 export default function HomeSidebar() {
@@ -22,7 +22,7 @@ export default function HomeSidebar() {
   const { currentUser } = useAuth();
 
   // =============================
-  // 👉 Build menu
+  // Build menu
   // =============================
   const MENU = [...BASE_MENU];
 

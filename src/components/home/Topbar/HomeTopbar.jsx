@@ -30,7 +30,7 @@ export default function HomeTopbar() {
         
         // 2. Đọc 'u.avatar' (đã bao gồm ảnh Google hoặc ảnh Base64)
         const newAvatar =
-          u.avatar || // 👈 Đọc avatar đã thống nhất
+          u.avatar || // Đọc avatar đã thống nhất
           "https://www.gravatar.com/avatar/?d=mp&s=40"; // Ảnh dự phòng
         
         // Cập nhật state để trigger re-render
@@ -47,7 +47,7 @@ export default function HomeTopbar() {
     // 3. Chạy hàm này lần đầu khi component mount
     loadUserFromStorage();
 
-    // 4. ✅ Lắng nghe tín hiệu từ SettingsPage khi profile được cập nhật
+    // 4.Lắng nghe tín hiệu từ SettingsPage khi profile được cập nhật
     window.addEventListener('storageUpdated', loadUserFromStorage);
 
     // 5. Dọn dẹp: Xóa listener khi component unmount (rời khỏi trang)
@@ -69,7 +69,7 @@ export default function HomeTopbar() {
 
         <div className="tb__actions" role="group" aria-label="Tác vụ topbar">
           <div className="tb__divider" aria-hidden="true" />
-          {/* 👇 Chuông dùng đúng role theo tài khoản hiện tại */}
+          {/*Chuông dùng đúng role theo tài khoản hiện tại */}
           <NotificationBell role={bellRole} />
           <div className="tb__divider" aria-hidden="true" />
           {/* Truyền avatarUrl đã được cập nhật vào UserMenu */}

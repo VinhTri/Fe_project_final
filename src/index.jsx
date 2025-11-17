@@ -1,3 +1,4 @@
+// index.jsx
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -11,8 +12,9 @@ import { WalletDataProvider } from "./home/store/WalletDataContext";
 import { BudgetDataProvider } from "./home/store/BudgetDataContext";
 import { CategoryDataProvider } from "./home/store/CategoryDataContext";
 import { AuthProvider } from "./home/store/AuthContext";
+import { NotificationProvider } from "./home/store/NotificationContext";
 
-// ✅ Toast
+// Toast
 import { ToastProvider } from "./components/common/Toast/ToastContext";
 
 createRoot(document.getElementById("root")).render(
@@ -22,7 +24,10 @@ createRoot(document.getElementById("root")).render(
         <WalletDataProvider>
           <BudgetDataProvider>
             <ToastProvider>
-              <App />
+              {/* 👉 Thêm NotificationProvider ở đây */}
+              <NotificationProvider>
+                <App />
+              </NotificationProvider>
             </ToastProvider>
           </BudgetDataProvider>
         </WalletDataProvider>
