@@ -170,14 +170,48 @@ export const authAPI = {
 
   /**
    * Làm mới token
+   * QUAN TRỌNG: Endpoint refresh token KHÔNG cần Authorization header
    */
   refreshToken: async () => {
     const refreshToken = localStorage.getItem('refreshToken');
-    const data = await apiCall('/auth/refresh', {
+    
+    // Kiểm tra refreshToken có tồn tại không
+    if (!refreshToken) {
+      throw new Error('Không tìm thấy refresh token. Vui lòng đăng nhập lại.');
+    }
+    
+    // Gọi API refresh KHÔNG thêm Authorization header (vì accessToken đã hết hạn)
+    const url = `${API_BASE_URL}/auth/refresh`;
+    const response = await fetch(url, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // KHÔNG thêm Authorization header
+      },
       body: JSON.stringify({ refreshToken }),
     });
     
+    // Xử lý response
+    let data;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      throw new Error(text || 'Có lỗi xảy ra khi làm mới token');
+    }
+    
+    if (!response.ok) {
+      const errorMessage = data.error || data.message || `HTTP ${response.status}: ${response.statusText}`;
+      // Nếu refresh token hết hạn, xóa cả refresh token
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('accessToken');
+      }
+      throw new Error(errorMessage);
+    }
+    
+    // Lưu accessToken mới
     if (data.accessToken) {
       localStorage.setItem('accessToken', data.accessToken);
     }
@@ -522,48 +556,130 @@ export const walletAPI = {
 
 export const transactionAPI = {
   /**
-   * Thêm chi tiêu
-   * @param {number} amount 
-   * @param {string} transactionDate - ISO 8601 format: "2024-01-01T10:00:00"
-   * @param {number} walletId 
-   * @param {number} categoryId 
-   * @param {string} note 
-   * @param {string} imageUrl 
+   * Tạo giao dịch chi tiêu
+   * Theo API_DOCUMENTATION.md (dòng 885-918)
+   * @param {Object} expenseData - Dữ liệu giao dịch chi tiêu
+   * @param {number} expenseData.walletId - ID của ví
+   * @param {number} expenseData.categoryId - ID của danh mục
+   * @param {number} expenseData.amount - Số tiền chi tiêu
+   * @param {string} expenseData.transactionDate - Ngày giao dịch (ISO format: "2024-01-01T10:00:00")
+   * @param {string} [expenseData.note] - Ghi chú (optional)
+   * @param {string} [expenseData.imageUrl] - URL hình ảnh (optional)
    */
-  addExpense: async (amount, transactionDate, walletId, categoryId, note, imageUrl) => {
+  createExpense: async (expenseData) => {
     return apiCall('/transactions/expense', {
       method: 'POST',
       body: JSON.stringify({
-        amount,
-        transactionDate,
-        walletId,
-        categoryId,
-        note,
-        imageUrl,
+        walletId: expenseData.walletId,
+        categoryId: expenseData.categoryId,
+        amount: expenseData.amount,
+        transactionDate: expenseData.transactionDate,
+        note: expenseData.note || "",
+        imageUrl: expenseData.imageUrl || null,
       }),
     });
   },
 
   /**
-   * Thêm thu nhập
-   * @param {number} amount 
-   * @param {string} transactionDate - ISO 8601 format: "2024-01-01T10:00:00"
-   * @param {number} walletId 
-   * @param {number} categoryId 
-   * @param {string} note 
-   * @param {string} imageUrl 
+   * Tạo giao dịch thu nhập
+   * Theo API_DOCUMENTATION.md (dòng 922-954)
+   * @param {Object} incomeData - Dữ liệu giao dịch thu nhập
+   * @param {number} incomeData.walletId - ID của ví
+   * @param {number} incomeData.categoryId - ID của danh mục
+   * @param {number} incomeData.amount - Số tiền thu nhập
+   * @param {string} incomeData.transactionDate - Ngày giao dịch (ISO format: "2024-01-01T10:00:00")
+   * @param {string} [incomeData.note] - Ghi chú (optional)
+   * @param {string} [incomeData.imageUrl] - URL hình ảnh (optional)
    */
-  addIncome: async (amount, transactionDate, walletId, categoryId, note, imageUrl) => {
+  createIncome: async (incomeData) => {
     return apiCall('/transactions/income', {
       method: 'POST',
       body: JSON.stringify({
-        amount,
-        transactionDate,
-        walletId,
-        categoryId,
-        note,
-        imageUrl,
+        walletId: incomeData.walletId,
+        categoryId: incomeData.categoryId,
+        amount: incomeData.amount,
+        transactionDate: incomeData.transactionDate,
+        note: incomeData.note || "",
+        imageUrl: incomeData.imageUrl || null,
       }),
+    });
+  },
+
+  /**
+   * Lấy danh sách tất cả giao dịch
+   * Theo API_DOCUMENTATION.md (dòng 958-1016)
+   * @param {Object} [filterData] - Dữ liệu filter (tất cả đều optional)
+   * @param {number} [filterData.walletId] - Lọc theo ví cụ thể
+   * @param {number} [filterData.typeId] - Lọc theo loại giao dịch (1: Chi tiêu, 2: Thu nhập)
+   * @param {string} [filterData.startDate] - Ngày bắt đầu (ISO format: "2024-01-01T00:00:00")
+   * @param {string} [filterData.endDate] - Ngày kết thúc (ISO format: "2024-01-31T23:59:59")
+   */
+  getAllTransactions: async (filterData = {}) => {
+    const params = new URLSearchParams();
+    if (filterData.walletId !== undefined && filterData.walletId !== null) {
+      params.append('walletId', filterData.walletId);
+    }
+    if (filterData.typeId !== undefined && filterData.typeId !== null) {
+      params.append('typeId', filterData.typeId);
+    }
+    if (filterData.startDate) {
+      params.append('startDate', filterData.startDate);
+    }
+    if (filterData.endDate) {
+      params.append('endDate', filterData.endDate);
+    }
+    
+    const queryString = params.toString();
+    const url = queryString ? `/transactions?${queryString}` : '/transactions';
+    
+    return apiCall(url, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Lấy chi tiết giao dịch
+   * Theo API_DOCUMENTATION.md (dòng 1026-1073)
+   * @param {number} transactionId - ID của giao dịch
+   */
+  getTransactionById: async (transactionId) => {
+    return apiCall(`/transactions/${transactionId}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Lấy giao dịch theo ví
+   * Theo API_DOCUMENTATION.md (dòng 1076-1114)
+   * @param {number} walletId - ID của ví
+   */
+  getTransactionsByWallet: async (walletId) => {
+    return apiCall(`/transactions/wallet/${walletId}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Cập nhật giao dịch
+   * Lưu ý: API này có thể không có trong documentation, nhưng được thêm vào để hỗ trợ tính năng edit
+   * @param {number} transactionId - ID của giao dịch
+   * @param {Object} updateData - Dữ liệu cập nhật
+   */
+  updateTransaction: async (transactionId, updateData) => {
+    return apiCall(`/transactions/${transactionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
+  },
+
+  /**
+   * Xóa giao dịch
+   * Lưu ý: API này có thể không có trong documentation, nhưng được thêm vào để hỗ trợ tính năng delete
+   * @param {number} transactionId - ID của giao dịch
+   */
+  deleteTransaction: async (transactionId) => {
+    return apiCall(`/transactions/${transactionId}`, {
+      method: 'DELETE',
     });
   },
 };
@@ -576,51 +692,60 @@ export const transactionAPI = {
 
 export const categoryAPI = {
   /**
-   * Tạo danh mục
-   * @param {number} userId 
-   * @param {string} categoryName 
-   * @param {string} icon 
-   * @param {number} transactionTypeId - 1: Chi tiêu, 2: Thu nhập
+   * Tạo danh mục mới
+   * Theo API_DOCUMENTATION.md (dòng 792-823)
+   * @param {Object} categoryData - Dữ liệu danh mục
+   * @param {string} categoryData.categoryName - Tên danh mục
+   * @param {string} [categoryData.description] - Mô tả danh mục (optional)
+   * @param {number} categoryData.transactionTypeId - ID loại giao dịch (1: Chi tiêu, 2: Thu nhập)
    */
-  createCategory: async (userId, categoryName, icon, transactionTypeId) => {
+  createCategory: async (categoryData) => {
     return apiCall('/categories/create', {
       method: 'POST',
       body: JSON.stringify({
-        userId,
-        categoryName,
-        icon,
-        transactionTypeId,
+        categoryName: categoryData.categoryName,
+        description: categoryData.description || null,
+        transactionTypeId: categoryData.transactionTypeId,
       }),
     });
   },
 
   /**
    * Cập nhật danh mục
-   * @param {number} id 
-   * @param {number} userId 
-   * @param {string} categoryName 
-   * @param {string} icon 
-   * @param {number} transactionTypeId 
+   * Theo API_DOCUMENTATION.md (dòng 827-852)
+   * @param {number} categoryId - ID của danh mục
+   * @param {Object} updateData - Dữ liệu cập nhật
+   * @param {string} updateData.categoryName - Tên danh mục mới
+   * @param {string} [updateData.description] - Mô tả danh mục mới (optional)
    */
-  updateCategory: async (id, userId, categoryName, icon, transactionTypeId) => {
-    return apiCall(`/categories/${id}`, {
+  updateCategory: async (categoryId, updateData) => {
+    return apiCall(`/categories/${categoryId}`, {
       method: 'PUT',
       body: JSON.stringify({
-        userId,
-        categoryName,
-        icon,
-        transactionTypeId,
+        categoryName: updateData.categoryName,
+        description: updateData.description || null,
       }),
     });
   },
 
   /**
    * Xóa danh mục
-   * @param {number} id 
+   * Theo API_DOCUMENTATION.md (dòng 856-869)
+   * @param {number} categoryId - ID của danh mục
    */
-  deleteCategory: async (id) => {
-    return apiCall(`/categories/${id}`, {
+  deleteCategory: async (categoryId) => {
+    return apiCall(`/categories/${categoryId}`, {
       method: 'DELETE',
+    });
+  },
+
+  /**
+   * Lấy danh sách danh mục
+   * Theo API_DOCUMENTATION.md (dòng 873-892)
+   */
+  getCategories: async () => {
+    return apiCall('/categories', {
+      method: 'GET',
     });
   },
 };

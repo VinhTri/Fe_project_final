@@ -2,6 +2,23 @@
 import React from "react";
 import { createPortal } from "react-dom";
 
+const API_BASE_URL = "http://localhost:8080";
+
+// Helper function để normalize image URL
+const getImageUrl = (url) => {
+  if (!url) return "";
+  // Nếu URL đã là full URL (bắt đầu bằng http:// hoặc https://), trả về nguyên
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // Nếu là relative path, thêm base URL
+  if (url.startsWith("/")) {
+    return `${API_BASE_URL}${url}`;
+  }
+  // Nếu không có / ở đầu, thêm /files/receipt/ (default path)
+  return `${API_BASE_URL}/files/receipt/${url}`;
+};
+
 export default function TransactionViewModal({ open, tx, onClose }) {
   if (!open || !tx) return null;
 
@@ -129,26 +146,22 @@ export default function TransactionViewModal({ open, tx, onClose }) {
               {tx.attachment && (
                 <div className="col-12">
                   <label className="form-label small text-muted mb-1">Ảnh đính kèm</label>
-                  <div className="d-flex gap-2 align-items-center">
-                    <div
+                  <div className="mt-2">
+                    <img
+                      src={getImageUrl(tx.attachment)}
+                      alt="Đính kèm"
                       style={{
-                        width: 120,
-                        height: 90,
+                        maxWidth: 180,
+                        maxHeight: 140,
                         borderRadius: 12,
-                        overflow: "hidden",
-                        background: "#f3f4f6",
+                        objectFit: "cover",
                         border: "1px solid #e5e7eb",
                       }}
-                    >
-                      <img
-                        src={tx.attachment}
-                        alt="Đính kèm"
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    </div>
-                    <div className="small text-muted flex-grow-1">
-                      Ảnh minh họa (demo). Sau này sẽ lấy từ API file thật.
-                    </div>
+                      onError={(e) => {
+                        console.error("Error loading image:", tx.attachment);
+                        e.target.style.display = "none";
+                      }}
+                    />
                   </div>
                 </div>
               )}

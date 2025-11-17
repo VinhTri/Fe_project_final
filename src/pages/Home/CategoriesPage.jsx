@@ -64,46 +64,62 @@ export default function CategoriesPage() {
     setModalOpen(true);
   };
 
-  const handleModalSubmit = (payload) => {
+  const handleModalSubmit = async (payload) => {
     // payload = { name, description }
-    if (modalMode === "create") {
-      if (activeTab === "expense") {
-        createExpenseCategory(payload);
-      } else {
-        createIncomeCategory(payload);
+    try {
+      if (modalMode === "create") {
+        if (activeTab === "expense") {
+          await createExpenseCategory(payload);
+        } else {
+          await createIncomeCategory(payload);
+        }
+        // go to first page to show the new item
+        setPage(1);
+        setToast({ open: true, message: "Đã thêm danh mục mới." });
+      } else if (modalMode === "edit") {
+        if (activeTab === "expense") {
+          await updateExpenseCategory(modalEditingId, payload);
+        } else {
+          await updateIncomeCategory(modalEditingId, payload);
+        }
+        setToast({ open: true, message: "Đã cập nhật danh mục." });
       }
-      // go to first page to show the new item
-      setPage(1);
-      setToast({ open: true, message: "Đã thêm danh mục mới." });
-    } else if (modalMode === "edit") {
-      if (activeTab === "expense") {
-        updateExpenseCategory(modalEditingId, payload);
-      } else {
-        updateIncomeCategory(modalEditingId, payload);
-      }
-      setToast({ open: true, message: "Đã cập nhật danh mục." });
+      setModalOpen(false);
+      setModalEditingId(null);
+    } catch (error) {
+      console.error("Error submitting category:", error);
+      setToast({ 
+        open: true, 
+        message: error.message || "Không thể thực hiện thao tác. Vui lòng thử lại." 
+      });
     }
-    setModalOpen(false);
-    setModalEditingId(null);
   };
 
   const handleEdit = (cat) => {
     openEditModal(cat);
   };
 
-  const handleDelete = (cat) => {
+  const handleDelete = async (cat) => {
     if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
 
-    if (activeTab === "expense") {
-      deleteExpenseCategory(cat.id);
-    } else {
-      deleteIncomeCategory(cat.id);
-    }
+    try {
+      if (activeTab === "expense") {
+        await deleteExpenseCategory(cat.id);
+      } else {
+        await deleteIncomeCategory(cat.id);
+      }
 
-    setToast({ open: true, message: "Đã xóa danh mục." });
-    if (modalEditingId === cat.id) {
-      setModalEditingId(null);
-      setModalOpen(false);
+      setToast({ open: true, message: "Đã xóa danh mục." });
+      if (modalEditingId === cat.id) {
+        setModalEditingId(null);
+        setModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      setToast({ 
+        open: true, 
+        message: error.message || "Không thể xóa danh mục. Vui lòng thử lại." 
+      });
     }
   };
 

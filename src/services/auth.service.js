@@ -160,18 +160,47 @@ export const login = async ({ email, password }) => {
 
 /**
  * 🔄 LÀM MỚI TOKEN
+ * QUAN TRỌNG: Endpoint refresh token KHÔNG cần Authorization header
  * @param {Object} refreshData - Dữ liệu refresh token
  * @param {string} refreshData.refreshToken - Refresh token
  * @returns {Promise<Object>} - { accessToken: string, message: string } hoặc { error: string }
  */
 export const refreshToken = async ({ refreshToken }) => {
   try {
-    const response = await apiClient.post("/refresh", {
+    // Kiểm tra refreshToken có tồn tại không
+    if (!refreshToken) {
+      return {
+        response: { ok: false, status: 400 },
+        data: { error: "Không tìm thấy refresh token. Vui lòng đăng nhập lại." },
+      };
+    }
+    
+    // Gọi API refresh bằng axios trực tiếp (KHÔNG qua apiClient)
+    // để tránh interceptor tự động thêm Authorization header với accessToken đã hết hạn
+    const response = await axios.post(`${API_BASE_URL}/refresh`, {
       refreshToken,
+    }, {
+      headers: {
+        "Content-Type": "application/json",
+        // KHÔNG thêm Authorization header
+      },
     });
 
-    return handleAxiosResponse(response);
+    const result = handleAxiosResponse(response);
+    
+    // Lưu accessToken mới vào localStorage
+    if (result.data && result.data.accessToken) {
+      localStorage.setItem('accessToken', result.data.accessToken);
+    }
+    
+    return result;
   } catch (error) {
+    // Nếu refresh token hết hạn, xóa cả refresh token
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('accessToken');
+    }
+    
     if (error.response) {
       return {
         data: error.response.data || { error: "Đã xảy ra lỗi" },

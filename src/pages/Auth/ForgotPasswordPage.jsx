@@ -63,16 +63,48 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (response.ok) {
+        // Kiểm tra xem có thông báo lỗi về tài khoản chưa xác minh không
+        // Backend có thể trả về success nhưng có message cảnh báo
+        const errorMessage = data.error || "";
+        const lowerErrorMessage = errorMessage.toLowerCase();
+        
+        // Kiểm tra các trường hợp tài khoản chưa xác minh
+        if (
+          lowerErrorMessage.includes("chưa xác minh") ||
+          lowerErrorMessage.includes("chưa được xác minh") ||
+          lowerErrorMessage.includes("not verified") ||
+          lowerErrorMessage.includes("unverified") ||
+          lowerErrorMessage.includes("chưa kích hoạt") ||
+          lowerErrorMessage.includes("chưa xác thực")
+        ) {
+          setError(data.error || "Tài khoản chưa được xác minh. Vui lòng xác minh email trước khi đặt lại mật khẩu.");
+          return;
+        }
+        
         // Backend trả về: { message: "Mã xác thực đã gửi đến email" }
         setSuccessMsg(data.message || "Mã xác minh đã được gửi!");
-       setTimeout(() => {
-        setStep(2);
-        setSuccessMsg("");
-      otpRefs.current[0]?.focus();
-  }, 1200);
+        setTimeout(() => {
+          setStep(2);
+          setSuccessMsg("");
+          otpRefs.current[0]?.focus();
+        }, 1200);
       } else {
-        // Backend trả về: { error: "Email không tồn tại" }
-        setError(data.error || "Gửi mã thất bại. Vui lòng thử lại.");
+        // Backend trả về: { error: "Email không tồn tại" } hoặc lỗi khác
+        const errorMessage = data.error || "Gửi mã thất bại. Vui lòng thử lại.";
+        setError(errorMessage);
+        
+        // Nếu là lỗi về tài khoản chưa xác minh, hiển thị thông báo rõ ràng
+        const lowerErrorMessage = errorMessage.toLowerCase();
+        if (
+          lowerErrorMessage.includes("chưa xác minh") ||
+          lowerErrorMessage.includes("chưa được xác minh") ||
+          lowerErrorMessage.includes("not verified") ||
+          lowerErrorMessage.includes("unverified") ||
+          lowerErrorMessage.includes("chưa kích hoạt") ||
+          lowerErrorMessage.includes("chưa xác thực")
+        ) {
+          setError("Tài khoản chưa được xác minh. Vui lòng xác minh email trước khi đặt lại mật khẩu.");
+        }
       }
     } catch (err) {
       console.error("Lỗi gọi API gửi email:", err);
@@ -158,9 +190,43 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (response.ok) {
+        // Kiểm tra xem có thông báo lỗi về tài khoản chưa xác minh không
+        const errorMessage = data.error || "";
+        const lowerErrorMessage = errorMessage.toLowerCase();
+        
+        if (
+          lowerErrorMessage.includes("chưa xác minh") ||
+          lowerErrorMessage.includes("chưa được xác minh") ||
+          lowerErrorMessage.includes("not verified") ||
+          lowerErrorMessage.includes("unverified") ||
+          lowerErrorMessage.includes("chưa kích hoạt") ||
+          lowerErrorMessage.includes("chưa xác thực")
+        ) {
+          setError("Tài khoản chưa được xác minh. Vui lòng xác minh email trước khi đặt lại mật khẩu.");
+          // Quay về step 1
+          setStep(1);
+          return;
+        }
+        
         setSuccessMsg("Đã gửi lại mã xác minh vào email của bạn!");
       } else {
-        setError(data.error || "Gửi lại mã thất bại. Vui lòng thử lại.");
+        const errorMessage = data.error || "Gửi lại mã thất bại. Vui lòng thử lại.";
+        setError(errorMessage);
+        
+        // Kiểm tra lỗi về tài khoản chưa xác minh
+        const lowerErrorMessage = errorMessage.toLowerCase();
+        if (
+          lowerErrorMessage.includes("chưa xác minh") ||
+          lowerErrorMessage.includes("chưa được xác minh") ||
+          lowerErrorMessage.includes("not verified") ||
+          lowerErrorMessage.includes("unverified") ||
+          lowerErrorMessage.includes("chưa kích hoạt") ||
+          lowerErrorMessage.includes("chưa xác thực")
+        ) {
+          setError("Tài khoản chưa được xác minh. Vui lòng xác minh email trước khi đặt lại mật khẩu.");
+          // Quay về step 1
+          setStep(1);
+        }
       }
     } catch (err) {
       setError("Lỗi kết nối máy chủ khi gửi lại mã.");

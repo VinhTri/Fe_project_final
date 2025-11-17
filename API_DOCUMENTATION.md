@@ -269,6 +269,10 @@ Redirect đến Google login, sau đó redirect về:
 }
 ```
 
+**Lưu ý:**
+- `initialBalance` đã bị deprecated và bị ignore trong backend. Số dư ban đầu luôn là 0.0
+- Để thêm tiền vào ví, hãy tạo transaction "Thu nhập" hoặc chuyển tiền từ ví khác
+
 **Response:**
 ```json
 {
@@ -579,9 +583,13 @@ hoặc
   "fromWalletId": 1,
   "toWalletId": 2,
   "amount": 100000.00,
-  "note": "Chuyển tiền"
+  "note": "Chuyển tiền",
+  "imageUrl": "https://example.com/receipt.jpg"
 }
 ```
+
+**Lưu ý:**
+- `imageUrl` là tùy chọn, có thể đính kèm ảnh hóa đơn để ghi nhận giao dịch chuyển tiền
 
 **Response:**
 ```json
@@ -593,6 +601,7 @@ hoặc
     "currencyCode": "VND",
     "transferredAt": "2024-01-01T10:00:00",
     "note": "Chuyển tiền",
+    "imageUrl": "https://example.com/receipt.jpg",
     "status": "COMPLETED",
     "fromWalletId": 1,
     "fromWalletName": "Ví nguồn",
@@ -789,17 +798,22 @@ hoặc
 ```json
 {
   "categoryName": "Ăn uống",
-  "icon": "food",
+  "description": "Mô tả danh mục (tùy chọn)",
   "transactionTypeId": 1
 }
 ```
+
+**Lưu ý:**
+- `transactionTypeId`: 1 = Chi tiêu, 2 = Thu nhập
+- User có thể tạo danh mục riêng để phân loại giao dịch một cách rõ ràng
+- Mỗi danh mục thuộc về một loại giao dịch (thu hoặc chi)
 
 **Response:**
 ```json
 {
   "categoryId": 1,
   "categoryName": "Ăn uống",
-  "icon": "food",
+  "description": "Mô tả danh mục",
   "transactionType": {
     "typeId": 1,
     "typeName": "Chi tiêu"
@@ -819,7 +833,7 @@ hoặc
 ```json
 {
   "categoryName": "Ăn uống mới",
-  "icon": "restaurant"
+  "description": "Mô tả danh mục mới (tùy chọn)"
 }
 ```
 
@@ -828,7 +842,12 @@ hoặc
 {
   "categoryId": 1,
   "categoryName": "Ăn uống mới",
-  "icon": "restaurant"
+  "description": "Mô tả danh mục mới",
+  "transactionType": {
+    "typeId": 1,
+    "typeName": "Chi tiêu"
+  },
+  "isSystem": false
 }
 ```
 
@@ -844,7 +863,10 @@ hoặc
 "Danh mục đã được xóa thành công"
 ```
 
-**Lưu ý:** Không thể xóa danh mục hệ thống
+**Lưu ý:** 
+- Không thể xóa danh mục hệ thống
+- Chỉ có thể xóa danh mục khi chưa có giao dịch nào sử dụng danh mục này
+- Nếu danh mục đang được sử dụng, sẽ trả về lỗi: "Không thể xóa danh mục. Danh mục này đang được sử dụng trong các giao dịch."
 
 ---
 
@@ -859,7 +881,7 @@ hoặc
   {
     "categoryId": 1,
     "categoryName": "Ăn uống",
-    "icon": "food",
+    "description": "Mô tả danh mục",
     "transactionType": {
       "typeId": 1,
       "typeName": "Chi tiêu"
@@ -886,9 +908,12 @@ hoặc
   "amount": 50000.00,
   "transactionDate": "2024-01-01T10:00:00",
   "note": "Ăn trưa",
-  "imageUrl": "optional_image_url"
+  "imageUrl": "https://example.com/receipt.jpg"
 }
 ```
+
+**Lưu ý:**
+- `imageUrl` là tùy chọn, có thể đính kèm ảnh hóa đơn để ghi nhận giao dịch chi tiêu
 
 **Response:**
 ```json
@@ -923,9 +948,12 @@ hoặc
   "amount": 1000000.00,
   "transactionDate": "2024-01-01T10:00:00",
   "note": "Lương tháng 1",
-  "imageUrl": null
+  "imageUrl": "https://example.com/receipt.jpg"
 }
 ```
+
+**Lưu ý:**
+- `imageUrl` là tùy chọn, có thể đính kèm ảnh hóa đơn để ghi nhận giao dịch thu nhập
 
 **Response:**
 ```json
@@ -943,6 +971,341 @@ hoặc
   }
 }
 ```
+
+---
+
+### 3. Lấy danh sách giao dịch
+**GET** `/transactions`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters (tất cả đều optional):**
+- `walletId` (Long): Lọc theo ví cụ thể
+- `typeId` (Long): Lọc theo loại giao dịch (1: Chi tiêu, 2: Thu nhập)
+- `startDate` (DateTime): Ngày bắt đầu (ISO format: `2024-01-01T00:00:00`)
+- `endDate` (DateTime): Ngày kết thúc (ISO format: `2024-01-31T23:59:59`)
+
+**Ví dụ:**
+```
+GET /transactions
+GET /transactions?walletId=1
+GET /transactions?typeId=1&startDate=2024-01-01T00:00:00&endDate=2024-01-31T23:59:59
+GET /transactions?walletId=1&typeId=2
+```
+
+**Response:**
+```json
+{
+  "transactions": [
+    {
+      "transactionId": 1,
+      "amount": 50000.00,
+      "transactionDate": "2024-01-15T10:00:00",
+      "note": "Ăn trưa",
+      "imageUrl": null,
+      "originalAmount": null,
+      "originalCurrency": null,
+      "exchangeRate": null,
+      "mergeDate": null,
+      "createdAt": "2024-01-15T10:00:00",
+      "updatedAt": "2024-01-15T10:00:00",
+      "user": {
+        "userId": 1,
+        "fullName": "Nguyễn Văn A",
+        "email": "user@example.com"
+      },
+      "wallet": {
+        "walletId": 1,
+        "walletName": "Ví chính",
+        "currencyCode": "VND"
+      },
+      "transactionType": {
+        "typeId": 1,
+        "typeName": "Chi tiêu"
+      },
+      "category": {
+        "categoryId": 1,
+        "categoryName": "Ăn uống",
+        "description": "Mô tả danh mục"
+      }
+    }
+  ],
+  "total": 1
+}
+```
+
+**Lưu ý:**
+- Trả về tất cả giao dịch của user, sắp xếp theo ngày giảm dần (mới nhất trước)
+- Nếu filter theo `walletId`, hệ thống sẽ kiểm tra quyền truy cập ví
+- Có thể kết hợp nhiều filter cùng lúc
+- `imageUrl`: URL ảnh hóa đơn nếu có đính kèm (có thể là `null` nếu không có)
+- `originalAmount`, `originalCurrency`, `exchangeRate`, `mergeDate` chỉ có giá trị nếu transaction được tạo từ việc gộp ví
+
+---
+
+### 4. Lấy chi tiết giao dịch
+**GET** `/transactions/{transactionId}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "transaction": {
+    "transactionId": 1,
+    "amount": 50000.00,
+    "transactionDate": "2024-01-15T10:00:00",
+    "note": "Ăn trưa",
+    "imageUrl": null,
+    "originalAmount": null,
+    "originalCurrency": null,
+    "exchangeRate": null,
+    "mergeDate": null,
+    "createdAt": "2024-01-15T10:00:00",
+    "updatedAt": "2024-01-15T10:00:00",
+    "user": {
+      "userId": 1,
+      "fullName": "Nguyễn Văn A",
+      "email": "user@example.com"
+    },
+    "wallet": {
+      "walletId": 1,
+      "walletName": "Ví chính",
+      "currencyCode": "VND",
+      "balance": 950000.00
+    },
+    "transactionType": {
+      "typeId": 1,
+      "typeName": "Chi tiêu"
+    },
+    "category": {
+      "categoryId": 1,
+      "categoryName": "Ăn uống",
+      "description": "Mô tả danh mục"
+    }
+  }
+}
+```
+
+**Lưu ý:**
+- User chỉ có thể xem giao dịch mà mình tạo hoặc giao dịch trong ví mà mình có quyền truy cập (shared wallet)
+- Nếu không có quyền, trả về 404 Not Found
+- `imageUrl`: URL ảnh hóa đơn nếu có đính kèm (có thể là `null` nếu không có)
+
+---
+
+### 5. Lấy giao dịch theo ví
+**GET** `/transactions/wallet/{walletId}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "transactions": [
+    {
+      "transactionId": 1,
+      "amount": 50000.00,
+      "transactionDate": "2024-01-15T10:00:00",
+      "note": "Ăn trưa",
+      "imageUrl": null,
+      "user": {
+        "userId": 1,
+        "fullName": "Nguyễn Văn A"
+      },
+      "transactionType": {
+        "typeId": 1,
+        "typeName": "Chi tiêu"
+      },
+      "category": {
+        "categoryId": 1,
+        "categoryName": "Ăn uống"
+      }
+    }
+  ],
+  "total": 1,
+  "walletId": 1
+}
+```
+
+**Lưu ý:**
+- Trả về tất cả giao dịch trong ví, sắp xếp theo ngày giảm dần (mới nhất trước)
+- User phải có quyền truy cập ví (OWNER hoặc MEMBER)
+- Nếu không có quyền, trả về 400 Bad Request
+- `imageUrl`: URL ảnh hóa đơn nếu có đính kèm (có thể là `null` nếu không có)
+
+---
+
+## ⏰ Scheduled Transaction APIs (Giao dịch đặt lịch hẹn)
+
+### 1. Tạo giao dịch đặt lịch hẹn
+**POST** `/scheduled-transactions/create`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "walletId": 1,
+  "categoryId": 1,
+  "amount": 50000.00,
+  "scheduledDate": "2024-01-15T10:00:00",
+  "note": "Thanh toán hóa đơn điện",
+  "imageUrl": "https://example.com/bill.jpg"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Tạo giao dịch đặt lịch thành công",
+  "scheduledTransaction": {
+    "scheduledId": 1,
+    "wallet": {
+      "walletId": 1,
+      "walletName": "Ví chính"
+    },
+    "category": {
+      "categoryId": 1,
+      "categoryName": "Tiện ích"
+    },
+    "transactionType": {
+      "typeId": 1,
+      "typeName": "Chi tiêu"
+    },
+    "amount": 50000.00,
+    "scheduledDate": "2024-01-15T10:00:00",
+    "note": "Thanh toán hóa đơn điện",
+    "imageUrl": "https://example.com/bill.jpg",
+    "status": "PENDING",
+    "createdAt": "2024-01-01T10:00:00"
+  }
+}
+```
+
+**Lưu ý:**
+- `scheduledDate` phải trong tương lai
+- Hệ thống sẽ tự động tạo transaction vào thời điểm `scheduledDate`
+- Nếu là chi tiêu, hệ thống sẽ kiểm tra số dư tại thời điểm thực hiện
+- `imageUrl` là tùy chọn, có thể đính kèm ảnh hóa đơn
+
+---
+
+### 2. Lấy danh sách giao dịch đặt lịch
+**GET** `/scheduled-transactions`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "scheduledTransactions": [
+    {
+      "scheduledId": 1,
+      "wallet": {
+        "walletId": 1,
+        "walletName": "Ví chính"
+      },
+      "category": {
+        "categoryId": 1,
+        "categoryName": "Tiện ích"
+      },
+      "transactionType": {
+        "typeId": 1,
+        "typeName": "Chi tiêu"
+      },
+      "amount": 50000.00,
+      "scheduledDate": "2024-01-15T10:00:00",
+      "note": "Thanh toán hóa đơn điện",
+      "imageUrl": "https://example.com/bill.jpg",
+      "status": "PENDING",
+      "createdAt": "2024-01-01T10:00:00"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+### 3. Lấy giao dịch đặt lịch theo trạng thái
+**GET** `/scheduled-transactions/status/{status}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Path Parameters:**
+- `status`: `PENDING`, `EXECUTED`, hoặc `CANCELLED`
+
+**Response:**
+```json
+{
+  "scheduledTransactions": [...],
+  "total": 1,
+  "status": "PENDING"
+}
+```
+
+---
+
+### 4. Lấy giao dịch đặt lịch theo ví
+**GET** `/scheduled-transactions/wallet/{walletId}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "scheduledTransactions": [...],
+  "total": 1,
+  "walletId": 1
+}
+```
+
+---
+
+### 5. Lấy chi tiết giao dịch đặt lịch
+**GET** `/scheduled-transactions/{scheduledId}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "scheduledTransaction": {
+    "scheduledId": 1,
+    "wallet": {...},
+    "category": {...},
+    "transactionType": {...},
+    "amount": 50000.00,
+    "scheduledDate": "2024-01-15T10:00:00",
+    "note": "Thanh toán hóa đơn điện",
+    "imageUrl": "https://example.com/bill.jpg",
+    "status": "EXECUTED",
+    "executedAt": "2024-01-15T10:00:00",
+    "createdTransactionId": 123,
+    "createdAt": "2024-01-01T10:00:00",
+    "updatedAt": "2024-01-15T10:00:00"
+  }
+}
+```
+
+---
+
+### 6. Hủy giao dịch đặt lịch
+**POST** `/scheduled-transactions/{scheduledId}/cancel`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Hủy giao dịch đặt lịch thành công"
+}
+```
+
+**Lưu ý:**
+- Chỉ có thể hủy giao dịch đang ở trạng thái `PENDING`
+- Giao dịch đã thực hiện (`EXECUTED`) hoặc đã hủy (`CANCELLED`) không thể hủy
 
 ---
 

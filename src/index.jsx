@@ -9,6 +9,7 @@ import "./styles/variables.css";
 import { WalletDataProvider } from "./home/store/WalletDataContext";
 import { BudgetDataProvider } from "./home/store/BudgetDataContext";
 import { CategoryDataProvider } from "./home/store/CategoryDataContext";
+import { TransactionDataProvider } from "./home/store/TransactionDataContext";
 
 // Global error handler để bắt unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {
@@ -27,9 +28,11 @@ createRoot(document.getElementById("root")).render(
     {/* ✅ Wrap with providers - CategoryDataProvider first, then others */}
     <CategoryDataProvider>
       <WalletDataProvider>
-        <BudgetDataProvider>
-          <App />
-        </BudgetDataProvider>
+        <TransactionDataProvider>
+          <BudgetDataProvider>
+            <App />
+          </BudgetDataProvider>
+        </TransactionDataProvider>
       </WalletDataProvider>
     </CategoryDataProvider>
   </React.StrictMode>

@@ -3,6 +3,24 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { uploadReceipt } from "../../services/file.service";
+
+const API_BASE_URL = "http://localhost:8080";
+
+// Helper function để normalize image URL
+const getImageUrl = (url) => {
+  if (!url) return "";
+  // Nếu URL đã là full URL (bắt đầu bằng http:// hoặc https://), trả về nguyên
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // Nếu là relative path, thêm base URL
+  if (url.startsWith("/")) {
+    return `${API_BASE_URL}${url}`;
+  }
+  // Nếu không có / ở đầu, thêm /files/receipt/ (default path)
+  return `${API_BASE_URL}/files/receipt/${url}`;
+};
 
 /* ================== CẤU HÌNH MẶC ĐỊNH ================== */
 const EMPTY_FORM = {
@@ -10,7 +28,7 @@ const EMPTY_FORM = {
   walletName: "",
   amount: "",
   date: "",
-  category: "Ăn uống",
+  category: "", // Không set mặc định, để người dùng tự chọn
   note: "",
   currency: "VND",
   attachment: "",
@@ -87,6 +105,7 @@ export default function TransactionFormModal({
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   /* ========== ESC để đóng ========== */
   useEffect(() => {
@@ -127,7 +146,9 @@ export default function TransactionFormModal({
           currency: initialData.currency || "VND",
           attachment: initialData.attachment || "",
         });
-        setAttachmentPreview(initialData.attachment || "");
+        // Normalize image URL nếu có
+        const attachmentUrl1 = initialData.attachment ? getImageUrl(initialData.attachment) : "";
+        setAttachmentPreview(attachmentUrl1);
       } else {
         setForm({
           ...EMPTY_FORM,
@@ -155,10 +176,17 @@ export default function TransactionFormModal({
           currency: initialData.currency || "VND",
           attachment: initialData.attachment || "",
         });
-        setAttachmentPreview(initialData.attachment || "");
+        // Normalize image URL nếu có
+        const attachmentUrl2 = initialData.attachment ? getImageUrl(initialData.attachment) : "";
+        setAttachmentPreview(attachmentUrl2);
       } else {
         setForm({ ...EMPTY_FORM, date: now });
         setAttachmentPreview("");
+        // Reset file input khi mở form mới
+        setTimeout(() => {
+          const fileInput = document.getElementById("file-input-attachment");
+          if (fileInput) fileInput.value = "";
+        }, 0);
       }
     }
   }, [open, mode, initialData, variant]);
@@ -175,15 +203,22 @@ export default function TransactionFormModal({
     ? walletList.map(w => w.name)
     : DEFAULT_WALLETS;
 
-  // Keep form.category in sync when type changes or categories update
+  // Keep form.category in sync when type changes (chỉ khi đang edit hoặc đã có category)
   useEffect(() => {
     if (variant === "internal") return; // internal uses fixed category
     if (!categoryOptions || categoryOptions.length === 0) return;
-    if (!form.category || !categoryOptions.includes(form.category)) {
+    // Chỉ tự động chọn category đầu tiên nếu:
+    // 1. Đang ở chế độ edit (có initialData)
+    // 2. Hoặc category hiện tại không hợp lệ (không có trong danh sách)
+    // Không tự động chọn khi tạo mới (form.category === "")
+    if (mode === "edit" && (!form.category || !categoryOptions.includes(form.category))) {
       setForm(f => ({ ...f, category: categoryOptions[0] }));
+    } else if (form.category && !categoryOptions.includes(form.category)) {
+      // Nếu category không hợp lệ, reset về rỗng
+      setForm(f => ({ ...f, category: "" }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.type, expenseCategories, incomeCategories]);
+  }, [form.type, expenseCategories, incomeCategories, mode]);
 
   /* ========== Handlers ========== */
   const handleChange = (e) => {
@@ -191,16 +226,57 @@ export default function TransactionFormModal({
     setForm((f) => ({ ...f, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) {
       setForm((f) => ({ ...f, attachment: "" }));
       setAttachmentPreview("");
       return;
     }
-    const url = URL.createObjectURL(file);
-    setForm((f) => ({ ...f, attachment: url }));
-    setAttachmentPreview(url);
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng chọn file ảnh (jpg, png, gif, etc.)");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert("Kích thước file không được vượt quá 5MB");
+      return;
+    }
+
+    // Hiển thị preview ngay với blob URL
+    const previewUrl = URL.createObjectURL(file);
+    setAttachmentPreview(previewUrl);
+    setUploadingFile(true);
+
+    try {
+      console.log("TransactionFormModal: Uploading file:", file.name);
+      const result = await uploadReceipt(file);
+
+      if (result.response.ok && result.data?.url) {
+        // Lấy URL từ response
+        const imageUrl = result.data.url;
+        
+        // Lưu URL thật vào form (lưu nguyên URL từ API, có thể là relative hoặc full)
+        setForm((f) => ({ ...f, attachment: imageUrl }));
+        // Thay preview bằng URL thật (normalize để hiển thị)
+        URL.revokeObjectURL(previewUrl);
+        setAttachmentPreview(getImageUrl(imageUrl));
+        console.log("TransactionFormModal: File uploaded successfully:", imageUrl);
+      } else {
+        throw new Error(result.data?.error || "Server không trả về URL ảnh");
+      }
+    } catch (error) {
+      console.error("TransactionFormModal: Error uploading file:", error);
+      // Giữ preview URL tạm thời, nhưng không lưu vào form
+      setForm((f) => ({ ...f, attachment: "" }));
+      alert(error.message || "Không thể upload ảnh. Vui lòng thử lại.");
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -365,27 +441,65 @@ export default function TransactionFormModal({
 
                     <div className="col-12">
                       <label className="form-label fw-semibold">Ảnh đính kèm</label>
-                      <input
-                        type="file"
-                        className="form-control"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                      />
-                      {attachmentPreview && (
-                        <div className="mt-2">
-                          <img
-                            src={attachmentPreview}
-                            alt="Đính kèm"
-                            style={{
-                              maxWidth: 180,
-                              maxHeight: 140,
-                              borderRadius: 12,
-                              objectFit: "cover",
-                              border: "1px solid #e5e7eb",
-                            }}
+                      <div className="d-flex flex-column gap-2">
+                        <div className="d-flex gap-2 align-items-center">
+                          <input
+                            type="file"
+                            id="file-input-attachment"
+                            className="form-control"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            disabled={uploadingFile}
+                            style={{ display: "none" }}
                           />
+                          <label
+                            htmlFor="file-input-attachment"
+                            className="btn btn-outline-secondary btn-sm"
+                            style={{ cursor: uploadingFile ? "not-allowed" : "pointer", margin: 0 }}
+                          >
+                            {uploadingFile ? "Đang upload..." : "Chọn ảnh"}
+                          </label>
+                          {attachmentPreview && !uploadingFile && (
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => {
+                                setForm((f) => ({ ...f, attachment: "" }));
+                                setAttachmentPreview("");
+                                // Reset file input
+                                const fileInput = document.getElementById("file-input-attachment");
+                                if (fileInput) fileInput.value = "";
+                              }}
+                            >
+                              Xóa ảnh
+                            </button>
+                          )}
                         </div>
-                      )}
+                        {uploadingFile && (
+                          <div className="text-muted small">
+                            Đang upload ảnh...
+                          </div>
+                        )}
+                        {attachmentPreview && !uploadingFile && (
+                          <div className="mt-2">
+                            <img
+                              src={attachmentPreview}
+                              alt="Đính kèm"
+                              style={{
+                                maxWidth: 180,
+                                maxHeight: 140,
+                                borderRadius: 12,
+                                objectFit: "cover",
+                                border: "1px solid #e5e7eb",
+                              }}
+                              onError={(e) => {
+                                console.error("Error loading preview image:", attachmentPreview);
+                                e.target.style.display = "none";
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </>
