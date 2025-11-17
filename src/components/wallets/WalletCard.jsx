@@ -91,8 +91,27 @@ export default function WalletCard({
         .wallet-card .dropdown-menu .dropdown-divider{ margin: 0; border-top: 1px solid rgba(0,0,0,.08); }
 
 
-        .wallet-card .wallet-name{ font-weight:700; color:#fff; }
-        .wallet-card .badge{ background:rgba(0,0,0,.85) !important; border:none; font-size:.75rem; }
+        .wallet-card .wallet-name{ font-weight:700; color:#fff; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .wallet-card
+          display:inline-block; 
+          padding:4px 12px; 
+          border-radius:12px; 
+          font-size:.75rem; 
+          font-weight:500; 
+          background:rgba(173,216,230,.4) !important; 
+          color:#fff !important; 
+          border:none;
+          white-space:nowrap;
+        }
+        .wallet-card .badge{ 
+          background:rgba(0,0,0,.85) !important; 
+          border:none; 
+          font-size:.75rem; 
+          padding:4px 12px; 
+          border-radius:12px; 
+          color:#fff !important;
+          font-weight:500;
+        }
         .wallet-card .wc-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
         .wallet-card .wc-label{ color:#f1f1f1; font-size:.9rem; }
         .wallet-card .wc-value{ color:#fff; font-weight:600; }
@@ -158,11 +177,11 @@ export default function WalletCard({
 
       {/* Nội dung */}
       <div className="card-body" onClick={stop}>
-        <div className="d-flex align-items:center justify-content-between mb-2">
-          <h6 className="wallet-name mb-0">
-            {wallet.name}
-            {wallet.isDefault && <span className="badge ms-2">Mặc định</span>}
-          </h6>
+        <div className="d-flex align-items-center justify-content-between mb-2">
+          <div className="wallet-name">
+            <span className="wallet-name-badge">{wallet.name}</span>
+            {wallet.isDefault && <span className="badge">Mặc định</span>}
+          </div>
         </div>
 
         <div className="wc-body">

@@ -259,61 +259,53 @@ const doDelete = async (wallet) => {
   setConfirmDel(null); // Đóng modal
 
   try {
-    // Gọi API (đã sửa ở Bước 1)
-    const { response, data } = await deleteWallet(wallet.id); 
+    // Gọi API - deleteWallet từ context sẽ throw error nếu thất bại
+    await deleteWallet(wallet.id); 
 
-    // Kiểm tra kết quả
-    if (response.ok) {
-      // THÀNH CÔNG: Cập nhật UI
-      setToast({ open: true, message: `Đã xóa ví "${wallet.name}"` });
-      
-      // [QUAN TRỌNG] Cập nhật lại danh sách ví của bạn
-      // (Ví dụ: gọi lại hàm fetchWallets() hoặc dùng mutate() của SWR)
-      // fetchWallets(); 
-
-      if (selectedWallet?.id === wallet.id) {
-        setSelectedWallet(null);
-      }
-    } else {
-      // THẤT BẠI (Backend trả về lỗi, ví dụ: "Còn giao dịch")
-      setToast({ open: true, message: data.error || "Xóa ví thất bại", danger: true });
+    // Nếu không throw error, nghĩa là thành công
+    setToast({ open: true, message: `Đã xóa ví "${wallet.name}" thành công` });
+    
+    // Cập nhật UI
+    if (selectedWallet?.id === wallet.id) {
+      setSelectedWallet(null);
     }
   } catch (error) {
-    // THẤT BẠI (Lỗi mạng hoặc lỗi code)
-    console.error("Lỗi nghiêm trọng khi gọi deleteWallet:", error);
-    setToast({ open: true, message: "Lỗi kết nối máy chủ", danger: true });
+    // THẤT BẠI (Lỗi từ backend hoặc lỗi mạng)
+    console.error("Lỗi khi xóa ví:", error);
+    const errorMessage = error.message || "Xóa ví thất bại";
+    setToast({ open: true, message: errorMessage, danger: true });
   }
 };
 
   /** Tạo ví cá nhân: thêm color ngẫu nhiên từ bảng */
   const handleCreatePersonal = async (f) => {
-    const w = await createWallet({
-      name: f.name.trim(),
-      currency: f.currency,
-      type: f.type || "CASH",
-      note: f.note?.trim() || "",
-      isDefault: !!f.isDefault,
-      isShared: false,
-      groupId: null,
-      includeOverall: true,
-      includePersonal: true,
-      color: pickWalletColor(wallets),
-    });
-
-    // Đảm bảo chỉ duy nhất 1 ví mặc định
     try {
-      if (w?.isDefault) {
-        const others = wallets.filter((x) => x.id !== w.id && x.isDefault);
-        if (others.length) {
-          await Promise.all(
-            others.map((x) => updateWallet({ ...x, isDefault: false }))
-          );
-        }
-      }
-    } catch (_) {}
+      const w = await createWallet({
+        name: f.name.trim(),
+        currency: f.currency,
+        type: f.type || "CASH",
+        note: f.note?.trim() || "",
+        isDefault: !!f.isDefault,
+        isShared: false,
+        groupId: null,
+        includeOverall: true,
+        includePersonal: true,
+        color: pickWalletColor(wallets),
+      });
 
-    setShowPersonal(false);
-    setToast({ open: true, message: `Đã tạo ví cá nhân "${w.name}"` });
+      // Context đã tự động xử lý set default wallet khi tạo ví
+      // Nếu ví mới được set làm default, backend sẽ tự động bỏ default của các ví khác
+
+      setShowPersonal(false);
+      setToast({ open: true, message: `Đã tạo ví cá nhân "${w.name}"` });
+    } catch (error) {
+      console.error("Lỗi khi tạo ví:", error);
+      setToast({ 
+        open: true, 
+        message: error.message || "Tạo ví thất bại", 
+        danger: true 
+      });
+    }
   };
 
   /** Sau khi tạo ví nhóm: chêm include flags + color nếu thiếu */
@@ -335,23 +327,43 @@ const doDelete = async (wallet) => {
   };
 
   const handleSubmitEdit = async (data) => {
-    await updateWallet(data);
-
-    // Đảm bảo chỉ duy nhất 1 ví mặc định khi chỉnh sửa
     try {
-      if (data?.isDefault) {
-        const others = wallets.filter((x) => x.id !== data.id && x.isDefault);
-        if (others.length) {
-          await Promise.all(
-            others.map((x) => updateWallet({ ...x, isDefault: false }))
-          );
-        }
+      // Map data từ modal format sang wallet format
+      const walletId = editing?.id;
+      if (!walletId) {
+        setToast({ open: true, message: "Không tìm thấy ví để cập nhật", danger: true });
+        return;
       }
-    } catch (_) {}
 
-    setEditing(null);
-    setToast({ open: true, message: "Cập nhật ví thành công" });
-    if (selectedWallet?.id === data.id) setSelectedWallet(data);
+      const updateData = {
+        id: walletId,
+        name: data.walletName,
+        currency: data.currencyCode,
+        note: data.description,
+        isDefault: data.setAsDefault || false,
+      };
+
+      // Gọi updateWallet - context sẽ tự động gọi API setDefaultWallet nếu isDefault = true
+      const updatedWallet = await updateWallet(updateData);
+
+      // Refresh lại danh sách ví để đảm bảo state đồng bộ
+      // Context đã tự động update state khi gọi API thành công
+
+      setEditing(null);
+      setToast({ open: true, message: "Cập nhật ví thành công" });
+      
+      // Update selectedWallet nếu đang chọn ví này - dùng wallet đã được cập nhật từ API
+      if (selectedWallet?.id === walletId && updatedWallet) {
+        setSelectedWallet(updatedWallet);
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật ví:", error);
+      setToast({ 
+        open: true, 
+        message: error.message || "Cập nhật ví thất bại", 
+        danger: true 
+      });
+    }
   };
 
   // Inspector actions
@@ -360,8 +372,10 @@ const doDelete = async (wallet) => {
       ...wallet,
       balance: Number(wallet.balance || 0) - Number(amount),
     };
-    await updateWallet(next);
-    setSelectedWallet(next);
+    const updatedWallet = await updateWallet(next);
+    if (updatedWallet) {
+      setSelectedWallet(updatedWallet);
+    }
     setToast({ open: true, message: "Rút tiền thành công" });
   };
 
@@ -373,9 +387,11 @@ const doDelete = async (wallet) => {
         balance:
           Number(otherWallet.balance || 0) + Number(baseWallet.balance || 0),
       };
-      await updateWallet(to);
+      const updatedWallet = await updateWallet(to);
       await deleteWallet(baseWallet.id);
-      if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
+      if (selectedWallet?.id === baseWallet.id && updatedWallet) {
+        setSelectedWallet(updatedWallet);
+      }
       setToast({
         open: true,
         message: `Đã gộp "${baseWallet.name}" vào "${otherWallet.name}"`,
@@ -386,9 +402,11 @@ const doDelete = async (wallet) => {
         balance:
           Number(baseWallet.balance || 0) + Number(otherWallet.balance || 0),
       };
-      await updateWallet(to);
+      const updatedWallet = await updateWallet(to);
       await deleteWallet(otherWallet.id);
-      if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
+      if (selectedWallet?.id === baseWallet.id && updatedWallet) {
+        setSelectedWallet(updatedWallet);
+      }
       setToast({
         open: true,
         message: `Đã gộp "${otherWallet.name}" vào "${baseWallet.name}"`,
@@ -402,24 +420,30 @@ const doDelete = async (wallet) => {
       isShared: !!toShared,
       groupId: toShared ? wallet.groupId || null : null,
     };
-    await updateWallet(next);
-    setSelectedWallet(next);
+    const updatedWallet = await updateWallet(next);
+    if (updatedWallet) {
+      setSelectedWallet(updatedWallet);
+    }
     setToast({ open: true, message: "Chuyển đổi loại ví thành công" });
   };
 
-  // ====== Toggle trong menu “...” ======
+  // ====== Toggle trong menu "..." ======
   const handleToggleOverall = async (wallet, nextOn) => {
     const next = { ...wallet, includeOverall: !!nextOn };
-    await updateWallet(next);
-    if (selectedWallet?.id === wallet.id) setSelectedWallet(next);
+    const updatedWallet = await updateWallet(next);
+    if (selectedWallet?.id === wallet.id && updatedWallet) {
+      setSelectedWallet(updatedWallet);
+    }
   };
 
   const handleToggleSection = async (wallet, nextOn) => {
     const next = { ...wallet };
     if (wallet.isShared) next.includeGroup = !!nextOn;
     else next.includePersonal = !!nextOn;
-    await updateWallet(next);
-    if (selectedWallet?.id === wallet.id) setSelectedWallet(next);
+    const updatedWallet = await updateWallet(next);
+    if (selectedWallet?.id === wallet.id && updatedWallet) {
+      setSelectedWallet(updatedWallet);
+    }
   };
 
   // ====== Auto-height containers ======
@@ -1048,6 +1072,7 @@ const doDelete = async (wallet) => {
           wallet={editing}
           currencies={CURRENCIES}
           existingNames={existingNames}
+          allWallets={wallets}
           onClose={() => setEditing(null)}
           onSubmit={handleSubmitEdit}
         />

@@ -38,13 +38,21 @@ const mapBackendToFrontend = (backendWallet) => {
     console.warn("WalletDataContext: Wallet không có ID:", backendWallet);
   }
 
+  // Xử lý isDefault: Backend có thể trả về 'isDefault' hoặc 'default' (do Java boolean getter isDefault())
+  let isDefaultValue = false;
+  if (backendWallet.isDefault !== undefined) {
+    isDefaultValue = Boolean(backendWallet.isDefault);
+  } else if (backendWallet.default !== undefined) {
+    isDefaultValue = Boolean(backendWallet.default);
+  }
+
   const mapped = {
     id: walletId,
     name: walletName || "Unnamed Wallet",
     currency: currencyCode || "VND",
     balance: backendWallet.balance || 0,
     type: backendWallet.type || backendWallet.walletType || "CASH",
-    isDefault: backendWallet.isDefault || false,
+    isDefault: isDefaultValue,
     isShared: backendWallet.isShared || false,
     groupId: backendWallet.groupId || null,
     createdAt: backendWallet.createdAt || new Date().toISOString(),
@@ -54,6 +62,17 @@ const mapBackendToFrontend = (backendWallet) => {
     includeGroup: true,
     color: backendWallet.color || null,
   };
+
+  // Debug log để kiểm tra mapping
+  if (isDefaultValue) {
+    console.log("WalletDataContext: Mapped wallet với isDefault=true:", {
+      walletId,
+      walletName,
+      backendIsDefault: backendWallet.isDefault,
+      backendDefault: backendWallet.default,
+      mappedIsDefault: mapped.isDefault,
+    });
+  }
 
   return mapped;
 };
@@ -86,39 +105,39 @@ export function WalletDataProvider({ children }) {
   ]);
 
   // ====== Load wallets from API ======
-  useEffect(() => {
-    const loadWallets = async () => {
-      try {
-        setLoading(true);
-        console.log("WalletDataContext: Bắt đầu load wallets từ API...");
-        const { response, data } = await getMyWallets();
-        console.log("WalletDataContext: API Response:", { response, data });
+  const loadWallets = async () => {
+    try {
+      setLoading(true);
+      console.log("WalletDataContext: Bắt đầu load wallets từ API...");
+      const { response, data } = await getMyWallets();
+      console.log("WalletDataContext: API Response:", { response, data });
 
-        if (response.ok && data.wallets) {
-          console.log("WalletDataContext: Raw wallets từ API:", data.wallets);
-          const mappedWallets = data.wallets
-            .map(mapBackendToFrontend)
-            .filter((w) => w !== null); // Filter out null wallets
-          console.log("WalletDataContext: Mapped wallets:", mappedWallets);
-          setWallets(mappedWallets);
-        } else {
-          console.error("WalletDataContext: Error loading wallets:", {
-            ok: response.ok,
-            status: response.status,
-            error: data.error,
-            data: data,
-          });
-          // Fallback to empty array on error
-          setWallets([]);
-        }
-      } catch (error) {
-        console.error("WalletDataContext: Exception khi load wallets:", error);
+      if (response.ok && data.wallets) {
+        console.log("WalletDataContext: Raw wallets từ API:", data.wallets);
+        const mappedWallets = data.wallets
+          .map(mapBackendToFrontend)
+          .filter((w) => w !== null); // Filter out null wallets
+        console.log("WalletDataContext: Mapped wallets:", mappedWallets);
+        setWallets(mappedWallets);
+      } else {
+        console.error("WalletDataContext: Error loading wallets:", {
+          ok: response.ok,
+          status: response.status,
+          error: data.error,
+          data: data,
+        });
+        // Fallback to empty array on error
         setWallets([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("WalletDataContext: Exception khi load wallets:", error);
+      setWallets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadWallets();
   }, []);
 
@@ -215,6 +234,9 @@ export function WalletDataProvider({ children }) {
   const updateWallet = async (patch) => {
     try {
       const walletId = patch.id;
+      const shouldSetDefault = patch.isDefault === true;
+      const shouldUnsetDefault = patch.isDefault === false;
+      const wasDefault = wallets.find(w => w.id === walletId)?.isDefault || false;
 
       // Map frontend patch to backend format
       const backendPayload = {};
@@ -222,14 +244,20 @@ export function WalletDataProvider({ children }) {
       if (patch.currency !== undefined)
         backendPayload.currencyCode = patch.currency;
       if (patch.note !== undefined) backendPayload.description = patch.note;
-
-      // Nếu set isDefault, gọi API setDefaultWallet riêng
-      if (patch.isDefault === true) {
-        await setDefaultWallet(walletId);
+      
+      // Xử lý set/unset default wallet
+      if (shouldSetDefault) {
+        // QUAN TRỌNG: Luôn gửi setAsDefault = true trong updateWalletAPI để đảm bảo backend cập nhật đúng
+        // Không cần gọi setDefaultWallet API riêng nữa, vì updateWalletAPI sẽ xử lý
+        backendPayload.setAsDefault = true;
+      } else if (shouldUnsetDefault && wasDefault) {
+        // Nếu bỏ tích ví mặc định (và đang là default), gửi setAsDefault = false trong updateWalletAPI
+        backendPayload.setAsDefault = false;
       }
 
-      // Gọi API update nếu có thay đổi
-      if (Object.keys(backendPayload).length > 0) {
+      // Gọi API update nếu có thay đổi (name, currency, note, balance, hoặc setAsDefault/unsetDefault)
+      // QUAN TRỌNG: Luôn gọi API update nếu có thay đổi, kể cả khi ví đã là mặc định
+      if (Object.keys(backendPayload).length > 0 || patch.balance !== undefined || shouldSetDefault || shouldUnsetDefault) {
         const { response, data } = await updateWalletAPI(
           walletId,
           backendPayload
@@ -238,24 +266,92 @@ export function WalletDataProvider({ children }) {
         if (response.ok && data.wallet) {
           const updatedWallet = mapBackendToFrontend(data.wallet);
           // Merge với các field frontend-specific
+          // QUAN TRỌNG: Ưu tiên dữ liệu từ database (updatedWallet), chỉ giữ các field frontend-specific từ patch
           const mergedWallet = {
-            ...updatedWallet,
-            ...patch, // Giữ các field frontend như color, include flags, etc.
+            ...updatedWallet, // Dữ liệu từ database (name, currency, note, balance, isDefault đã được cập nhật)
+            // Chỉ giữ các field frontend-specific không có trong database
+            color: patch.color !== undefined ? patch.color : updatedWallet.color,
+            includeOverall: patch.includeOverall !== undefined ? patch.includeOverall : updatedWallet.includeOverall,
+            includePersonal: patch.includePersonal !== undefined ? patch.includePersonal : updatedWallet.includePersonal,
+            includeGroup: patch.includeGroup !== undefined ? patch.includeGroup : updatedWallet.includeGroup,
+            // Đảm bảo isDefault được giữ đúng từ database (đã được cập nhật bởi setDefaultWallet nếu cần)
+            isDefault: updatedWallet.isDefault, // Luôn dùng giá trị từ database
           };
 
-          setWallets((prev) =>
-            prev.map((w) => (w.id === walletId ? mergedWallet : w))
-          );
+          // Update state
+          setWallets((prev) => {
+            if (shouldSetDefault && !wasDefault) {
+              // Nếu mới set default, bỏ default của tất cả ví khác
+              return prev.map((w) => 
+                w.id === walletId ? mergedWallet : { ...w, isDefault: false }
+              );
+            } else if (shouldUnsetDefault && wasDefault) {
+              // Nếu bỏ tích ví mặc định, chỉ update ví này
+              return prev.map((w) => (w.id === walletId ? mergedWallet : w));
+            } else {
+              // Chỉ update ví này (giữ nguyên isDefault của các ví khác)
+              return prev.map((w) => (w.id === walletId ? mergedWallet : w));
+            }
+          });
           return mergedWallet;
         } else {
           throw new Error(data.error || "Cập nhật ví thất bại");
         }
       } else {
-        // Chỉ update local state nếu không có thay đổi backend
-        setWallets((prev) =>
-          prev.map((w) => (w.id === walletId ? { ...w, ...patch } : w))
-        );
-        return { ...patch };
+        // Nếu chỉ set/unset default mà không có thay đổi khác
+        if (shouldSetDefault) {
+          // Nếu chỉ set default, cần gọi API update với setAsDefault = true
+          // (kể cả khi đã gọi setDefaultWallet API, để đảm bảo database được cập nhật đúng)
+          const { response, data } = await updateWalletAPI(walletId, { setAsDefault: true });
+          if (response.ok && data.wallet) {
+            const updatedWallet = mapBackendToFrontend(data.wallet);
+            const mergedWallet = {
+              ...updatedWallet,
+              color: patch.color !== undefined ? patch.color : updatedWallet.color,
+              includeOverall: patch.includeOverall !== undefined ? patch.includeOverall : updatedWallet.includeOverall,
+              includePersonal: patch.includePersonal !== undefined ? patch.includePersonal : updatedWallet.includePersonal,
+              includeGroup: patch.includeGroup !== undefined ? patch.includeGroup : updatedWallet.includeGroup,
+              isDefault: updatedWallet.isDefault,
+            };
+            // Update state: bỏ default của tất cả ví khác
+            setWallets((prev) =>
+              prev.map((w) => (w.id === walletId ? mergedWallet : { ...w, isDefault: false }))
+            );
+            return mergedWallet;
+          } else {
+            throw new Error(data.error || "Đặt ví mặc định thất bại");
+          }
+        } else if (shouldUnsetDefault && wasDefault) {
+          // Nếu chỉ bỏ tích ví mặc định, cần gọi API update với setAsDefault = false
+          const { response, data } = await updateWalletAPI(walletId, { setAsDefault: false });
+          if (response.ok && data.wallet) {
+            const updatedWallet = mapBackendToFrontend(data.wallet);
+            const mergedWallet = {
+              ...updatedWallet,
+              color: patch.color !== undefined ? patch.color : updatedWallet.color,
+              includeOverall: patch.includeOverall !== undefined ? patch.includeOverall : updatedWallet.includeOverall,
+              includePersonal: patch.includePersonal !== undefined ? patch.includePersonal : updatedWallet.includePersonal,
+              includeGroup: patch.includeGroup !== undefined ? patch.includeGroup : updatedWallet.includeGroup,
+              isDefault: updatedWallet.isDefault,
+            };
+            // Update state
+            setWallets((prev) =>
+              prev.map((w) => (w.id === walletId ? mergedWallet : w))
+            );
+            return mergedWallet;
+          } else {
+            throw new Error(data.error || "Bỏ ví mặc định thất bại");
+          }
+        } else {
+          // Chỉ update local state nếu không có thay đổi backend và trả về wallet đã cập nhật
+          let updatedWallet = null;
+          setWallets((prev) => {
+            const currentWallet = prev.find(w => w.id === walletId);
+            updatedWallet = currentWallet ? { ...currentWallet, ...patch } : { ...patch };
+            return prev.map((w) => (w.id === walletId ? updatedWallet : w));
+          });
+          return updatedWallet || { ...patch };
+        }
       }
     } catch (error) {
       console.error("Error updating wallet:", error);
