@@ -151,27 +151,6 @@ export default function WalletCard({
                 {sectionLabel}
               </label>
             </div>
-
-            {/* === PHẦN THÊM MỚI === */}
-            <div className="dropdown-divider"></div>
-
-            <div
-              className="dropdown-item"
-              style={{ cursor: "pointer" }}
-              onClick={handleEditClick}
-            >
-              <i className="bi bi-pencil-fill me-2"></i>
-              Sửa ví
-            </div>
-
-            <div
-              className="dropdown-item text-danger"
-              style={{ cursor: "pointer" }}
-              onClick={handleDeleteClick}
-            >
-              <i className="bi bi-trash-fill me-2"></i>
-              Xóa ví
-            </div>
             {/* === KẾT THÚC PHẦN THÊM MỚI === */}
           </div>
         </div>
