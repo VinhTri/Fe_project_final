@@ -98,7 +98,8 @@ export function CategoryDataProvider({ children }) {
         setExpenseCategories((prev) => [newCategory, ...prev]);
         return newCategory;
       } else {
-        throw new Error(data?.error || "Không thể tạo danh mục");
+        const errorMsg = data?.error || data?.message || (response.status === 500 ? "Lỗi máy chủ. Vui lòng thử lại sau." : "Không thể tạo danh mục");
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("Error creating expense category:", error);
@@ -130,7 +131,8 @@ export function CategoryDataProvider({ children }) {
         setIncomeCategories((prev) => [newCategory, ...prev]);
         return newCategory;
       } else {
-        throw new Error(data?.error || "Không thể tạo danh mục");
+        const errorMsg = data?.error || data?.message || (response.status === 500 ? "Lỗi máy chủ. Vui lòng thử lại sau." : "Không thể tạo danh mục");
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("Error creating income category:", error);
@@ -163,7 +165,8 @@ export function CategoryDataProvider({ children }) {
         );
         return updatedCategory;
       } else {
-        throw new Error(data?.error || "Không thể cập nhật danh mục");
+        const errorMsg = data?.error || data?.message || (response.status === 500 ? "Lỗi máy chủ. Vui lòng thử lại sau." : "Không thể cập nhật danh mục");
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("Error updating expense category:", error);
@@ -196,7 +199,8 @@ export function CategoryDataProvider({ children }) {
         );
         return updatedCategory;
       } else {
-        throw new Error(data?.error || "Không thể cập nhật danh mục");
+        const errorMsg = data?.error || data?.message || (response.status === 500 ? "Lỗi máy chủ. Vui lòng thử lại sau." : "Không thể cập nhật danh mục");
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("Error updating income category:", error);
@@ -221,7 +225,8 @@ export function CategoryDataProvider({ children }) {
         setExpenseCategories((prev) => prev.filter((c) => c.id !== id));
         return true;
       } else {
-        throw new Error(data?.error || "Không thể xóa danh mục");
+        const errorMsg = data?.error || data?.message || (response.status === 500 ? "Lỗi máy chủ. Vui lòng thử lại sau." : "Không thể xóa danh mục");
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("Error deleting expense category:", error);
@@ -246,7 +251,8 @@ export function CategoryDataProvider({ children }) {
         setIncomeCategories((prev) => prev.filter((c) => c.id !== id));
         return true;
       } else {
-        throw new Error(data?.error || "Không thể xóa danh mục");
+        const errorMsg = data?.error || data?.message || (response.status === 500 ? "Lỗi máy chủ. Vui lòng thử lại sau." : "Không thể xóa danh mục");
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("Error deleting income category:", error);

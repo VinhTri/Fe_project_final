@@ -102,6 +102,7 @@ export default function TransactionFormModal({
   onSubmit,
   onClose,
   variant = "external",
+  onError,
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
@@ -234,25 +235,37 @@ export default function TransactionFormModal({
       return;
     }
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      alert("Vui lòng chọn file ảnh (jpg, png, gif, etc.)");
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      alert("Kích thước file không được vượt quá 5MB");
-      return;
-    }
-
-    // Hiển thị preview ngay với blob URL
-    const previewUrl = URL.createObjectURL(file);
-    setAttachmentPreview(previewUrl);
-    setUploadingFile(true);
+    let previewUrl = null;
 
     try {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        const errorMsg = "Vui lòng chọn file ảnh (jpg, png, gif, etc.)";
+        if (onError) {
+          onError(errorMsg);
+        }
+        // Reset file input
+        e.target.value = "";
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        const errorMsg = "Kích thước file không được vượt quá 5MB";
+        if (onError) {
+          onError(errorMsg);
+        }
+        // Reset file input
+        e.target.value = "";
+        return;
+      }
+
+      // Hiển thị preview ngay với blob URL
+      previewUrl = URL.createObjectURL(file);
+      setAttachmentPreview(previewUrl);
+      setUploadingFile(true);
+
       console.log("TransactionFormModal: Uploading file:", file.name);
       const result = await uploadReceipt(file);
 
@@ -273,7 +286,16 @@ export default function TransactionFormModal({
       console.error("TransactionFormModal: Error uploading file:", error);
       // Giữ preview URL tạm thời, nhưng không lưu vào form
       setForm((f) => ({ ...f, attachment: "" }));
-      alert(error.message || "Không thể upload ảnh. Vui lòng thử lại.");
+      setAttachmentPreview("");
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      // Reset file input
+      e.target.value = "";
+      // Hiển thị error qua toast từ parent component
+      if (onError) {
+        onError(error.message || "Không thể upload ảnh. Vui lòng thử lại.");
+      }
     } finally {
       setUploadingFile(false);
     }

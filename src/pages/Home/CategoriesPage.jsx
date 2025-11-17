@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "../../styles/home/CategoriesPage.css";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
+import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 
 export default function CategoriesPage() {
@@ -21,6 +22,7 @@ export default function CategoriesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [toast, setToast] = useState({ open: false, message: "" });
+  const [confirmDel, setConfirmDel] = useState(null);
 
   const currentList =
     activeTab === "expense" ? expenseCategories : incomeCategories;
@@ -99,27 +101,33 @@ export default function CategoriesPage() {
     openEditModal(cat);
   };
 
-  const handleDelete = async (cat) => {
-    if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
+  const handleDelete = (cat) => {
+    setConfirmDel(cat);
+  };
+
+  const doDelete = async () => {
+    if (!confirmDel) return;
 
     try {
       if (activeTab === "expense") {
-        await deleteExpenseCategory(cat.id);
+        await deleteExpenseCategory(confirmDel.id);
       } else {
-        await deleteIncomeCategory(cat.id);
+        await deleteIncomeCategory(confirmDel.id);
       }
 
       setToast({ open: true, message: "Đã xóa danh mục." });
-      if (modalEditingId === cat.id) {
+      if (modalEditingId === confirmDel.id) {
         setModalEditingId(null);
         setModalOpen(false);
       }
+      setConfirmDel(null);
     } catch (error) {
       console.error("Error deleting category:", error);
       setToast({ 
         open: true, 
         message: error.message || "Không thể xóa danh mục. Vui lòng thử lại." 
       });
+      setConfirmDel(null);
     }
   };
 
@@ -323,6 +331,16 @@ export default function CategoriesPage() {
         typeLabel={activeTab === "expense" ? "chi phí" : "thu nhập"}
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
+      />
+
+      <ConfirmModal
+        open={!!confirmDel}
+        title="Xóa danh mục"
+        message={confirmDel ? `Bạn có chắc muốn xóa danh mục "${confirmDel.name}"?` : ""}
+        okText="Xóa"
+        cancelText="Hủy"
+        onOk={doDelete}
+        onClose={() => setConfirmDel(null)}
       />
 
       <SuccessToast

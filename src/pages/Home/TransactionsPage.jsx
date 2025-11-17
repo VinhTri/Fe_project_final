@@ -917,6 +917,7 @@ export default function TransactionsPage() {
         variant={activeTab === TABS.EXTERNAL ? "external" : "internal"}
         onSubmit={handleCreate}
         onClose={() => setCreating(false)}
+        onError={(errorMsg) => setToast({ open: true, message: errorMsg })}
       />
 
       <TransactionFormModal
@@ -926,6 +927,7 @@ export default function TransactionsPage() {
         initialData={editing}
         onSubmit={handleUpdate}
         onClose={() => setEditing(null)}
+        onError={(errorMsg) => setToast({ open: true, message: errorMsg })}
       />
 
       <ConfirmModal
