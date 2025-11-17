@@ -1,213 +1,142 @@
-import React, {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-  useEffect,
-} from "react";
-import {
-  getMyWallets,
-  createWallet as createWalletAPI,
-  updateWallet as updateWalletAPI,
+import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { 
+  createWallet as createWalletAPI, 
+  getMyWallets, 
+  updateWallet as updateWalletAPI, 
   deleteWallet as deleteWalletAPI,
-  setDefaultWallet,
+  transferMoney as transferMoneyAPI,
+  mergeWallets as mergeWalletsAPI,
 } from "../../services/wallet.service";
+import { walletAPI } from "../../services/api-client";
 
 const WalletDataContext = createContext(null);
-
-/**
- * Helper: Map backend wallet format to frontend format
- * Backend có thể trả về Wallet entity hoặc SharedWalletDTO với các field khác nhau
- */
-const mapBackendToFrontend = (backendWallet) => {
-  // Log để debug
-  if (!backendWallet) {
-    console.warn(
-      "WalletDataContext: mapBackendToFrontend nhận null/undefined wallet"
-    );
-    return null;
-  }
-
-  // Backend có thể dùng walletId hoặc id, walletName hoặc name
-  const walletId = backendWallet.walletId || backendWallet.id;
-  const walletName = backendWallet.walletName || backendWallet.name;
-  const currencyCode = backendWallet.currencyCode || backendWallet.currency;
-  const description = backendWallet.description || backendWallet.note || "";
-
-  if (!walletId) {
-    console.warn("WalletDataContext: Wallet không có ID:", backendWallet);
-  }
-
-  const mapped = {
-    id: walletId,
-    name: walletName || "Unnamed Wallet",
-    currency: currencyCode || "VND",
-    balance: backendWallet.balance || 0,
-    type: backendWallet.type || backendWallet.walletType || "CASH",
-    isDefault: backendWallet.isDefault || false,
-    isShared: backendWallet.isShared || false,
-    groupId: backendWallet.groupId || null,
-    createdAt: backendWallet.createdAt || new Date().toISOString(),
-    note: description,
-    includeOverall: true,
-    includePersonal: true,
-    includeGroup: true,
-    color: backendWallet.color || null,
-  };
-
-  return mapped;
-};
 
 export function WalletDataProvider({ children }) {
   // ví
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // nhóm ví (tạm thời giữ nguyên mock data, sẽ implement API sau)
+  // nhóm ví
   const [groups, setGroups] = useState([
-    {
-      id: 10,
-      name: "Gia đình",
-      description: "",
-      walletIds: [],
-      budgetWalletId: null,
-      isDefault: false,
-      createdAt: "2025-11-01T09:00:00Z",
-    },
-    {
-      id: 11,
-      name: "Đầu tư",
-      description: "",
-      walletIds: [],
-      budgetWalletId: null,
-      isDefault: false,
-      createdAt: "2025-11-02T09:00:00Z",
-    },
+    { id: 10, name: "Gia đình", description: "", walletIds: [], budgetWalletId: null, isDefault: false, createdAt: "2025-11-01T09:00:00Z" },
+    { id: 11, name: "Đầu tư",  description: "", walletIds: [], budgetWalletId: null, isDefault: false, createdAt: "2025-11-02T09:00:00Z" },
   ]);
 
-  // ====== Load wallets from API ======
+  // Load wallets từ API khi component mount
   useEffect(() => {
-    const loadWallets = async () => {
-      try {
-        setLoading(true);
-        console.log("WalletDataContext: Bắt đầu load wallets từ API...");
-        const { response, data } = await getMyWallets();
-        console.log("WalletDataContext: API Response:", { response, data });
-
-        if (response.ok && data.wallets) {
-          console.log("WalletDataContext: Raw wallets từ API:", data.wallets);
-          const mappedWallets = data.wallets
-            .map(mapBackendToFrontend)
-            .filter((w) => w !== null); // Filter out null wallets
-          console.log("WalletDataContext: Mapped wallets:", mappedWallets);
-          setWallets(mappedWallets);
-        } else {
-          console.error("WalletDataContext: Error loading wallets:", {
-            ok: response.ok,
-            status: response.status,
-            error: data.error,
-            data: data,
-          });
-          // Fallback to empty array on error
-          setWallets([]);
-        }
-      } catch (error) {
-        console.error("WalletDataContext: Exception khi load wallets:", error);
-        setWallets([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadWallets();
   }, []);
+
+  // Màu mặc định cho ví (theo hình 2)
+  const DEFAULT_WALLET_COLOR = "#2D99AE";
+
+  // Helper: Normalize wallet data từ API format sang format dùng trong app
+  const normalizeWallet = (apiWallet, existingWallet = null) => {
+    // Giữ lại color từ ví cũ nếu API không trả về
+    const preservedColor = apiWallet.color || existingWallet?.color || null;
+    // Nếu vẫn không có màu, dùng màu mặc định
+    const finalColor = preservedColor || DEFAULT_WALLET_COLOR;
+    
+    // Ưu tiên walletType từ API để xác định isShared
+    // Nếu API có walletType, dùng nó; nếu không, mới dùng isShared từ API hoặc state cũ
+    const walletType = apiWallet.walletType || apiWallet.type;
+    const isShared = walletType === "GROUP" 
+      ? true 
+      : (walletType === "PERSONAL" 
+          ? false 
+          : (apiWallet.isShared !== undefined ? apiWallet.isShared : (existingWallet?.isShared || false)));
+    
+    return {
+      id: apiWallet.walletId || apiWallet.id,
+      name: apiWallet.walletName || apiWallet.name,
+      currency: apiWallet.currencyCode || apiWallet.currency,
+      balance: apiWallet.balance || 0,
+      type: walletType || "CASH",
+      // Xử lý cả isDefault và default (do Java boolean getter naming)
+      isDefault: apiWallet.isDefault !== undefined 
+        ? apiWallet.isDefault 
+        : (apiWallet.default !== undefined ? apiWallet.default : false),
+      isShared: isShared,
+      groupId: apiWallet.groupId || null,
+      createdAt: apiWallet.createdAt,
+      note: apiWallet.description || apiWallet.note || "",
+      color: finalColor,
+      includeOverall: apiWallet.includeOverall !== false,
+      includePersonal: apiWallet.includePersonal !== false,
+      includeGroup: apiWallet.includeGroup !== false,
+    };
+  };
+
+  const loadWallets = async () => {
+    try {
+      setLoading(true);
+      const { response, data } = await getMyWallets();
+      if (response.ok && data.wallets) {
+        // Normalize wallets từ API format, giữ lại color từ state cũ
+        let normalizedWallets = [];
+        setWallets(prev => {
+          normalizedWallets = data.wallets.map(apiWallet => {
+            const existingWallet = prev.find(w => 
+              (w.id === (apiWallet.walletId || apiWallet.id))
+            );
+            return normalizeWallet(apiWallet, existingWallet);
+          });
+          return normalizedWallets;
+        });
+        // Trả về wallets đã được normalize để có thể sử dụng ngay
+        return normalizedWallets;
+      } else {
+        console.error("Failed to load wallets:", data.error);
+        return [];
+      }
+    } catch (error) {
+      console.error("Error loading wallets:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ====== helpers ======
   const createWallet = async (payload) => {
     try {
-      // Map frontend payload to backend format
-      const backendPayload = {
+      const { response, data } = await createWalletAPI({
         walletName: payload.name,
-        currencyCode: payload.currency,
+        currencyCode: payload.currency || "VND",
         description: payload.note || "",
         setAsDefault: payload.isDefault || false,
-      };
-
-      console.log(
-        "WalletDataContext: Creating wallet với payload:",
-        backendPayload
-      );
-      const { response, data } = await createWalletAPI(backendPayload);
-      console.log("WalletDataContext: Create wallet response:", {
-        response,
-        data,
+        walletType: payload.isShared ? "GROUP" : "PERSONAL",
+        // Gửi color lên API nếu có (API có thể không hỗ trợ, nhưng không sao)
+        color: payload.color || DEFAULT_WALLET_COLOR,
       });
-
+      
       if (response.ok && data.wallet) {
-        console.log("WalletDataContext: Raw created wallet:", data.wallet);
-        const newWallet = mapBackendToFrontend(data.wallet);
-        console.log("WalletDataContext: Mapped created wallet:", newWallet);
-        // Merge với các field frontend-specific như color, include flags, etc.
-        const mergedWallet = {
+        // Giữ lại color từ payload nếu có (vì API có thể không trả về)
+        const newWallet = normalizeWallet(data.wallet);
+        const finalWallet = {
           ...newWallet,
-          color: payload.color || newWallet.color,
-          includeOverall:
-            payload.includeOverall !== undefined
-              ? payload.includeOverall
-              : true,
-          includePersonal:
-            payload.includePersonal !== undefined
-              ? payload.includePersonal
-              : true,
-          includeGroup:
-            payload.includeGroup !== undefined ? payload.includeGroup : true,
-          type: payload.type || newWallet.type,
-          isShared: payload.isShared || false,
-          groupId: payload.groupId || null,
+          color: payload.color || newWallet.color || DEFAULT_WALLET_COLOR,
         };
-
-        setWallets((prev) => {
-          let next = [mergedWallet, ...prev];
-          // Nếu là ví mặc định, bỏ mặc định của các ví khác cùng currency
-          if (mergedWallet.isDefault) {
-            next = next.map((w) =>
-              w.id === mergedWallet.id || w.currency !== mergedWallet.currency
-                ? w
-                : { ...w, isDefault: false }
-            );
+        setWallets(prev => {
+          let next = [finalWallet, ...prev];
+          if (finalWallet.isDefault) {
+            next = next.map(w => (w.id === finalWallet.id ? w : { ...w, isDefault: false }));
           }
           return next;
         });
-
-        // Nếu là ví nhóm thì liên kết vào group
-        if (mergedWallet.isShared && mergedWallet.groupId) {
-          setGroups((prev) =>
-            prev.map((g) =>
-              g.id === mergedWallet.groupId
-                ? {
-                    ...g,
-                    walletIds: Array.from(
-                      new Set([...(g.walletIds || []), mergedWallet.id])
-                    ),
-                  }
-                : g
-            )
-          );
+        // nếu là ví nhóm thì liên kết vào group
+        if (finalWallet.isShared && finalWallet.groupId) {
+          setGroups(prev => prev.map(g => g.id === finalWallet.groupId
+            ? { ...g, walletIds: Array.from(new Set([...(g.walletIds||[]), finalWallet.id])) }
+            : g
+          ));
         }
-
-        return mergedWallet;
+        return finalWallet;
       } else {
-        const errorMsg = data.error || "Tạo ví thất bại";
-        console.error("WalletDataContext: Create wallet failed:", {
-          ok: response.ok,
-          status: response.status,
-          error: errorMsg,
-          data: data,
-        });
-        throw new Error(errorMsg);
+        throw new Error(data.error || "Không thể tạo ví");
       }
     } catch (error) {
-      console.error("WalletDataContext: Exception khi tạo wallet:", error);
+      console.error("Error creating wallet:", error);
       throw error;
     }
   };
@@ -215,54 +144,97 @@ export function WalletDataProvider({ children }) {
   const updateWallet = async (patch) => {
     try {
       const walletId = patch.id;
-
-      // Map frontend patch to backend format
+      // Tìm ví cũ để giữ lại color
+      const oldWallet = wallets.find(w => w.id === walletId);
+      
+      // Xác định logic set/unset default wallet
+      const shouldSetDefault = patch.isDefault === true;
+      const shouldUnsetDefault = patch.isDefault === false;
+      const wasDefault = oldWallet?.isDefault || false;
+      
+      // Xây dựng backend payload
       const backendPayload = {};
       if (patch.name !== undefined) backendPayload.walletName = patch.name;
-      if (patch.currency !== undefined)
-        backendPayload.currencyCode = patch.currency;
-      if (patch.note !== undefined) backendPayload.description = patch.note;
-
-      // Nếu set isDefault, gọi API setDefaultWallet riêng
-      if (patch.isDefault === true) {
-        await setDefaultWallet(walletId);
+      if (patch.currency !== undefined) backendPayload.currencyCode = patch.currency;
+      if (patch.note !== undefined) backendPayload.description = patch.note || "";
+      
+      // Xử lý set/unset default wallet
+      if (shouldSetDefault) {
+        backendPayload.setAsDefault = true;
+      } else if (shouldUnsetDefault && wasDefault) {
+        backendPayload.setAsDefault = false;
       }
-
-      // Gọi API update nếu có thay đổi
-      if (Object.keys(backendPayload).length > 0) {
-        const { response, data } = await updateWalletAPI(
-          walletId,
-          backendPayload
-        );
-
+      
+      // Gửi color lên API nếu có (API có thể không hỗ trợ, nhưng không sao)
+      if (patch.color !== undefined) {
+        backendPayload.color = patch.color || oldWallet?.color || DEFAULT_WALLET_COLOR;
+      }
+      
+      // Gọi API update nếu có thay đổi hoặc set/unset default
+      if (Object.keys(backendPayload).length > 0 || patch.balance !== undefined || shouldSetDefault || shouldUnsetDefault) {
+        const { response, data } = await updateWalletAPI(walletId, backendPayload);
+        
         if (response.ok && data.wallet) {
-          const updatedWallet = mapBackendToFrontend(data.wallet);
-          // Merge với các field frontend-specific
-          const mergedWallet = {
+          // Giữ lại color từ patch hoặc từ ví cũ (vì API không trả về color)
+          const updatedWallet = normalizeWallet(data.wallet, oldWallet);
+          const finalWallet = {
             ...updatedWallet,
-            ...patch, // Giữ các field frontend như color, include flags, etc.
+            // Ưu tiên: color từ patch > color từ ví cũ > màu mặc định
+            color: patch.color || oldWallet?.color || updatedWallet.color || DEFAULT_WALLET_COLOR,
           };
-
-          setWallets((prev) =>
-            prev.map((w) => (w.id === walletId ? mergedWallet : w))
-          );
-          return mergedWallet;
+          
+          setWallets(prev => {
+            const updated = prev.map(w => (w.id === walletId ? finalWallet : w));
+            // Đảm bảo chỉ có 1 ví mặc định
+            if (finalWallet.isDefault) {
+              return updated.map(w => (w.id === walletId ? w : { ...w, isDefault: false }));
+            }
+            return updated;
+          });
+          return finalWallet;
         } else {
-          throw new Error(data.error || "Cập nhật ví thất bại");
+          throw new Error(data.error || "Không thể cập nhật ví");
         }
       } else {
-        // Chỉ update local state nếu không có thay đổi backend
-        setWallets((prev) =>
-          prev.map((w) => (w.id === walletId ? { ...w, ...patch } : w))
-        );
-        return { ...patch };
+        // Nếu chỉ set/unset default mà không có thay đổi khác
+        if (shouldSetDefault) {
+          const { response, data } = await updateWalletAPI(walletId, { setAsDefault: true });
+          if (response.ok && data.wallet) {
+            const updatedWallet = normalizeWallet(data.wallet, oldWallet);
+            const finalWallet = {
+              ...updatedWallet,
+              color: patch.color || oldWallet?.color || updatedWallet.color || DEFAULT_WALLET_COLOR,
+            };
+            setWallets(prev => {
+              const updated = prev.map(w => (w.id === walletId ? finalWallet : w));
+              if (finalWallet.isDefault) {
+                return updated.map(w => (w.id === walletId ? w : { ...w, isDefault: false }));
+              }
+              return updated;
+            });
+            return finalWallet;
+          } else {
+            throw new Error(data.error || "Không thể cập nhật ví");
+          }
+        } else if (shouldUnsetDefault && wasDefault) {
+          const { response, data } = await updateWalletAPI(walletId, { setAsDefault: false });
+          if (response.ok && data.wallet) {
+            const updatedWallet = normalizeWallet(data.wallet, oldWallet);
+            const finalWallet = {
+              ...updatedWallet,
+              color: patch.color || oldWallet?.color || updatedWallet.color || DEFAULT_WALLET_COLOR,
+            };
+            setWallets(prev => prev.map(w => (w.id === walletId ? finalWallet : w)));
+            return finalWallet;
+          } else {
+            throw new Error(data.error || "Không thể cập nhật ví");
+          }
+        }
+        // Không có thay đổi gì, trả về wallet hiện tại
+        return oldWallet;
       }
     } catch (error) {
       console.error("Error updating wallet:", error);
-      // Fallback: update local state anyway
-      setWallets((prev) =>
-        prev.map((w) => (w.id === patch.id ? { ...w, ...patch } : w))
-      );
       throw error;
     }
   };
@@ -270,18 +242,17 @@ export function WalletDataProvider({ children }) {
   const deleteWallet = async (id) => {
     try {
       const { response, data } = await deleteWalletAPI(id);
-
+      
       if (response.ok) {
-        setWallets((prev) => prev.filter((w) => w.id !== id));
-        setGroups((prev) =>
-          prev.map((g) => ({
-            ...g,
-            walletIds: (g.walletIds || []).filter((wid) => wid !== id),
-            budgetWalletId: g.budgetWalletId === id ? null : g.budgetWalletId,
-          }))
-        );
+        setWallets(prev => prev.filter(w => w.id !== id));
+        setGroups(prev => prev.map(g => ({ 
+          ...g, 
+          walletIds: (g.walletIds||[]).filter(wid => wid !== id), 
+          budgetWalletId: g.budgetWalletId === id ? null : g.budgetWalletId 
+        })));
+        return data;
       } else {
-        throw new Error(data.error || "Xóa ví thất bại");
+        throw new Error(data.error || "Không thể xóa ví");
       }
     } catch (error) {
       console.error("Error deleting wallet:", error);
@@ -289,8 +260,182 @@ export function WalletDataProvider({ children }) {
     }
   };
 
+  const transferMoney = async (transferData) => {
+    try {
+      // Map từ format của WalletInspector sang format API
+      // WalletInspector gửi: sourceId, targetId, amount, note/description
+      // API yêu cầu: fromWalletId, toWalletId, amount, note
+      const sourceId = transferData.sourceId || transferData.sourceWalletId || transferData.fromWalletId;
+      const targetId = transferData.targetId || transferData.targetWalletId || transferData.toWalletId;
+      
+      const { response, data } = await transferMoneyAPI({
+        fromWalletId: sourceId,
+        toWalletId: targetId,
+        amount: transferData.amount,
+        note: transferData.note || transferData.description || "",
+      });
+
+      if (response.ok) {
+        // Reload wallets để lấy số dư mới nhất và nhận wallets đã được cập nhật
+        const updatedWallets = await loadWallets();
+        
+        // Tìm source và target wallet từ wallets mới nhất
+        const sourceWallet = updatedWallets.find(w => w.id === sourceId);
+        const targetWallet = updatedWallets.find(w => w.id === targetId);
+        
+        console.log("transferMoney - sourceId:", sourceId, "targetId:", targetId);
+        console.log("transferMoney - updatedWallets count:", updatedWallets.length);
+        console.log("transferMoney - sourceWallet:", sourceWallet);
+        console.log("transferMoney - targetWallet:", targetWallet);
+        
+        return {
+          ...data,
+          sourceWallet,
+          targetWallet,
+        };
+      } else {
+        throw new Error(data.error || "Không thể chuyển tiền");
+      }
+    } catch (error) {
+      console.error("Error transferring money:", error);
+      throw error;
+    }
+  };
+
+  const mergeWallets = async (mergeData) => {
+    try {
+      const { targetId, sourceId, keepCurrency, preview } = mergeData;
+      
+      // Đảm bảo targetId và sourceId là số
+      const targetIdNum = Number(targetId);
+      const sourceIdNum = Number(sourceId);
+      
+      if (isNaN(targetIdNum) || isNaN(sourceIdNum)) {
+        throw new Error("ID ví không hợp lệ");
+      }
+      
+      // Xác định targetCurrency
+      let targetCurrency;
+      if (keepCurrency === "SOURCE") {
+        // Giữ currency của ví nguồn
+        targetCurrency = preview?.currency || mergeData.targetCurrency || "VND";
+      } else {
+        // Giữ currency của ví đích (mặc định)
+        targetCurrency = mergeData.targetCurrency || "VND";
+        // Nếu có preview và preview.currency là currency của ví đích, dùng nó
+        if (preview?.currency) {
+          // Kiểm tra xem preview.currency có phải là currency của ví đích không
+          // Nếu keepCurrency là TARGET, preview.currency sẽ là currency của ví đích
+          targetCurrency = preview.currency;
+        }
+      }
+
+      console.log("mergeWallets - Calling API:", {
+        targetId: targetIdNum,
+        sourceId: sourceIdNum,
+        targetCurrency,
+        keepCurrency,
+        previewCurrency: preview?.currency,
+      });
+
+      const { response, data } = await mergeWalletsAPI(targetIdNum, {
+        sourceWalletId: sourceIdNum,
+        targetCurrency: targetCurrency,
+      });
+
+      console.log("mergeWallets - API response:", {
+        status: response.status,
+        ok: response.ok,
+        data,
+      });
+
+      if (response.ok) {
+        // Reload wallets sau khi gộp để lấy dữ liệu mới nhất
+        const updatedWallets = await loadWallets();
+        
+        // Tìm wallet đích sau khi gộp (ví nguồn đã bị xóa)
+        const finalWallet = updatedWallets.find(w => w.id === targetIdNum);
+        
+        return {
+          ...data,
+          finalWallet,
+        };
+      } else {
+        const errorMessage = data?.error || data?.message || `HTTP ${response.status}: Không thể gộp ví`;
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error merging wallets:", error);
+      throw error;
+    }
+  };
+
+  const convertToGroup = async (walletId) => {
+    try {
+      // Đảm bảo walletId là số
+      const walletIdNum = Number(walletId);
+      if (isNaN(walletIdNum)) {
+        throw new Error("ID ví không hợp lệ");
+      }
+
+      // Tìm ví hiện tại để lấy thông tin
+      const currentWallet = wallets.find(w => w.id === walletIdNum);
+      if (!currentWallet) {
+        throw new Error("Không tìm thấy ví");
+      }
+
+      // Đảm bảo walletName không rỗng (bắt buộc theo API)
+      const walletName = currentWallet.name || currentWallet.walletName;
+      if (!walletName || walletName.trim() === "") {
+        throw new Error("Tên ví không được để trống");
+      }
+
+      console.log("convertToGroup - Calling API với walletId:", walletIdNum);
+      console.log("convertToGroup - current wallet:", currentWallet);
+      console.log("convertToGroup - walletName:", walletName);
+      
+      // Gọi API convert từ api-client
+      // API sử dụng PUT /wallets/{walletId} với walletName và walletType: "GROUP"
+      // Theo API documentation (dòng 384-390), cần cả walletName và walletType
+      const data = await walletAPI.convertToGroupWallet(walletIdNum, walletName.trim());
+      
+      console.log("convertToGroup - API response:", data);
+      console.log("convertToGroup - API response wallet:", data?.wallet);
+      
+      // API response có thể chứa wallet đã được cập nhật
+      // Nếu có, normalize nó ngay để đảm bảo isShared được set đúng
+      if (data?.wallet) {
+        const normalizedFromResponse = normalizeWallet(data.wallet, currentWallet);
+        console.log("convertToGroup - normalizedFromResponse:", normalizedFromResponse);
+        
+        // Cập nhật state ngay với wallet từ response
+        setWallets(prev => prev.map(w => 
+          w.id === walletIdNum ? normalizedFromResponse : w
+        ));
+      }
+      
+      // Reload wallets sau khi chuyển đổi để lấy dữ liệu mới nhất từ database
+      const updatedWallets = await loadWallets();
+      
+      // Tìm wallet đã được chuyển đổi
+      const updatedWallet = updatedWallets.find(w => w.id === walletIdNum);
+      
+      console.log("convertToGroup - updatedWallet sau loadWallets:", updatedWallet);
+      console.log("convertToGroup - updatedWallet.isShared:", updatedWallet?.isShared);
+      console.log("convertToGroup - updatedWallet.type:", updatedWallet?.type);
+      
+      return {
+        ...data,
+        wallet: updatedWallet,
+      };
+    } catch (error) {
+      console.error("Error converting wallet:", error);
+      throw error;
+    }
+  };
+
   const createGroup = async ({ name, description = "", isDefault = false }) => {
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 200));
     const newGroup = {
       id: Date.now(),
       name: name.trim(),
@@ -300,52 +445,32 @@ export function WalletDataProvider({ children }) {
       isDefault: !!isDefault,
       createdAt: new Date().toISOString(),
     };
-    setGroups((prev) => [
-      newGroup,
-      ...prev.map((g) => (isDefault ? { ...g, isDefault: false } : g)),
-    ]);
+    setGroups(prev => [newGroup, ...prev.map(g => (isDefault ? { ...g, isDefault: false } : g))]);
     return newGroup;
   };
 
   const linkBudgetWallet = (groupId, walletId) => {
-    setGroups((prev) =>
-      prev.map((g) => {
-        if (g.id !== groupId) return g;
-        const ensured = Array.from(new Set([...(g.walletIds || []), walletId]));
-        return { ...g, walletIds: ensured, budgetWalletId: walletId };
-      })
-    );
-    setWallets((prev) =>
-      prev.map((w) =>
-        w.id === walletId ? { ...w, isShared: true, groupId } : w
-      )
-    );
+    setGroups(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      const ensured = Array.from(new Set([...(g.walletIds||[]), walletId]));
+      return { ...g, walletIds: ensured, budgetWalletId: walletId };
+    }));
+    setWallets(prev => prev.map(w => (w.id === walletId ? { ...w, isShared: true, groupId } : w)));
   };
 
-  const value = useMemo(
-    () => ({
-      wallets,
-      groups,
-      loading,
-      createWallet,
-      updateWallet,
-      deleteWallet,
-      createGroup,
-      linkBudgetWallet,
-    }),
-    [wallets, groups, loading]
-  );
+  const value = useMemo(() => ({
+    wallets, groups, loading,
+    createWallet, updateWallet, deleteWallet,
+    createGroup, linkBudgetWallet,
+    transferMoney, mergeWallets, convertToGroup,
+    loadWallets, // Export để có thể reload từ bên ngoài
+  }), [wallets, groups, loading]);
 
-  return (
-    <WalletDataContext.Provider value={value}>
-      {children}
-    </WalletDataContext.Provider>
-  );
+  return <WalletDataContext.Provider value={value}>{children}</WalletDataContext.Provider>;
 }
 
 export function useWalletData() {
   const ctx = useContext(WalletDataContext);
-  if (!ctx)
-    throw new Error("useWalletData must be used within WalletDataProvider");
+  if (!ctx) throw new Error("useWalletData must be used within WalletDataProvider");
   return ctx;
 }

@@ -10,6 +10,18 @@ import { WalletDataProvider } from "./home/store/WalletDataContext";
 import { BudgetDataProvider } from "./home/store/BudgetDataContext";
 import { CategoryDataProvider } from "./home/store/CategoryDataContext";
 
+// Global error handler để bắt unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  // Ngăn lỗi hiển thị trong console (optional)
+  // event.preventDefault();
+});
+
+// Global error handler cho errors
+window.addEventListener('error', (event) => {
+  console.error('Global error:', event.error);
+});
+
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     {/* ✅ Wrap with providers - CategoryDataProvider first, then others */}

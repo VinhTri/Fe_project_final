@@ -469,7 +469,12 @@ export const previewMerge = async (targetWalletId, sourceWalletId, targetCurrenc
  */
 export const mergeWallets = async (targetWalletId, mergeData) => {
   try {
+    console.log("wallet.service: Calling POST /wallets/" + targetWalletId + "/merge với data:", mergeData);
     const response = await apiClient.post(`/${targetWalletId}/merge`, mergeData);
+    console.log("wallet.service: POST /wallets/" + targetWalletId + "/merge response:", {
+      status: response.status,
+      data: response.data
+    });
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {
@@ -607,15 +612,32 @@ export const getTransferTargets = async (walletId) => {
 /**
  * 💸 CHUYỂN TIỀN GIỮA CÁC VÍ
  * @param {Object} transferData - Dữ liệu chuyển tiền
- * @param {number} transferData.sourceWalletId - ID của ví nguồn
- * @param {number} transferData.targetWalletId - ID của ví đích
+ * @param {number} transferData.fromWalletId - ID của ví nguồn (hoặc sourceWalletId/sourceId)
+ * @param {number} transferData.toWalletId - ID của ví đích (hoặc targetWalletId/targetId)
  * @param {number} transferData.amount - Số tiền cần chuyển
- * @param {string} [transferData.description] - Mô tả giao dịch (optional)
+ * @param {string} [transferData.note] - Ghi chú giao dịch (optional, hoặc description)
  * @returns {Promise<Object>} - { message: string, transfer: Object } hoặc { error: string }
  */
 export const transferMoney = async (transferData) => {
   try {
-    const response = await apiClient.post("/transfer", transferData);
+    // Map từ format linh hoạt sang format API
+    const fromWalletId = transferData.fromWalletId || transferData.sourceWalletId || transferData.sourceId;
+    const toWalletId = transferData.toWalletId || transferData.targetWalletId || transferData.targetId;
+    const note = transferData.note || transferData.description || "";
+    
+    const apiPayload = {
+      fromWalletId,
+      toWalletId,
+      amount: transferData.amount,
+      note,
+    };
+    
+    console.log("wallet.service: Calling POST /wallets/transfer với data:", apiPayload);
+    const response = await apiClient.post("/transfer", apiPayload);
+    console.log("wallet.service: POST /wallets/transfer response:", {
+      status: response.status,
+      data: response.data
+    });
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {

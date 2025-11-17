@@ -11,9 +11,9 @@ export default function WalletEditModal({
   const [form, setForm] = useState({
     name: "",
     currency: "VND",
-    balance: "",
     note: "",
     isDefault: false,
+    color: null,
   });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -43,10 +43,9 @@ export default function WalletEditModal({
     setForm({
       name: wallet.name || "",
       currency: wallet.currency || "VND",
-      balance:
-        wallet.balance === 0 || wallet.balance ? String(wallet.balance) : "",
       note: wallet.note || "",
       isDefault: !!wallet.isDefault,
+      color: wallet.color || null,
     });
   }, [wallet]);
 
@@ -62,17 +61,7 @@ export default function WalletEditModal({
     else if (!currencies.includes(values.currency))
       e.currency = "Loại tiền tệ không hợp lệ";
 
-    if (values.balance === "" || values.balance === null)
-      e.balance = "Vui lòng nhập số dư";
-    else {
-      const bn = Number(values.balance);
-      if (!isFinite(bn)) e.balance = "Số dư không hợp lệ";
-      else if (bn < 0) e.balance = "Số dư phải ≥ 0";
-      else if (String(values.balance).includes("."))
-        e.balance = "Số dư chỉ nhận số nguyên";
-    }
-
-    if ((values.note || "").length > 200) e.note = "Mô tả tối đa 200 ký tự";
+    if ((values.note || "").length > 200) e.note = "Ghi chú tối đa 200 ký tự";
     return e;
   }
 
@@ -87,7 +76,6 @@ export default function WalletEditModal({
     setTouched({
       name: true,
       currency: true,
-      balance: true,
       note: true,
     });
     if (Object.keys(v).length > 0) return;
@@ -95,10 +83,9 @@ export default function WalletEditModal({
     onSubmit({
       walletName: form.name.trim(),
       currencyCode: form.currency,
-
-      balance: Number(form.balance),
       description: form.note?.trim() || "",
       setAsDefault: !!form.isDefault,
+      color: form.color || null,
     });
   }
 
@@ -236,58 +223,33 @@ export default function WalletEditModal({
               )}
             </div>
 
-            {/* Loại tiền & Số dư */}
-            <div className="grid-2">
-              <div className="fm-row">
-                <label className="fm-label">
-                  Loại tiền tệ<span className="req">*</span>
-                </label>
-                <select
-                  className={`fm-select ${
-                    touched.currency && errors.currency ? "is-invalid" : ""
-                  }`}
-                  value={form.currency}
-                  onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
-                  onChange={(e) => setField("currency", e.target.value)}
-                >
-                  {currencies.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                {touched.currency && errors.currency && (
-                  <div className="fm-feedback">{errors.currency}</div>
-                )}
-              </div>
-
-              <div className="fm-row">
-                <label className="fm-label">
-                  Số dư<span className="req">*</span>
-                </label>
-                <input
-                  type="number"
-                  className={`fm-input ${
-                    touched.balance && errors.balance ? "is-invalid" : ""
-                  }`}
-                  value={form.balance}
-                  onBlur={() => setTouched((t) => ({ ...t, balance: true }))}
-                  onChange={(e) => setField("balance", e.target.value)}
-                  onKeyDown={(e) => {
-                    if (["e", "E", "+", "-"].includes(e.key))
-                      e.preventDefault();
-                  }}
-                  placeholder="0"
-                />
-                {touched.balance && errors.balance && (
-                  <div className="fm-feedback">{errors.balance}</div>
-                )}
-              </div>
+            {/* Loại tiền */}
+            <div className="fm-row">
+              <label className="fm-label">
+                Loại tiền tệ<span className="req">*</span>
+              </label>
+              <select
+                className={`fm-select ${
+                  touched.currency && errors.currency ? "is-invalid" : ""
+                }`}
+                value={form.currency}
+                onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
+                onChange={(e) => setField("currency", e.target.value)}
+              >
+                {currencies.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              {touched.currency && errors.currency && (
+                <div className="fm-feedback">{errors.currency}</div>
+              )}
             </div>
 
-            {/* Mô tả */}
+            {/* Ghi chú */}
             <div className="fm-row">
-              <label className="fm-label">Mô tả (tùy chọn)</label>
+              <label className="fm-label">Ghi chú (tùy chọn)</label>
               <textarea
                 className={`fm-textarea ${
                   touched.note && errors.note ? "is-invalid" : ""

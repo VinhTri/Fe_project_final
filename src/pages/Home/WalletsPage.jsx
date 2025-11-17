@@ -98,7 +98,16 @@ const formatMoney = (amount = 0, currency = "VND") => {
 };
 
 export default function WalletsPage() {
-  const { wallets, createWallet, updateWallet, deleteWallet } = useWalletData();
+  const { 
+    wallets, 
+    createWallet, 
+    updateWallet, 
+    deleteWallet,
+    transferMoney,
+    mergeWallets,
+    convertToGroup,
+    loadWallets
+  } = useWalletData();
 
   // ====== “mắt” tổng ======
   const [showTotalAll, toggleTotalAll] = useToggleMask(true);
@@ -134,6 +143,27 @@ export default function WalletsPage() {
   useEffect(() => {
     if (expandedSection === null) setSelectedWallet(null);
   }, [expandedSection]);
+
+  // Đồng bộ selectedWallet với wallets state khi wallets thay đổi
+  useEffect(() => {
+    if (selectedWallet?.id) {
+      const updated = wallets.find(w => w.id === selectedWallet.id);
+      if (updated) {
+        // So sánh số dư bằng số để tránh vấn đề với floating point
+        const currentBalance = Number(selectedWallet.balance || 0);
+        const newBalance = Number(updated.balance || 0);
+        
+        // Cập nhật selectedWallet nếu có bất kỳ thay đổi nào (không chỉ balance)
+        // hoặc nếu số dư đã thay đổi đáng kể (> 0.01 để tránh floating point issues)
+        if (Math.abs(currentBalance - newBalance) > 0.01 || 
+            updated.name !== selectedWallet.name ||
+            updated.currency !== selectedWallet.currency) {
+          console.log("Syncing selectedWallet - old balance:", currentBalance, "new balance:", newBalance);
+          setSelectedWallet(updated);
+        }
+      }
+    }
+  }, [wallets, selectedWallet?.id, selectedWallet?.balance]);
 
   const topRef = useRef(null);
   useEffect(() => {
@@ -259,29 +289,19 @@ const doDelete = async (wallet) => {
   setConfirmDel(null); // Đóng modal
 
   try {
-    // Gọi API (đã sửa ở Bước 1)
-    const { response, data } = await deleteWallet(wallet.id); 
+    // Gọi API thật từ Context (đã xử lý error trong Context)
+    await deleteWallet(wallet.id); 
 
-    // Kiểm tra kết quả
-    if (response.ok) {
-      // THÀNH CÔNG: Cập nhật UI
-      setToast({ open: true, message: `Đã xóa ví "${wallet.name}"` });
-      
-      // [QUAN TRỌNG] Cập nhật lại danh sách ví của bạn
-      // (Ví dụ: gọi lại hàm fetchWallets() hoặc dùng mutate() của SWR)
-      // fetchWallets(); 
-
-      if (selectedWallet?.id === wallet.id) {
-        setSelectedWallet(null);
-      }
-    } else {
-      // THẤT BẠI (Backend trả về lỗi, ví dụ: "Còn giao dịch")
-      setToast({ open: true, message: data.error || "Xóa ví thất bại", danger: true });
+    // THÀNH CÔNG: Cập nhật UI
+    setToast({ open: true, message: `Đã xóa ví "${wallet.name}"` });
+    
+    if (selectedWallet?.id === wallet.id) {
+      setSelectedWallet(null);
     }
   } catch (error) {
     // THẤT BẠI (Lỗi mạng hoặc lỗi code)
     console.error("Lỗi nghiêm trọng khi gọi deleteWallet:", error);
-    setToast({ open: true, message: "Lỗi kết nối máy chủ", danger: true });
+    setToast({ open: true, message: error.message || "Lỗi kết nối máy chủ" });
   }
 };
 
@@ -335,23 +355,43 @@ const doDelete = async (wallet) => {
   };
 
   const handleSubmitEdit = async (data) => {
-    await updateWallet(data);
-
-    // Đảm bảo chỉ duy nhất 1 ví mặc định khi chỉnh sửa
     try {
-      if (data?.isDefault) {
-        const others = wallets.filter((x) => x.id !== data.id && x.isDefault);
-        if (others.length) {
-          await Promise.all(
-            others.map((x) => updateWallet({ ...x, isDefault: false }))
-          );
-        }
+      const walletId = editing?.id;
+      if (!walletId) {
+        throw new Error("Không tìm thấy ID ví");
       }
-    } catch (_) {}
+      
+      // Map từ format của WalletEditModal sang format của updateWallet
+      // Bỏ balance vì form sửa ví không còn trường số dư
+      const updatePayload = {
+        id: walletId,
+        name: data.walletName,
+        currency: data.currencyCode,
+        note: data.description,
+        isDefault: data.setAsDefault || false,
+        // Giữ lại color từ ví đang chỉnh sửa
+        color: editing?.color || data.color || null,
+      };
+      
+      const updatedWallet = await updateWallet(updatePayload);
 
-    setEditing(null);
-    setToast({ open: true, message: "Cập nhật ví thành công" });
-    if (selectedWallet?.id === data.id) setSelectedWallet(data);
+      // Đảm bảo chỉ duy nhất 1 ví mặc định khi chỉnh sửa
+      // (Logic này đã được xử lý trong updateWallet của Context)
+      
+      setEditing(null);
+      setToast({ open: true, message: "Cập nhật ví thành công" });
+      
+      // Cập nhật selectedWallet bằng giá trị trả về từ updateWallet
+      if (selectedWallet?.id === walletId && updatedWallet) {
+        setSelectedWallet(updatedWallet);
+      }
+    } catch (error) {
+      console.error("Error updating wallet:", error);
+      setToast({
+        open: true,
+        message: error.message || "Không thể cập nhật ví",
+      });
+    }
   };
 
   // Inspector actions
@@ -365,46 +405,145 @@ const doDelete = async (wallet) => {
     setToast({ open: true, message: "Rút tiền thành công" });
   };
 
-  const handleMerge = async ({ mode, baseWallet, otherWallet }) => {
-    if (!otherWallet) return;
-    if (mode === "this_to_other") {
-      const to = {
-        ...otherWallet,
-        balance:
-          Number(otherWallet.balance || 0) + Number(baseWallet.balance || 0),
-      };
-      await updateWallet(to);
-      await deleteWallet(baseWallet.id);
-      if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
+  const handleMerge = async (mergeData) => {
+    try {
+      const result = await mergeWallets(mergeData);
+      
+      // mergeWallets trong Context đã reload wallets rồi
+      // Xác định wallet cuối cùng sau khi gộp
+      const { targetId, mode, baseWallet } = mergeData;
+      const finalWalletId = mode === "this_to_other" ? targetId : baseWallet.id;
+      
+      // Ưu tiên sử dụng wallet từ result (đã được cập nhật từ API)
+      let finalWallet = result?.finalWallet;
+      
+      console.log("handleMerge - result:", result);
+      console.log("handleMerge - finalWalletId:", finalWalletId);
+      console.log("handleMerge - finalWallet from result:", finalWallet);
+      
+      // Nếu không có trong result, đợi một chút để wallets state được cập nhật rồi tìm
+      if (!finalWallet) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        finalWallet = wallets.find(w => w.id === finalWalletId);
+        console.log("handleMerge - finalWallet from wallets state:", finalWallet);
+      }
+      
+      if (finalWallet) {
+        console.log("handleMerge - Setting selectedWallet:", finalWallet);
+        setSelectedWallet(finalWallet);
+        setToast({
+          open: true,
+          message: `Đã gộp ví thành công`,
+        });
+      } else {
+        console.warn("handleMerge - Không tìm thấy wallet sau khi gộp");
+        setSelectedWallet(null);
+        // Vẫn hiển thị thông báo thành công vì API đã trả về 200
+        // Nhưng cảnh báo user nếu cần
+        setToast({
+          open: true,
+          message: `Gộp ví đã được thực hiện. Vui lòng làm mới trang nếu không thấy thay đổi.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error merging wallets:", error);
       setToast({
         open: true,
-        message: `Đã gộp "${baseWallet.name}" vào "${otherWallet.name}"`,
-      });
-    } else {
-      const to = {
-        ...baseWallet,
-        balance:
-          Number(baseWallet.balance || 0) + Number(otherWallet.balance || 0),
-      };
-      await updateWallet(to);
-      await deleteWallet(otherWallet.id);
-      if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
-      setToast({
-        open: true,
-        message: `Đã gộp "${otherWallet.name}" vào "${baseWallet.name}"`,
+        message: error.message || "Không thể gộp ví",
       });
     }
   };
 
   const handleConvert = async (wallet, toShared) => {
-    const next = {
-      ...wallet,
-      isShared: !!toShared,
-      groupId: toShared ? wallet.groupId || null : null,
-    };
-    await updateWallet(next);
-    setSelectedWallet(next);
-    setToast({ open: true, message: "Chuyển đổi loại ví thành công" });
+    try {
+      if (toShared && !wallet.isShared) {
+        // Chuyển từ cá nhân sang nhóm
+        const result = await convertToGroup(wallet.id);
+        
+        // convertToGroup trong Context đã reload wallets rồi
+        // Sử dụng wallet từ result hoặc tìm trong wallets state
+        let updatedWallet = result?.wallet;
+        
+        console.log("handleConvert - result:", result);
+        console.log("handleConvert - updatedWallet from result:", updatedWallet);
+        
+        if (!updatedWallet) {
+          // Đợi một chút để wallets state được cập nhật
+          await new Promise(resolve => setTimeout(resolve, 100));
+          updatedWallet = wallets.find(w => w.id === wallet.id);
+          console.log("handleConvert - updatedWallet from wallets state:", updatedWallet);
+        }
+        
+        if (updatedWallet) {
+          console.log("handleConvert - Setting selectedWallet:", updatedWallet);
+          setSelectedWallet(updatedWallet);
+        }
+        
+        setToast({ 
+          open: true, 
+          message: result?.message || "Chuyển đổi ví thành nhóm thành công" 
+        });
+      } else if (!toShared && wallet.isShared) {
+        // Chuyển từ nhóm sang cá nhân
+        // Theo API_DOCUMENTATION.md: Không thể chuyển từ GROUP → PERSONAL
+        // Sẽ báo lỗi: "Không thể chuyển ví nhóm về ví cá nhân. Vui lòng xóa các thành viên trước."
+        setToast({ 
+          open: true, 
+          message: "Không thể chuyển ví nhóm về ví cá nhân. Vui lòng xóa các thành viên trước." 
+        });
+      }
+    } catch (error) {
+      console.error("Error converting wallet:", error);
+      setToast({
+        open: true,
+        message: error.message || "Không thể chuyển đổi ví",
+      });
+    }
+  };
+
+  const handleTransfer = async (transferData) => {
+    try {
+      const result = await transferMoney(transferData);
+      
+      // transferMoney trong Context đã reload wallets rồi
+      // Xác định wallet nào cần hiển thị sau khi chuyển
+      const targetId = transferData.mode === "this_to_other" 
+        ? transferData.targetId 
+        : transferData.sourceId;
+      
+      // Ưu tiên sử dụng wallet từ result (đã được cập nhật từ API)
+      let updatedWallet = result?.targetWallet || result?.sourceWallet;
+      
+      console.log("handleTransfer - result:", result);
+      console.log("handleTransfer - targetId:", targetId);
+      console.log("handleTransfer - updatedWallet from result:", updatedWallet);
+      
+      // Nếu không có trong result, đợi một chút để wallets state được cập nhật rồi tìm
+      if (!updatedWallet) {
+        // Đợi React cập nhật state
+        await new Promise(resolve => setTimeout(resolve, 100));
+        updatedWallet = wallets.find(w => w.id === targetId);
+        console.log("handleTransfer - updatedWallet from wallets state:", updatedWallet);
+      }
+      
+      if (updatedWallet) {
+        console.log("handleTransfer - Setting selectedWallet:", updatedWallet);
+        setSelectedWallet(updatedWallet);
+      } else {
+        console.warn("handleTransfer - Không tìm thấy wallet với id:", targetId);
+      }
+      
+      setToast({
+        open: true,
+        message: "Chuyển tiền thành công",
+      });
+    } catch (error) {
+      console.error("Error transferring money:", error);
+      setToast({
+        open: true,
+        message: error.message || "Không thể chuyển tiền",
+      });
+    }
   };
 
   // ====== Toggle trong menu “...” ======
@@ -790,6 +929,7 @@ const doDelete = async (wallet) => {
                       onEdit={setEditing}
                       onDelete={(w) => setConfirmDel(w)}
                       onWithdraw={handleWithdraw}
+                      onTransfer={handleTransfer}
                       onMerge={handleMerge}
                       onConvert={handleConvert}
                       accent={selectedWallet?.color}
@@ -974,6 +1114,7 @@ const doDelete = async (wallet) => {
                       onEdit={setEditing}
                       onDelete={(w) => setConfirmDel(w)}
                       onWithdraw={handleWithdraw}
+                      onTransfer={handleTransfer}
                       onMerge={handleMerge}
                       onConvert={handleConvert}
                       accent={selectedWallet?.color}
