@@ -61,6 +61,8 @@ export default function WalletEditModal({
     else if (!currencies.includes(values.currency))
       e.currency = "Loại tiền tệ không hợp lệ";
 
+    // Bỏ validation cho balance vì form sửa ví không còn trường số dư
+    // Đổi error message từ "Mô tả" thành "Ghi chú"
     if ((values.note || "").length > 200) e.note = "Ghi chú tối đa 200 ký tự";
     return e;
   }
@@ -223,7 +225,7 @@ export default function WalletEditModal({
               )}
             </div>
 
-            {/* Loại tiền */}
+            {/* Loại tiền tệ */}
             <div className="fm-row">
               <label className="fm-label">
                 Loại tiền tệ<span className="req">*</span>

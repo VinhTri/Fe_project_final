@@ -91,14 +91,7 @@ export default function WalletCard({
         .wallet-card .dropdown-menu .dropdown-divider{ margin: 0; border-top: 1px solid rgba(0,0,0,.08); }
 
 
-        .wallet-card .wallet-name{ 
-          font-weight:700; 
-          color:#fff; 
-          display:flex; 
-          align-items:center; 
-          gap:8px; 
-          flex-wrap:wrap; 
-        }
+        .wallet-card .wallet-name{ font-weight:700; color:#fff; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .wallet-card .wallet-name-badge{ 
           display:inline-block; 
           padding:4px 12px; 
@@ -184,7 +177,7 @@ export default function WalletCard({
 
       {/* Nội dung */}
       <div className="card-body" onClick={stop}>
-        <div className="d-flex align-items:center justify-content-between mb-2">
+        <div className="d-flex align-items-center justify-content-between mb-2">
           <div className="wallet-name">
             <span className="wallet-name-badge">{wallet.name}</span>
             {wallet.isDefault && <span className="badge">Mặc định</span>}

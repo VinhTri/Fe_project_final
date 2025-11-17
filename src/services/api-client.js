@@ -329,21 +329,35 @@ export const walletAPI = {
 
   /**
    * Cập nhật ví
+   * Theo API_DOCUMENTATION.md (dòng 345-367):
+   * - setAsDefault: true = đặt làm mặc định, false = bỏ ví mặc định, null/undefined = không thay đổi
+   * - Có thể cập nhật: walletName, description, currencyCode, balance, setAsDefault, walletType
    * @param {number} walletId 
-   * @param {string} walletName 
-   * @param {string} description 
-   * @param {boolean} setAsDefault 
-   * @param {number} balance - Chỉ có thể sửa khi ví chưa có giao dịch
+   * @param {object} updateData - Object chứa các field cần cập nhật
+   * @param {string} [updateData.walletName]
+   * @param {string} [updateData.description]
+   * @param {string} [updateData.currencyCode]
+   * @param {number} [updateData.balance] - Chỉ có thể sửa khi ví chưa có giao dịch
+   * @param {boolean|null} [updateData.setAsDefault] - true = đặt làm mặc định, false = bỏ ví mặc định, null/undefined = không thay đổi
+   * @param {string} [updateData.walletType] - "PERSONAL" hoặc "GROUP"
+   * @param {string} [updateData.color] - Màu ví (nếu API hỗ trợ)
    */
-  updateWallet: async (walletId, walletName, description, setAsDefault, balance) => {
+  updateWallet: async (walletId, updateData) => {
+    // Chỉ gửi các field có giá trị (không gửi undefined)
+    const body = {};
+    if (updateData.walletName !== undefined) body.walletName = updateData.walletName;
+    if (updateData.description !== undefined) body.description = updateData.description;
+    if (updateData.currencyCode !== undefined) body.currencyCode = updateData.currencyCode;
+    if (updateData.balance !== undefined) body.balance = updateData.balance;
+    if (updateData.setAsDefault !== undefined && updateData.setAsDefault !== null) {
+      body.setAsDefault = updateData.setAsDefault;
+    }
+    if (updateData.walletType !== undefined) body.walletType = updateData.walletType;
+    if (updateData.color !== undefined) body.color = updateData.color;
+    
     return apiCall(`/wallets/${walletId}`, {
       method: 'PUT',
-      body: JSON.stringify({
-        walletName,
-        description,
-        setAsDefault,
-        balance,
-      }),
+      body: JSON.stringify(body),
     });
   },
 

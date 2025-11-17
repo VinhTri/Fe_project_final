@@ -6,6 +6,7 @@ import {
   deleteWallet as deleteWalletAPI,
   transferMoney as transferMoneyAPI,
   mergeWallets as mergeWalletsAPI,
+  setDefaultWallet as setDefaultWalletAPI,
 } from "../../services/wallet.service";
 import { walletAPI } from "../../services/api-client";
 
@@ -52,7 +53,8 @@ export function WalletDataProvider({ children }) {
       currency: apiWallet.currencyCode || apiWallet.currency,
       balance: apiWallet.balance || 0,
       type: walletType || "CASH",
-      // Xử lý cả isDefault và default (do Java boolean getter naming)
+      // Xử lý cả isDefault và default để tương thích với backend
+      // Backend có thể serialize isDefault thành default do Java boolean getter naming
       isDefault: apiWallet.isDefault !== undefined 
         ? apiWallet.isDefault 
         : (apiWallet.default !== undefined ? apiWallet.default : false),
@@ -147,91 +149,75 @@ export function WalletDataProvider({ children }) {
       // Tìm ví cũ để giữ lại color
       const oldWallet = wallets.find(w => w.id === walletId);
       
-      // Xác định logic set/unset default wallet
+      // Logic mới theo WALLET_DEFAULT_FEATURE_CHANGES.md:
+      // 1. Khi shouldSetDefault = true: Luôn thêm setAsDefault: true vào backendPayload
+      // 2. Khi shouldUnsetDefault = true && wasDefault = true: Thêm setAsDefault: false
+      // 3. Luôn gọi updateWalletAPI nếu có thay đổi hoặc shouldSetDefault/shouldUnsetDefault
       const shouldSetDefault = patch.isDefault === true;
       const shouldUnsetDefault = patch.isDefault === false;
       const wasDefault = oldWallet?.isDefault || false;
       
-      // Xây dựng backend payload
-      const backendPayload = {};
-      if (patch.name !== undefined) backendPayload.walletName = patch.name;
-      if (patch.currency !== undefined) backendPayload.currencyCode = patch.currency;
-      if (patch.note !== undefined) backendPayload.description = patch.note || "";
+      // Xây dựng updateData, chỉ gửi các field có giá trị
+      // QUAN TRỌNG: Chỉ gửi các field được phép, KHÔNG gửi type, isShared, walletType
+      // để tránh vô tình thay đổi loại ví
+      const updateData = {};
       
-      // Xử lý set/unset default wallet
+      if (patch.name !== undefined || patch.walletName !== undefined) {
+        updateData.walletName = patch.name || patch.walletName;
+      }
+      if (patch.note !== undefined || patch.description !== undefined) {
+        updateData.description = patch.note || patch.description || "";
+      }
+      if (patch.currency !== undefined || patch.currencyCode !== undefined) {
+        updateData.currencyCode = patch.currency || patch.currencyCode;
+      }
+      if (patch.balance !== undefined) {
+        updateData.balance = patch.balance;
+      }
+      
+      // Xử lý set/unset default wallet theo WALLET_DEFAULT_FEATURE_CHANGES.md
       if (shouldSetDefault) {
-        backendPayload.setAsDefault = true;
+        updateData.setAsDefault = true;
       } else if (shouldUnsetDefault && wasDefault) {
-        backendPayload.setAsDefault = false;
+        updateData.setAsDefault = false;
+      }
+      
+      // QUAN TRỌNG: walletType CHỈ được gửi khi patch.walletType được định nghĩa rõ ràng
+      // KHÔNG tự động convert từ patch.isShared hoặc patch.type
+      // Điều này đảm bảo khi rút tiền (chỉ gửi balance), walletType không bị thay đổi
+      if (patch.walletType !== undefined) {
+        updateData.walletType = patch.walletType;
       }
       
       // Gửi color lên API nếu có (API có thể không hỗ trợ, nhưng không sao)
       if (patch.color !== undefined) {
-        backendPayload.color = patch.color || oldWallet?.color || DEFAULT_WALLET_COLOR;
+        updateData.color = patch.color || oldWallet?.color || DEFAULT_WALLET_COLOR;
       }
       
-      // Gọi API update nếu có thay đổi hoặc set/unset default
-      if (Object.keys(backendPayload).length > 0 || patch.balance !== undefined || shouldSetDefault || shouldUnsetDefault) {
-        const { response, data } = await updateWalletAPI(walletId, backendPayload);
+      // Gọi API update nếu có thay đổi hoặc shouldSetDefault/shouldUnsetDefault
+      // Theo WALLET_DEFAULT_FEATURE_CHANGES.md: Luôn gọi updateWalletAPI khi có thay đổi hoặc set/unset default
+      const { response, data } = await updateWalletAPI(walletId, updateData);
+      
+      if (response.ok && data.wallet) {
+        // Giữ lại color từ patch hoặc từ ví cũ (vì API không trả về color)
+        const updatedWallet = normalizeWallet(data.wallet, oldWallet);
+        const finalWallet = {
+          ...updatedWallet,
+          // Ưu tiên: color từ patch > color từ ví cũ > màu mặc định
+          color: patch.color || oldWallet?.color || updatedWallet.color || DEFAULT_WALLET_COLOR,
+        };
         
-        if (response.ok && data.wallet) {
-          // Giữ lại color từ patch hoặc từ ví cũ (vì API không trả về color)
-          const updatedWallet = normalizeWallet(data.wallet, oldWallet);
-          const finalWallet = {
-            ...updatedWallet,
-            // Ưu tiên: color từ patch > color từ ví cũ > màu mặc định
-            color: patch.color || oldWallet?.color || updatedWallet.color || DEFAULT_WALLET_COLOR,
-          };
-          
-          setWallets(prev => {
-            const updated = prev.map(w => (w.id === walletId ? finalWallet : w));
-            // Đảm bảo chỉ có 1 ví mặc định
-            if (finalWallet.isDefault) {
-              return updated.map(w => (w.id === walletId ? w : { ...w, isDefault: false }));
-            }
-            return updated;
-          });
-          return finalWallet;
-        } else {
-          throw new Error(data.error || "Không thể cập nhật ví");
-        }
+        setWallets(prev => {
+          const updated = prev.map(w => (w.id === walletId ? finalWallet : w));
+          // Đảm bảo chỉ có 1 ví mặc định
+          if (finalWallet.isDefault) {
+            return updated.map(w => (w.id === walletId ? w : { ...w, isDefault: false }));
+          }
+          return updated;
+        });
+        return finalWallet;
       } else {
-        // Nếu chỉ set/unset default mà không có thay đổi khác
-        if (shouldSetDefault) {
-          const { response, data } = await updateWalletAPI(walletId, { setAsDefault: true });
-          if (response.ok && data.wallet) {
-            const updatedWallet = normalizeWallet(data.wallet, oldWallet);
-            const finalWallet = {
-              ...updatedWallet,
-              color: patch.color || oldWallet?.color || updatedWallet.color || DEFAULT_WALLET_COLOR,
-            };
-            setWallets(prev => {
-              const updated = prev.map(w => (w.id === walletId ? finalWallet : w));
-              if (finalWallet.isDefault) {
-                return updated.map(w => (w.id === walletId ? w : { ...w, isDefault: false }));
-              }
-              return updated;
-            });
-            return finalWallet;
-          } else {
-            throw new Error(data.error || "Không thể cập nhật ví");
-          }
-        } else if (shouldUnsetDefault && wasDefault) {
-          const { response, data } = await updateWalletAPI(walletId, { setAsDefault: false });
-          if (response.ok && data.wallet) {
-            const updatedWallet = normalizeWallet(data.wallet, oldWallet);
-            const finalWallet = {
-              ...updatedWallet,
-              color: patch.color || oldWallet?.color || updatedWallet.color || DEFAULT_WALLET_COLOR,
-            };
-            setWallets(prev => prev.map(w => (w.id === walletId ? finalWallet : w)));
-            return finalWallet;
-          } else {
-            throw new Error(data.error || "Không thể cập nhật ví");
-          }
-        }
-        // Không có thay đổi gì, trả về wallet hiện tại
-        return oldWallet;
+        throw new Error(data.error || "Không thể cập nhật ví");
       }
     } catch (error) {
       console.error("Error updating wallet:", error);
@@ -434,6 +420,48 @@ export function WalletDataProvider({ children }) {
     }
   };
 
+  /**
+   * Đặt ví làm ví mặc định
+   * Sử dụng endpoint PATCH /wallets/{walletId}/set-default
+   * Backend tự động bỏ ví mặc định cũ và đặt ví này làm ví mặc định
+   */
+  const setDefaultWallet = async (walletId) => {
+    try {
+      const walletIdNum = Number(walletId);
+      if (isNaN(walletIdNum)) {
+        throw new Error("ID ví không hợp lệ");
+      }
+
+      console.log("setDefaultWallet - Calling API với walletId:", walletIdNum);
+      const { response, data } = await setDefaultWalletAPI(walletIdNum);
+      
+      console.log("setDefaultWallet - API response:", { status: response.status, ok: response.ok, data });
+      
+      if (response.ok) {
+        // Reload wallets để lấy trạng thái mới nhất từ backend
+        // Backend đã tự động bỏ ví mặc định cũ và đặt ví này làm ví mặc định
+        const updatedWallets = await loadWallets();
+        
+        // Tìm wallet đã được đặt làm mặc định
+        const updatedWallet = updatedWallets.find(w => w.id === walletIdNum);
+        
+        console.log("setDefaultWallet - updatedWallet sau loadWallets:", updatedWallet);
+        console.log("setDefaultWallet - updatedWallet.isDefault:", updatedWallet?.isDefault);
+        
+        return {
+          ...data,
+          wallet: updatedWallet,
+        };
+      } else {
+        const errorMessage = data?.error || data?.message || `HTTP ${response.status}: Không thể đặt ví mặc định`;
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error setting default wallet:", error);
+      throw error;
+    }
+  };
+
   const createGroup = async ({ name, description = "", isDefault = false }) => {
     await new Promise(r => setTimeout(r, 200));
     const newGroup = {
@@ -460,7 +488,7 @@ export function WalletDataProvider({ children }) {
 
   const value = useMemo(() => ({
     wallets, groups, loading,
-    createWallet, updateWallet, deleteWallet,
+    createWallet, updateWallet, deleteWallet, setDefaultWallet,
     createGroup, linkBudgetWallet,
     transferMoney, mergeWallets, convertToGroup,
     loadWallets, // Export để có thể reload từ bên ngoài
