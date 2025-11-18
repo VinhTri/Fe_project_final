@@ -125,31 +125,45 @@ export function WalletDataProvider({ children }) {
 
   // HỖ TRỢ 2 KIỂU GỌI:
   // updateWallet(patch)  HOẶC  updateWallet(id, patch)
-  const updateWallet = async (idOrPatch, maybePatch) => {
-    await sleep(150);
+ const updateWallet = async (idOrPatch, maybePatch) => {
+  await new Promise(r => setTimeout(r, 150));
 
-    // case: updateWallet(patch)
-    if (
-      typeof idOrPatch === "object" &&
-      idOrPatch !== null &&
-      !maybePatch &&
-      idOrPatch.id != null
-    ) {
-      const patch = idOrPatch;
-      setWallets((prev) =>
-        prev.map((w) => (w.id === patch.id ? { ...w, ...patch } : w))
-      );
-      return patch;
+  let id;
+  let patch;
+
+  // trường hợp: updateWallet({ id: 2, name: "..." })
+  if (
+    typeof idOrPatch === "object" &&
+    idOrPatch !== null &&
+    !maybePatch &&
+    idOrPatch.id != null
+  ) {
+    id = idOrPatch.id;
+    patch = idOrPatch;
+  } else {
+    // trường hợp: updateWallet(2, { name: "..." })
+    id = idOrPatch;
+    patch = maybePatch || {};
+  }
+
+  setWallets((prev) => {
+    // nếu đặt làm mặc định → gỡ mặc định các ví khác
+    if (patch.isDefault === true) {
+      return prev.map((w) => {
+        if (w.id === id) {
+          return { ...w, ...patch, isDefault: true };
+        }
+        return { ...w, isDefault: false };
+      });
     }
 
-    // case: updateWallet(id, patch)
-    const id = idOrPatch;
-    const patch = maybePatch || {};
-    setWallets((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, ...patch } : w))
-    );
-    return { id, ...patch };
-  };
+    // update bình thường
+    return prev.map((w) => (w.id === id ? { ...w, ...patch } : w));
+  });
+
+  return { id, ...patch };
+};
+
 
   const deleteWallet = async (id) => {
     await sleep(150);

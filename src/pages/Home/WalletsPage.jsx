@@ -5,6 +5,8 @@ import { useWalletData } from "../../home/store/WalletDataContext";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 
+import { useToast } from "../../components/common/Toast/ToastContext";
+
 import "../../styles/home/WalletsPage.css";
 
 const CURRENCIES = ["VND", "USD"];
@@ -54,20 +56,21 @@ const buildDemoTransactions = (wallet) => {
   ];
 };
 
-
 export default function WalletsPage() {
   const walletApi = useWalletData() || {};
   const {
-  wallets = [],
-  createWallet,
-  addWallet,
-  updateWallet,
-  mergeWallets,
-  depositToWallet,
-  transferBetweenWallets,
-  withdrawFromWallet,
-} = walletApi;
+    wallets = [],
+    createWallet,
+    addWallet,
+    updateWallet,
+    mergeWallets,
+    depositToWallet,
+    transferBetweenWallets,
+    withdrawFromWallet,
+    deleteWallet,
+  } = walletApi;
 
+  const { showToast } = useToast();
 
   // Phân loại ví
   const personalWallets = useMemo(
@@ -106,10 +109,9 @@ export default function WalletsPage() {
   const [mergeCategoryId, setMergeCategoryId] = useState("");
 
   // Nạp ví
-const [topupAmount, setTopupAmount] = useState("");
-const [topupNote, setTopupNote] = useState("");
-const [topupCategoryId, setTopupCategoryId] = useState("");
-
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupNote, setTopupNote] = useState("");
+  const [topupCategoryId, setTopupCategoryId] = useState("");
 
   // Rút ví
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -130,10 +132,9 @@ const [topupCategoryId, setTopupCategoryId] = useState("");
     setMergeTargetId("");
     setMergeCategoryId("");
 
-   setTopupAmount("");
-setTopupNote("");
-setTopupCategoryId("");
-
+    setTopupAmount("");
+    setTopupNote("");
+    setTopupCategoryId("");
 
     setWithdrawAmount("");
     setWithdrawNote("");
@@ -144,8 +145,8 @@ setTopupCategoryId("");
     setTransferNote("");
     setTransferCategoryId("");
 
-    setActiveDetailTab("view");
     setShowCreate(false);
+    setActiveDetailTab("view");
   }, [selectedWallet?.id]);
 
   const totalBalance = useMemo(
@@ -199,6 +200,7 @@ setTopupCategoryId("");
 
   const handleSelectWallet = (id) => {
     setSelectedId(id);
+    setActiveDetailTab("view");
   };
 
   // ========= CREATE =========
@@ -223,7 +225,7 @@ setTopupCategoryId("");
     }));
   };
 
-  const handleSubmitCreate = (e) => {
+  const handleSubmitCreate = async (e) => {
     e.preventDefault();
     const payload = {
       ...createForm,
@@ -239,7 +241,10 @@ setTopupCategoryId("");
       return;
     }
 
-    fn(payload);
+    await fn(payload);
+
+    showToast("Tạo ví cá nhân thành công!");
+
     setCreateForm(buildWalletForm());
     setCreateShareEmail("");
     setCreateShareEnabled(false);
@@ -269,7 +274,7 @@ setTopupCategoryId("");
     }));
   };
 
-  const handleSubmitEdit = (e) => {
+  const handleSubmitEdit = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
 
@@ -278,14 +283,16 @@ setTopupCategoryId("");
       return;
     }
 
-    updateWallet(selectedWallet.id, {
+    await updateWallet(selectedWallet.id, {
       ...selectedWallet,
       ...editForm,
     });
+
+    showToast("Cập nhật thông tin ví thành công!");
   };
 
   // ========= CONVERT TO GROUP =========
-  const handleConvertToGroup = (e) => {
+  const handleConvertToGroup = async (e) => {
     e?.preventDefault?.();
     if (!selectedWallet) return;
     if (!updateWallet) {
@@ -293,65 +300,84 @@ setTopupCategoryId("");
       return;
     }
 
-    updateWallet(selectedWallet.id, {
+    await updateWallet(selectedWallet.id, {
       ...selectedWallet,
       isShared: true,
     });
+
+    showToast("Đã chuyển ví sang ví nhóm!");
+  };
+
+  // ========= DELETE WALLET =========
+  const handleDeleteWallet = async (walletId) => {
+    if (!deleteWallet) {
+      console.warn("Chưa cấu hình deleteWallet trong WalletDataContext.");
+      return;
+    }
+    await deleteWallet(walletId);
+    showToast("Xoá ví thành công!");
+
+    // reset selectedId nếu vừa xoá ví đang xem
+    if (walletId === selectedId) {
+      const remaining = wallets.filter((w) => w.id !== walletId);
+      setSelectedId(remaining[0]?.id ?? null);
+    }
   };
 
   // ========= MERGE =========
-  // ========= MERGE =========
-const handleSubmitMerge = (e, payload) => {
-  e?.preventDefault?.();
+  const handleSubmitMerge = async (e, options) => {
+    e?.preventDefault?.();
 
-  let sourceWalletId;
-  let targetWalletId;
-  let currencyMode = payload?.currencyMode || "keepTarget";
-  let categoryId = payload?.categoryId ?? mergeCategoryId ?? null;
+    if (options) {
+      const {
+        sourceWalletId,
+        targetWalletId,
+        currencyMode = "keepTarget",
+        categoryId,
+        setTargetAsDefault,
+      } = options;
 
-  if (payload && payload.sourceWalletId && payload.targetWalletId) {
-    // case mới: MergeTab gửi đầy đủ
-    sourceWalletId = payload.sourceWalletId;
-    targetWalletId = payload.targetWalletId;
-  } else {
-    // fallback cũ
-    if (!selectedWallet || !mergeTargetId) return;
-    sourceWalletId = selectedWallet.id;
-    targetWalletId = mergeTargetId;
-  }
+      if (!mergeWallets) {
+        console.warn("Chưa cấu hình mergeWallets trong WalletDataContext.");
+        return;
+      }
 
-  if (!sourceWalletId || !targetWalletId || sourceWalletId === targetWalletId)
-    return;
+      // 1) Gộp ví
+      await mergeWallets({
+        sourceWalletId,
+        targetWalletId,
+        currencyMode,
+        categoryId: categoryId || null,
+      });
 
-  if (mergeWallets) {
-    // Đẩy logic gộp sang Context
-    mergeWallets({
-      sourceWalletId,
-      targetWalletId,
-      currencyMode,
-      categoryId,
-    });
-  } else {
-    // chỉ là demo alert nếu chưa cấu hình
-    console.warn("Chưa cấu hình mergeWallets. Demo alert...");
-    const src = wallets.find((w) => String(w.id) === String(sourceWalletId));
-    const tgt = wallets.find((w) => String(w.id) === String(targetWalletId));
-    alert(
-      `Demo gộp ví: gộp ví ${src?.name || ""} vào ${tgt?.name || "ví khác"}`
-    );
-  }
+      // 2) Nếu user chọn đặt ví đích làm ví mặc định mới
+      if (setTargetAsDefault && updateWallet) {
+        await updateWallet(targetWalletId, { isDefault: true });
+      }
 
-  // Sau khi gộp: chọn ví đích để xem
-  setSelectedId(targetWalletId);
+      showToast("Gộp ví thành công (demo)!");
+    } else {
+      // Fallback nhánh cũ: không truyền options
+      if (!selectedWallet || !mergeTargetId) return;
+      if (mergeWallets) {
+        await mergeWallets({
+          sourceWalletId: selectedWallet.id,
+          targetWalletId: mergeTargetId,
+          currencyMode: "keepTarget",
+          categoryId: mergeCategoryId || null,
+        });
+        showToast("Gộp ví thành công (demo)!");
+      } else {
+        console.warn("Chưa cấu hình mergeWallets trong WalletDataContext.");
+      }
+    }
 
-  // reset state merge
-  setMergeTargetId("");
-  setMergeCategoryId("");
-};
-
+    setMergeTargetId("");
+    setMergeCategoryId("");
+  };
 
   // ========= TOPUP =========
-  const handleSubmitTopup = (e) => {
+  const handleSubmitTopup = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
     const amountNum = Number(topupAmount);
@@ -361,32 +387,30 @@ const handleSubmitMerge = (e, payload) => {
     }
 
     if (depositToWallet) {
-  depositToWallet(selectedWallet.id, {
-    amount: amountNum,
-    note: topupNote,
-    categoryId: topupCategoryId || null,
-  });
-} else {
-  console.warn("Chưa cấu hình depositToWallet. Demo alert...");
-  alert(
-    `Demo nạp tiền: +${amountNum.toLocaleString(
-      "vi-VN"
-    )} ${selectedWallet.currency || "VND"} vào ví ${
-      selectedWallet.name || ""
-    } (Danh mục: ${
-      topupCategoryId || "chưa chọn"
-    })`
-  );
-}
+      await depositToWallet(selectedWallet.id, {
+        amount: amountNum,
+        note: topupNote,
+        categoryId: topupCategoryId || null,
+      });
+      showToast("Nạp ví thành công!");
+    } else {
+      console.warn("Chưa cấu hình depositToWallet. Demo alert...");
+      alert(
+        `Demo nạp tiền: +${amountNum.toLocaleString(
+          "vi-VN"
+        )} ${selectedWallet.currency || "VND"} vào ví ${
+          selectedWallet.name || ""
+        } (Danh mục: ${topupCategoryId || "chưa chọn"})`
+      );
+    }
 
-setTopupAmount("");
-setTopupNote("");
-setTopupCategoryId("");
-
+    setTopupAmount("");
+    setTopupNote("");
+    setTopupCategoryId("");
   };
 
   // ========= WITHDRAW =========
-  const handleSubmitWithdraw = (e) => {
+  const handleSubmitWithdraw = async (e) => {
     e.preventDefault();
     if (!selectedWallet) return;
     const amountNum = Number(withdrawAmount);
@@ -396,11 +420,12 @@ setTopupCategoryId("");
     }
 
     if (withdrawFromWallet) {
-      withdrawFromWallet(selectedWallet.id, {
+      await withdrawFromWallet(selectedWallet.id, {
         amount: amountNum,
         note: withdrawNote,
         categoryId: withdrawCategoryId || null,
       });
+      showToast("Rút tiền thành công!");
     } else {
       console.warn("Chưa cấu hình withdrawFromWallet. Demo alert...");
       alert(
@@ -418,7 +443,7 @@ setTopupCategoryId("");
   };
 
   // ========= TRANSFER =========
-  const handleSubmitTransfer = (e) => {
+  const handleSubmitTransfer = async (e) => {
     e.preventDefault();
     if (!selectedWallet || !transferTargetId) return;
     const amountNum = Number(transferAmount);
@@ -428,13 +453,14 @@ setTopupCategoryId("");
     }
 
     if (transferBetweenWallets) {
-      transferBetweenWallets({
+      await transferBetweenWallets({
         sourceId: selectedWallet.id,
         targetId: transferTargetId,
         amount: amountNum,
         note: transferNote,
         categoryId: transferCategoryId || null,
       });
+      showToast("Chuyển tiền giữa ví thành công!");
     } else {
       console.warn("Chưa cấu hình transferBetweenWallets. Demo alert...");
       const target = wallets.find((w) => w.id === transferTargetId);
@@ -487,15 +513,11 @@ setTopupCategoryId("");
         </div>
         <div className="wallets-stat">
           <span className="wallets-stat__label">Ví cá nhân</span>
-          <span className="wallets-stat__value">
-            {personalWallets.length}
-          </span>
+          <span className="wallets-stat__value">{personalWallets.length}</span>
         </div>
         <div className="wallets-stat">
           <span className="wallets-stat__label">Ví nhóm</span>
-          <span className="wallets-stat__value">
-            {groupWallets.length}
-          </span>
+          <span className="wallets-stat__value">{groupWallets.length}</span>
         </div>
       </div>
 
@@ -553,15 +575,13 @@ setTopupCategoryId("");
           setMergeCategoryId={setMergeCategoryId}
           onSubmitMerge={handleSubmitMerge}
           // topup
-          // topup
-topupAmount={topupAmount}
-setTopupAmount={setTopupAmount}
-topupNote={topupNote}
-setTopupNote={setTopupNote}
-topupCategoryId={topupCategoryId}
-setTopupCategoryId={setTopupCategoryId}
-onSubmitTopup={handleSubmitTopup}
-
+          topupAmount={topupAmount}
+          setTopupAmount={setTopupAmount}
+          topupNote={topupNote}
+          setTopupNote={setTopupNote}
+          topupCategoryId={topupCategoryId}
+          setTopupCategoryId={setTopupCategoryId}
+          onSubmitTopup={handleSubmitTopup}
           // withdraw
           withdrawAmount={withdrawAmount}
           setWithdrawAmount={setWithdrawAmount}
@@ -582,6 +602,8 @@ onSubmitTopup={handleSubmitTopup}
           onSubmitTransfer={handleSubmitTransfer}
           // convert
           onConvertToGroup={handleConvertToGroup}
+          // delete (nếu bạn dùng trong WalletDetail)
+          onDeleteWallet={handleDeleteWallet}
         />
       </div>
     </div>
