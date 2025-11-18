@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useCategoryData } from "../../home/store/CategoryDataContext";
 
 export default function WalletInspector({
   wallet,
@@ -7,6 +8,7 @@ export default function WalletInspector({
   onEdit,
   onDelete,
   onWithdraw,
+  onDeposit,
   onMerge,
   onConvert,
   onTransfer,
@@ -16,8 +18,16 @@ export default function WalletInspector({
 }) {
   const [tab, setTab] = useState("details");
   const [wAmount, setWAmount] = useState("");
+  const [wCategoryId, setWCategoryId] = useState("");
+  const [wNote, setWNote] = useState("");
+  const [dAmount, setDAmount] = useState("");
+  const [dCategoryId, setDCategoryId] = useState("");
+  const [dNote, setDNote] = useState("");
   const [mergeMode, setMergeMode] = useState("this_to_other");
   const [otherId, setOtherId] = useState("");
+  
+  // Lấy danh sách danh mục chi tiêu và thu nhập
+  const { expenseCategories, incomeCategories } = useCategoryData();
 
   // ===== helpers =====
   const decimalsOf = (c) => (String(c) === "VND" ? 0 : 2);
@@ -29,6 +39,11 @@ export default function WalletInspector({
   useEffect(() => {
     setTab("details");
     setWAmount("");
+    setWCategoryId("");
+    setWNote("");
+    setDAmount("");
+    setDCategoryId("");
+    setDNote("");
     setMergeMode("this_to_other");
     setOtherId("");
   }, [wallet?.id]);
@@ -59,7 +74,11 @@ export default function WalletInspector({
 
   // ===== RÚT TIỀN =====
   const canWithdraw =
-    !!wallet && +wAmount > 0 && +wAmount <= +(wallet?.balance || 0);
+    !!wallet && +wAmount > 0 && +wAmount <= +(wallet?.balance || 0) && !!wCategoryId;
+  
+  // ===== NẠP TIỀN =====
+  const canDeposit =
+    !!wallet && +dAmount > 0 && !!dCategoryId;
 
   // ======================== MERGE ========================
   const [mStep, setMStep] = useState(1);
@@ -167,21 +186,25 @@ export default function WalletInspector({
   );
 
   const tAmountNum = +tAmount || 0;
+  
+  // Số tiền nhập vào là theo currency của ví gửi (tSrc.currency)
+  // Tính số tiền chuyển đổi sang currency của ví nhận (tDst.currency)
+  const tConvertedAmount = useMemo(() => {
+    if (!tSrc || !tDst || !tAmountNum) return 0;
+    if (!tCurrenciesDiffer) return tAmountNum;
+    // Chuyển đổi từ tSrc.currency sang tDst.currency
+    return roundTo(tAmountNum * tRate, decimalsOf(tDst.currency));
+  }, [tAmountNum, tRate, tCurrenciesDiffer, tSrc?.currency, tDst?.currency]);
+  
   const tCanTransfer =
     !!tSrc && !!tDst && tAmountNum > 0 && tAmountNum <= (+tSrc.balance || 0);
-
-  const tConverted = useMemo(() => {
-    if (!tSrc || !tDst) return 0;
-    const raw = tCurrenciesDiffer ? tAmountNum * tRate : tAmountNum;
-    return roundTo(raw, decimalsOf(tDst?.currency));
-  }, [tAmountNum, tRate, tCurrenciesDiffer, tDst?.currency, tSrc]);
 
   const tPreview = useMemo(() => {
     if (!tSrc || !tDst || !tCanTransfer) return null;
     const sBal = +tSrc.balance || 0;
     const dBal = +tDst.balance || 0;
     const srcAfter = roundTo(sBal - tAmountNum, decimalsOf(tSrc.currency));
-    const dstAfter = roundTo(dBal + tConverted, decimalsOf(tDst.currency));
+    const dstAfter = roundTo(dBal + tConvertedAmount, decimalsOf(tDst.currency));
     return {
       src: {
         id: tSrc.id,
@@ -189,7 +212,7 @@ export default function WalletInspector({
         currency: tSrc.currency,
         before: sBal,
         after: srcAfter,
-        change: -tAmountNum,
+        change: -tAmountNum, // Số tiền nhập vào (theo tSrc.currency)
       },
       dst: {
         id: tDst.id,
@@ -197,7 +220,7 @@ export default function WalletInspector({
         currency: tDst.currency,
         before: dBal,
         after: dstAfter,
-        change: tConverted,
+        change: tConvertedAmount, // Số tiền chuyển đổi (theo tDst.currency)
       },
       rateUsed: tCurrenciesDiffer
         ? `1 ${tSrc.currency} = ${new Intl.NumberFormat("vi-VN", {
@@ -206,7 +229,7 @@ export default function WalletInspector({
         : null,
       convertedFrom: tCurrenciesDiffer
         ? `${formatMoney(tAmountNum, tSrc.currency)} → ${formatMoney(
-            tConverted,
+            tConvertedAmount,
             tDst.currency
           )}`
         : null,
@@ -215,7 +238,7 @@ export default function WalletInspector({
     tSrc,
     tDst,
     tAmountNum,
-    tConverted,
+    tConvertedAmount,
     tRate,
     tCurrenciesDiffer,
     tCanTransfer,
@@ -261,6 +284,13 @@ export default function WalletInspector({
           <i className="bi bi-wallet2 me-1" /> Rút ví
         </button>
         <button
+          className={`itab ${tab === "deposit" ? "active" : ""}`}
+          onClick={() => setTab("deposit")}
+          disabled={!wallet}
+        >
+          <i className="bi bi-wallet me-1" /> Nạp ví
+        </button>
+        <button
           className={`itab ${tab === "transfer" ? "active" : ""}`}
           onClick={() => setTab("transfer")}
           disabled={!wallet}
@@ -284,7 +314,7 @@ export default function WalletInspector({
       </div>
 
       {/* Body */}
-      <div className="card-body">
+      <div className="card-body" style={{ overflow: 'visible' }}>
         {!wallet && (
           <>
             <h6 className="mb-2">Chưa có ví được chọn</h6>
@@ -331,21 +361,6 @@ export default function WalletInspector({
                 {formatMoney(wallet.balance, wallet.currency)}
               </div>
             </div>
-            <div className="info-row">
-              <div className="label">Đã sử dụng</div>
-              <div className="value">
-                {formatMoney(+wallet.spent || 0, wallet.currency)}
-              </div>
-            </div>
-            <div className="info-row">
-              <div className="label">Còn lại</div>
-              <div className="value">
-                {formatMoney(
-                  (+wallet.balance || 0) - (+wallet.spent || 0),
-                  wallet.currency
-                )}
-              </div>
-            </div>
 
             <div className="mt-3 small text-muted">
               Hiện tại ví này là{" "}
@@ -374,6 +389,23 @@ export default function WalletInspector({
         {/* ===== Rút ví ===== */}
         {wallet && tab === "withdraw" && (
           <>
+            <div className="mb-2" style={{ position: 'relative', zIndex: 1 }}>
+              <label className="form-label">Danh mục <span className="text-danger">*</span></label>
+              <select
+                className="form-select"
+                value={wCategoryId || ""}
+                onChange={(e) => setWCategoryId(e.target.value)}
+                required
+              >
+                <option value="">Chọn danh mục</option>
+                {expenseCategories.map((cat) => (
+                  <option key={cat.categoryId} value={cat.categoryId}>
+                    {cat.categoryName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <div className="mb-2">
               <label className="form-label">Số tiền rút</label>
               <input
@@ -391,9 +423,23 @@ export default function WalletInspector({
                 </strong>
               </div>
             </div>
+            
+            <div className="mb-2">
+              <label className="form-label">Ghi chú</label>
+              <textarea
+                className="form-control"
+                rows="3"
+                value={wNote}
+                onChange={(e) => setWNote(e.target.value)}
+                placeholder="Nhập ghi chú (tùy chọn)"
+              />
+            </div>
+            
             {!canWithdraw && wAmount && (
               <div className="text-danger small mb-2">
-                Số tiền không hợp lệ hoặc vượt quá số dư.
+                {!wCategoryId 
+                  ? "Vui lòng chọn danh mục."
+                  : "Số tiền không hợp lệ hoặc vượt quá số dư."}
               </div>
             )}
 
@@ -403,8 +449,10 @@ export default function WalletInspector({
               onClick={() => {
                 if (!canWithdraw) return;
                 const v = roundTo(+wAmount, decimalsOf(wallet.currency));
-                onWithdraw?.(wallet, v);
+                onWithdraw?.(wallet, v, wCategoryId, wNote);
                 setWAmount("");
+                setWCategoryId("");
+                setWNote("");
                 // Reload nhanh: bỏ chọn rồi chọn lại ví hiện tại
                 forceReselect(wallet.id);
                 setTab("details");
@@ -412,6 +460,84 @@ export default function WalletInspector({
             >
               <i className="bi bi-check2-circle me-1" />
               Xác nhận rút
+            </button>
+          </>
+        )}
+
+        {/* ===== Nạp ví ===== */}
+        {wallet && tab === "deposit" && (
+          <>
+            <div className="mb-2" style={{ position: 'relative', zIndex: 1 }}>
+              <label className="form-label">Danh mục <span className="text-danger">*</span></label>
+              <select
+                className="form-select"
+                value={dCategoryId || ""}
+                onChange={(e) => setDCategoryId(e.target.value)}
+                required
+              >
+                <option value="">Chọn danh mục</option>
+                {incomeCategories.map((cat) => (
+                  <option key={cat.categoryId} value={cat.categoryId}>
+                    {cat.categoryName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="mb-2">
+              <label className="form-label">Số tiền nạp</label>
+              <input
+                type="number"
+                className="form-control"
+                min={0}
+                value={dAmount}
+                onChange={(e) => setDAmount(e.target.value)}
+                placeholder="Nhập số tiền cần nạp"
+              />
+              <div className="form-text">
+                Số dư hiện tại:{" "}
+                <strong>
+                  {formatMoney(wallet.balance, wallet.currency || "VND")}
+                </strong>
+              </div>
+            </div>
+            
+            <div className="mb-2">
+              <label className="form-label">Ghi chú</label>
+              <textarea
+                className="form-control"
+                rows="3"
+                value={dNote}
+                onChange={(e) => setDNote(e.target.value)}
+                placeholder="Nhập ghi chú (tùy chọn)"
+              />
+            </div>
+            
+            {!canDeposit && dAmount && (
+              <div className="text-danger small mb-2">
+                {!dCategoryId 
+                  ? "Vui lòng chọn danh mục."
+                  : "Số tiền không hợp lệ."}
+              </div>
+            )}
+
+            <button
+              disabled={!canDeposit}
+              className="btn btn-accent"
+              onClick={() => {
+                if (!canDeposit) return;
+                const v = roundTo(+dAmount, decimalsOf(wallet.currency));
+                onDeposit?.(wallet, v, dCategoryId, dNote);
+                setDAmount("");
+                setDCategoryId("");
+                setDNote("");
+                // Reload nhanh: bỏ chọn rồi chọn lại ví hiện tại
+                forceReselect(wallet.id);
+                setTab("details");
+              }}
+            >
+              <i className="bi bi-check2-circle me-1" />
+              Xác nhận nạp
             </button>
           </>
         )}
@@ -499,8 +625,7 @@ export default function WalletInspector({
               <>
                 <div className="mb-2">
                   <label className="form-label">
-                    Số tiền chuyển ({tSrc?.currency || "-"} →{" "}
-                    {tDst?.currency || "-"})
+                    Số tiền chuyển (theo {tSrc?.currency || "-"})
                   </label>
                   <input
                     type="number"
@@ -508,10 +633,10 @@ export default function WalletInspector({
                     min={0}
                     value={tAmount}
                     onChange={(e) => setTAmount(e.target.value)}
-                    placeholder={`Nhập số tiền bằng ${tSrc?.currency || "nguồn"}`}
+                    placeholder={`Nhập số tiền bằng ${tSrc?.currency || "ví gửi"}`}
                   />
                   <div className="form-text">
-                    Số dư nguồn:{" "}
+                    Số dư ví nguồn:{" "}
                     <strong>
                       {formatMoney(
                         tSrc?.balance || 0,
@@ -519,6 +644,14 @@ export default function WalletInspector({
                       )}
                     </strong>
                   </div>
+                  {tCurrenciesDiffer && tConvertedAmount > 0 && (
+                    <div className="small text-muted mt-1">
+                      Tiền chuyển đổi:{" "}
+                      <strong>
+                        {formatMoney(tConvertedAmount, tDst?.currency || "VND")}
+                      </strong>
+                    </div>
+                  )}
                   {tCurrenciesDiffer && (
                     <div className="small text-muted mt-1">
                       Tỷ giá: 1 {tSrc?.currency} ={" "}
@@ -644,24 +777,16 @@ export default function WalletInspector({
                       if (!tPreview) return;
                       try {
                         setTLoading(true);
-                        const amountRounded = roundTo(
-                          tAmountNum,
-                          decimalsOf(tSrc?.currency)
-                        );
-                        const convertedRounded = roundTo(
-                          tConverted,
-                          decimalsOf(tDst?.currency)
-                        );
 
                         await onTransfer?.({
                           mode: transferMode,
                           sourceId: tSrc?.id,
                           targetId: tDst?.id,
-                          amount: amountRounded, // số trừ ở nguồn
+                          amount: roundTo(tAmountNum, decimalsOf(tSrc?.currency)), // số tiền nhập vào (theo tSrc.currency)
+                          targetCurrencyCode: tSrc?.currency, // Currency của số tiền nhập vào (theo ví gửi)
                           currencyFrom: tSrc?.currency,
                           currencyTo: tDst?.currency,
                           rateUsed: tRate,
-                          convertedAmount: convertedRounded, // số cộng vào đích
                           preview: tPreview,
                         });
 
@@ -980,12 +1105,19 @@ export default function WalletInspector({
         {/* ===== Chuyển đổi cá nhân/nhóm ===== */}
         {wallet && tab === "convert" && (
           <>
+            {wallet.isDefault && !wallet.isShared && (
+              <div className="alert alert-warning mb-3">
+                <strong>Lưu ý:</strong> Không thể chuyển đổi ví mặc định sang ví nhóm. 
+                Vui lòng bỏ ví mặc định trước khi chuyển đổi.
+              </div>
+            )}
             <div className="mb-3">
               Trạng thái hiện tại:{" "}
               <strong>{wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}</strong>
             </div>
             <button
               className="btn btn-accent"
+              disabled={wallet.isShared || wallet.isDefault}
               onClick={async () => {
                 await onConvert?.(wallet, !wallet.isShared);
                 // ép reload chi tiết ví hiện tại
@@ -994,7 +1126,11 @@ export default function WalletInspector({
               }}
             >
               <i className="bi bi-arrow-left-right me-1" />
-              Chuyển sang {!wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+              {wallet.isShared
+                ? "Không thể chuyển đổi"
+                : wallet.isDefault
+                ? "Ví mặc định không thể chuyển đổi"
+                : "Chuyển sang Ví nhóm"}
             </button>
           </>
         )}

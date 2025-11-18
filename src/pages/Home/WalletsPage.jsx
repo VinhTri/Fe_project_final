@@ -1,6 +1,7 @@
 // src/pages/Home/WalletsPage.jsx
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { transactionAPI } from "../../services/api-client";
 
 import WalletCard from "../../components/wallets/WalletCard";
 import WalletEditModal from "../../components/wallets/WalletEditModal";
@@ -84,16 +85,25 @@ function useAutoHeight(isOpen, deps = []) {
 }
 
 const formatMoney = (amount = 0, currency = "VND") => {
+  const numAmount = Number(amount) || 0;
+  
+  // Custom format cho USD: hiển thị $ ở trước, không có số thập phân nếu là số nguyên
+  if (currency === "USD") {
+    const formatted = numAmount % 1 === 0 
+      ? numAmount.toLocaleString("en-US")
+      : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `$${formatted}`;
+  }
+  
+  // Format cho VND và các currency khác
   try {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: currency === "VND" ? 0 : 2,
-    })
-      .format(Number(amount) || 0)
-      .replace(/\s?₫$/, " VND");
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    // Các currency khác
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
   } catch {
-    return `${(Number(amount) || 0).toLocaleString("vi-VN")} ${currency}`;
+    return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
   }
 };
 
@@ -252,29 +262,101 @@ export default function WalletsPage() {
     [wallets]
   );
 
-  // ====== Tổng chỉ cộng ví đang bật công tắc ======
+  // Helper function để tính tỷ giá (chuyển đổi về VND)
+  const getRate = (from, to) => {
+    if (!from || !to || from === to) return 1;
+    // Tỷ giá cố định (theo ExchangeRateServiceImpl)
+    const rates = {
+      VND: 1,
+      USD: 0.000041, // 1 VND = 0.000041 USD
+      EUR: 0.000038,
+      JPY: 0.0063,
+      GBP: 0.000032,
+      CNY: 0.00030,
+    };
+    if (!rates[from] || !rates[to]) return 1;
+    // Tính tỷ giá: from → VND → to
+    const fromToVND = 1 / rates[from];
+    const toToVND = 1 / rates[to];
+    return fromToVND / toToVND;
+  };
+
+  // Helper function để chuyển đổi số tiền về VND
+  const convertToVND = (amount, currency) => {
+    if (!currency || currency === "VND") return Number(amount) || 0;
+    const rate = getRate(currency, "VND");
+    const converted = (Number(amount) || 0) * rate;
+    // Làm tròn về số nguyên vì VND không có số thập phân
+    return Math.round(converted);
+  };
+
+  // Helper function để chuyển đổi từ VND sang currency khác
+  const convertFromVND = (amountVND, targetCurrency) => {
+    if (!targetCurrency || targetCurrency === "VND") return Number(amountVND) || 0;
+    const rate = getRate("VND", targetCurrency);
+    const converted = (Number(amountVND) || 0) * rate;
+    // Làm tròn theo số chữ số thập phân của currency đích
+    const decimals = targetCurrency === "VND" ? 0 : 2;
+    return Math.round(converted * Math.pow(10, decimals)) / Math.pow(10, decimals);
+  };
+
+  // Lấy đơn vị tiền tệ mặc định từ localStorage
+  const [displayCurrency, setDisplayCurrency] = useState(() => {
+    return localStorage.getItem("defaultCurrency") || "VND";
+  });
+
+  // Lắng nghe sự kiện thay đổi currency setting
+  useEffect(() => {
+    const handleCurrencyChange = (e) => {
+      setDisplayCurrency(e.detail.currency);
+    };
+    window.addEventListener('currencySettingChanged', handleCurrencyChange);
+    return () => {
+      window.removeEventListener('currencySettingChanged', handleCurrencyChange);
+    };
+  }, []);
+
+  // ====== Tổng chỉ cộng ví đang bật công tắc (chuyển đổi tất cả về VND, sau đó quy đổi sang displayCurrency) ======
   const totalAll = useMemo(
-    () =>
-      wallets
+    () => {
+      const totalInVND = wallets
         .filter((w) => w.includeOverall !== false)
-        .reduce((s, w) => s + (Number(w.balance) || 0), 0),
-    [wallets]
+        .reduce((s, w) => {
+          const balanceInVND = convertToVND(w.balance, w.currency || "VND");
+          return s + balanceInVND;
+        }, 0);
+      // Quy đổi từ VND sang đơn vị tiền tệ hiển thị
+      return convertFromVND(totalInVND, displayCurrency);
+    },
+    [wallets, displayCurrency]
   );
 
   const totalPersonal = useMemo(
-    () =>
-      personalListRaw
+    () => {
+      const totalInVND = personalListRaw
         .filter((w) => w.includePersonal !== false)
-        .reduce((s, w) => s + (Number(w.balance) || 0), 0),
-    [personalListRaw]
+        .reduce((s, w) => {
+          const balanceInVND = convertToVND(w.balance, w.currency || "VND");
+          return s + balanceInVND;
+        }, 0);
+      // Quy đổi từ VND sang đơn vị tiền tệ hiển thị
+      return convertFromVND(totalInVND, displayCurrency);
+    },
+    [personalListRaw, displayCurrency]
   );
 
   const totalGroup = useMemo(
-    () =>
-      groupListRaw
+    () => {
+      const totalInVND = groupListRaw
         .filter((w) => w.includeGroup !== false)
-        .reduce((s, w) => s + (Number(w.balance) || 0), 0),
-    [groupListRaw]
+        .reduce((s, w) => {
+          const balanceInVND = convertToVND(w.balance, w.currency || "VND");
+          return s + balanceInVND;
+        }, 0);
+      // Quy đổi từ VND sang đơn vị tiền tệ hiển thị
+      return convertFromVND(totalInVND, displayCurrency);
+    },
+    [groupListRaw, displayCurrency]
   );
 
   // ====== CRUD ======
@@ -392,39 +474,88 @@ const doDelete = async (wallet) => {
   };
 
   // Inspector actions
-  const handleWithdraw = async (wallet, amount) => {
+  const handleWithdraw = async (wallet, amount, categoryId, note) => {
     try {
-      // CHỈ gửi các field cần thiết để cập nhật balance
-      // KHÔNG spread toàn bộ wallet để tránh gửi các field không mong muốn (type, isShared, walletType, etc.)
-      const updatePayload = {
-        id: wallet.id,
-        name: wallet.name, // Gửi walletName để đảm bảo request hợp lệ
-        walletName: wallet.name,
-        balance: Number(wallet.balance || 0) - Number(amount),
-        // KHÔNG gửi: isDefault, walletType, isShared, type, hoặc các field khác
-        // Chỉ cập nhật balance và walletName (để request hợp lệ)
+      // Lấy thời gian hiện tại theo múi giờ Việt Nam
+      const getVietnamDateTime = () => {
+        const now = new Date();
+        const vietnamTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+        return vietnamTime.toISOString();
       };
       
-      const updated = await updateWallet(updatePayload);
+      // Gọi API tạo transaction expense
+      const response = await transactionAPI.addExpense(
+        Number(amount),
+        getVietnamDateTime(),
+        wallet.id,
+        Number(categoryId),
+        note || "",
+        null // imageUrl - không có ảnh cho rút ví
+      );
       
-      // Cập nhật selectedWallet với wallet đã được cập nhật từ API
-      if (updated) {
-        setSelectedWallet(updated);
-      } else {
-        // Fallback: reload wallets để lấy dữ liệu mới nhất
+      if (response && response.transaction) {
+        // Reload wallets để lấy dữ liệu mới nhất (balance đã được cập nhật bởi backend)
         await loadWallets();
-        const refreshedWallet = wallets.find(w => w.id === wallet.id);
-        if (refreshedWallet) {
-          setSelectedWallet(refreshedWallet);
-        }
+        
+        // Cập nhật selectedWallet với balance mới (tính từ transaction)
+        const newBalance = Number(wallet.balance || 0) - Number(amount);
+        setSelectedWallet({
+          ...wallet,
+          balance: newBalance
+        });
+        
+        setToast({ open: true, message: "Rút tiền thành công. Giao dịch đã được lưu vào lịch sử." });
+      } else {
+        throw new Error(response?.error || "Không thể tạo giao dịch");
       }
-      
-      setToast({ open: true, message: "Rút tiền thành công" });
     } catch (error) {
       console.error("Error withdrawing money:", error);
       setToast({
         open: true,
-        message: error.message || "Không thể rút tiền",
+        message: error.message || error.error || "Không thể rút tiền",
+      });
+    }
+  };
+
+  const handleDeposit = async (wallet, amount, categoryId, note) => {
+    try {
+      // Lấy thời gian hiện tại theo múi giờ Việt Nam
+      const getVietnamDateTime = () => {
+        const now = new Date();
+        const vietnamTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+        return vietnamTime.toISOString();
+      };
+      
+      // Gọi API tạo transaction income
+      const response = await transactionAPI.addIncome(
+        Number(amount),
+        getVietnamDateTime(),
+        wallet.id,
+        Number(categoryId),
+        note || "",
+        null // imageUrl - không có ảnh cho nạp ví
+      );
+      
+      if (response && response.transaction) {
+        // Reload wallets để lấy dữ liệu mới nhất (balance đã được cập nhật bởi backend)
+        await loadWallets();
+        
+        // Cập nhật selectedWallet với balance mới (tính từ transaction)
+        const newBalance = Number(wallet.balance || 0) + Number(amount);
+        setSelectedWallet({
+          ...wallet,
+          balance: newBalance
+        });
+        
+        setToast({ open: true, message: "Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử." });
+      } else {
+        throw new Error(response?.error || "Không thể tạo giao dịch");
+      }
+    } catch (error) {
+      console.error("Error depositing money:", error);
+      setToast({
+        open: true,
+        message: error.message || error.error || "Không thể nạp tiền",
       });
     }
   };
@@ -787,13 +918,12 @@ const doDelete = async (wallet) => {
             <div className="sum-card__value">
               {formatMoney(
                 showTotalAll ? totalAll : 0,
-                currencyOfChoice || "VND"
+                displayCurrency || "VND"
               ).replace(
                 /[\d,.]+/,
                 showTotalAll
                   ? new Intl.NumberFormat("vi-VN", {
-                      maximumFractionDigits:
-                        (currencyOfChoice || "VND") === "VND" ? 0 : 2,
+                      maximumFractionDigits: displayCurrency === "VND" ? 0 : 2,
                     }).format(totalAll)
                   : "••••••"
               )}
@@ -865,13 +995,12 @@ const doDelete = async (wallet) => {
                       <div className="sum-card__value">
                         {formatMoney(
                           showTotalPersonal ? totalPersonal : 0,
-                          currencyOfChoice || "VND"
+                          displayCurrency || "VND"
                         ).replace(
                           /[\d,.]+/,
                           showTotalPersonal
                             ? new Intl.NumberFormat("vi-VN", {
-                                maximumFractionDigits:
-                                  (currencyOfChoice || "VND") === "VND" ? 0 : 2,
+                                maximumFractionDigits: displayCurrency === "VND" ? 0 : 2,
                               }).format(totalPersonal)
                             : "••••••"
                         )}
@@ -953,6 +1082,7 @@ const doDelete = async (wallet) => {
                       onEdit={setEditing}
                       onDelete={(w) => setConfirmDel(w)}
                       onWithdraw={handleWithdraw}
+                      onDeposit={handleDeposit}
                       onTransfer={handleTransfer}
                       onMerge={handleMerge}
                       onConvert={handleConvert}
@@ -1050,13 +1180,12 @@ const doDelete = async (wallet) => {
                       <div className="sum-card__value">
                         {formatMoney(
                           showTotalGroup ? totalGroup : 0,
-                          currencyOfChoice || "VND"
+                          displayCurrency || "VND"
                         ).replace(
                           /[\d,.]+/,
                           showTotalGroup
                             ? new Intl.NumberFormat("vi-VN", {
-                                maximumFractionDigits:
-                                  (currencyOfChoice || "VND") === "VND" ? 0 : 2,
+                                maximumFractionDigits: displayCurrency === "VND" ? 0 : 2,
                               }).format(totalGroup)
                             : "••••••"
                         )}
@@ -1138,6 +1267,7 @@ const doDelete = async (wallet) => {
                       onEdit={setEditing}
                       onDelete={(w) => setConfirmDel(w)}
                       onWithdraw={handleWithdraw}
+                      onDeposit={handleDeposit}
                       onTransfer={handleTransfer}
                       onMerge={handleMerge}
                       onConvert={handleConvert}

@@ -20,12 +20,21 @@ export default function WalletCard({
     }
   }, []);
 
-  const fmtMoney = (n, c = "VND") =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: c,
-      maximumFractionDigits: c === "VND" ? 0 : 2,
-    }).format(Number(n || 0));
+  const fmtMoney = (n, c = "VND") => {
+    const numAmount = Number(n || 0);
+    // Custom format cho USD: hiển thị $ ở trước
+    if (c === "USD") {
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `$${formatted}`;
+    }
+    // Format cho VND và các currency khác
+    if (c === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c}`;
+  };
 
   const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "");
 

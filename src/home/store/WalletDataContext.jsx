@@ -258,6 +258,7 @@ export function WalletDataProvider({ children }) {
         fromWalletId: sourceId,
         toWalletId: targetId,
         amount: transferData.amount,
+        targetCurrencyCode: transferData.targetCurrencyCode, // Currency của số tiền nhập vào (theo ví gửi)
         note: transferData.note || transferData.description || "",
       });
 

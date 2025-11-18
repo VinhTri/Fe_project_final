@@ -13,6 +13,10 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState("");
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [defaultCurrency, setDefaultCurrency] = useState(() => {
+    // Lấy từ localStorage hoặc mặc định là VND
+    return localStorage.getItem("defaultCurrency") || "VND";
+  });
 
   // Refs cho các input fields
   const fullNameRef = useRef(null);
@@ -20,6 +24,7 @@ export default function SettingsPage() {
   const oldPasswordRef = useRef(null);
   const newPasswordRef = useRef(null);
   const confirmPasswordRef = useRef(null);
+  const currencyRef = useRef(null);
 
   // Load profile khi component mount
   useEffect(() => {
@@ -158,12 +163,18 @@ export default function SettingsPage() {
       return;
     }
 
+    // Nếu user đã có password, bắt buộc phải nhập old password
+    if (user?.hasPassword && (!oldPassword || oldPassword.trim() === "")) {
+      setError("Vui lòng nhập mật khẩu hiện tại");
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
       setSuccess("");
       const { response, data } = await changePassword({
-        oldPassword,
+        oldPassword: user?.hasPassword ? oldPassword : undefined, // Chỉ gửi oldPassword nếu user đã có password
         newPassword,
         confirmPassword,
       });
@@ -173,6 +184,8 @@ export default function SettingsPage() {
         if (oldPasswordRef.current) oldPasswordRef.current.value = "";
         if (newPasswordRef.current) newPasswordRef.current.value = "";
         if (confirmPasswordRef.current) confirmPasswordRef.current.value = "";
+        // Reload profile để cập nhật hasPassword
+        await loadProfile();
         setTimeout(() => setSuccess(""), 3000);
       } else {
         setError(data.error || "Đổi mật khẩu thất bại");
@@ -270,24 +283,30 @@ export default function SettingsPage() {
 <div className="settings-detail__body">
 <h4>Đổi mật khẩu</h4>
 <p className="settings-detail__desc">
-
-              Nên sử dụng mật khẩu mạnh, khó đoán để bảo vệ tài khoản.
+              {user?.hasPassword 
+                ? "Nên sử dụng mật khẩu mạnh, khó đoán để bảo vệ tài khoản."
+                : "Bạn đang đăng nhập bằng Google. Hãy đặt mật khẩu để có thể đăng nhập bằng email và mật khẩu."}
 </p>
 <div className="settings-form__grid">
+{/* Chỉ hiển thị field "Mật khẩu hiện tại" nếu user đã có password */}
+{user?.hasPassword && (
 <div className="settings-form__group">
 <label>Mật khẩu hiện tại</label>
 <input 
                 ref={oldPasswordRef}
                 type="password" 
                 placeholder="Nhập mật khẩu hiện tại" 
+                required
               />
 </div>
+)}
 <div className="settings-form__group">
 <label>Mật khẩu mới</label>
 <input 
                 ref={newPasswordRef}
                 type="password" 
                 placeholder="Nhập mật khẩu mới" 
+                required
               />
 </div>
 <div className="settings-form__group">
@@ -298,6 +317,7 @@ export default function SettingsPage() {
                   type="password"
 
                   placeholder="Nhập lại mật khẩu mới"
+                  required
 
                 />
 </div>
@@ -310,7 +330,7 @@ export default function SettingsPage() {
               disabled={loading}
             >
 
-              {loading ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
+              {loading ? "Đang cập nhật..." : user?.hasPassword ? "Cập nhật mật khẩu" : "Đặt mật khẩu"}
 </button>
 </div>
 
@@ -432,12 +452,29 @@ export default function SettingsPage() {
 </p>
 <div className="settings-form__group">
 <label>Đơn vị tiền tệ mặc định</label>
-<select defaultValue="VND">
+<select 
+                ref={currencyRef}
+                defaultValue={defaultCurrency}
+                onChange={(e) => setDefaultCurrency(e.target.value)}
+              >
 <option value="VND">VND - Việt Nam Đồng</option>
 <option value="USD">USD - Đô la Mỹ</option>
 </select>
 </div>
-<button className="settings-btn settings-btn--primary">
+{error && activeKey === "currency" && <div className="settings-error" style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>{error}</div>}
+{success && activeKey === "currency" && <div className="settings-success" style={{color: 'green', marginBottom: '10px', padding: '10px', backgroundColor: '#e6ffe6', borderRadius: '4px'}}>{success}</div>}
+<button 
+              className="settings-btn settings-btn--primary"
+              onClick={() => {
+                const selectedCurrency = currencyRef.current?.value || "VND";
+                localStorage.setItem("defaultCurrency", selectedCurrency);
+                setDefaultCurrency(selectedCurrency);
+                setSuccess("Đã lưu cài đặt đơn vị tiền tệ");
+                setTimeout(() => setSuccess(""), 3000);
+                // Bắn event để các component khác cập nhật
+                window.dispatchEvent(new CustomEvent('currencySettingChanged', { detail: { currency: selectedCurrency } }));
+              }}
+            >
 
               Lưu cài đặt
 </button>

@@ -124,21 +124,43 @@ export default function ForgotPasswordPage() {
     const code = otp.join("");
     if (code.length < OTP_LEN) return setError("Vui lòng nhập đủ 6 số mã xác minh!");
 
-    // Lưu mã OTP vào form state
-    setForm((f) => ({ ...f, code: code }));
-
     setLoading(true);
     setError("");
+    setSuccessMsg("");
 
-    // Chuyển sang Step 3. Việc xác minh mã sẽ diễn ra ở API /reset-password.
-    setTimeout(() => {
+    try {
+      // Gọi API verify OTP trước khi chuyển sang Step 3
+      const response = await fetch(`${API_BASE_URL}/verify-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: form.email,
+          "Mã xác thực": code,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // OTP đúng, lưu mã và chuyển sang Step 3
+        setForm((f) => ({ ...f, code: code }));
+        setSuccessMsg(data.message || "Xác thực mã thành công. Vui lòng nhập mật khẩu mới.");
+        setTimeout(() => {
+          setStep(3);
+          setSuccessMsg("");
+        }, 1000);
+      } else {
+        // OTP sai hoặc hết hạn
+        setError(data.error || "Mã xác thực không đúng hoặc đã hết hạn. Vui lòng thử lại.");
+      }
+    } catch (err) {
+      console.error("Lỗi gọi API verify OTP:", err);
+      setError("Lỗi kết nối máy chủ. Vui lòng thử lại sau.");
+    } finally {
       setLoading(false);
-      setSuccessMsg("Đã nhận mã. Vui lòng nhập mật khẩu mới.");
-      setTimeout(() => {
-        setStep(3);
-        setSuccessMsg("");
-      }, 1000);
-    }, 500);
+    }
   };
 
   const handleResendCode = async () => {

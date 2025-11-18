@@ -69,6 +69,58 @@ export default function WalletEditModal({
 
   const isValid = useMemo(() => Object.keys(validate()).length === 0, [form]);
 
+  // Helper function để tính tỷ giá (giống WalletInspector)
+  const getRate = (from, to) => {
+    if (!from || !to || from === to) return 1;
+    // Tỷ giá cố định (theo ExchangeRateServiceImpl)
+    const rates = {
+      VND: 1,
+      USD: 0.000041, // 1 VND = 0.000041 USD
+      EUR: 0.000038,
+      JPY: 0.0063,
+      GBP: 0.000032,
+      CNY: 0.00030,
+    };
+    if (!rates[from] || !rates[to]) return 1;
+    // Tính tỷ giá: from → VND → to
+    const fromToVND = 1 / rates[from];
+    const toToVND = 1 / rates[to];
+    return fromToVND / toToVND;
+  };
+
+  // Tính số dư mới khi currency thay đổi
+  const oldCurrency = wallet?.currency || "VND";
+  const newCurrency = form.currency;
+  const currentBalance = Number(wallet?.balance || 0);
+  const currencyChanged = oldCurrency !== newCurrency;
+  
+  const exchangeRate = useMemo(() => {
+    if (!currencyChanged) return 1;
+    return getRate(oldCurrency, newCurrency);
+  }, [oldCurrency, newCurrency, currencyChanged]);
+
+  const convertedBalance = useMemo(() => {
+    if (!currencyChanged) return currentBalance;
+    const decimals = newCurrency === "VND" ? 0 : 2;
+    const converted = currentBalance * exchangeRate;
+    return Math.round(converted * Math.pow(10, decimals)) / Math.pow(10, decimals);
+  }, [currentBalance, exchangeRate, currencyChanged, newCurrency]);
+
+  // Format số tiền
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+  };
+
   // tập tin: vinhtri/fe_project_final/Fe_project_final-feature-callAPI/src/components/wallets/WalletEditModal.jsx
 
   function handleSubmit(e) {
@@ -86,7 +138,7 @@ export default function WalletEditModal({
       walletName: form.name.trim(),
       currencyCode: form.currency,
       description: form.note?.trim() || "",
-      setAsDefault: !!form.isDefault,
+      setAsDefault: wallet.isShared ? false : !!form.isDefault, // Ví nhóm không thể đặt làm ví mặc định
       color: form.color || null,
     });
   }
@@ -247,6 +299,25 @@ export default function WalletEditModal({
               {touched.currency && errors.currency && (
                 <div className="fm-feedback">{errors.currency}</div>
               )}
+              {/* Hiển thị preview số dư mới khi currency thay đổi */}
+              {currencyChanged && wallet && (
+                <div className="fm-feedback" style={{ color: "#2563eb", marginTop: "8px" }}>
+                  <div style={{ marginBottom: "4px" }}>
+                    <strong>Số dư hiện tại:</strong> {formatMoney(currentBalance, oldCurrency)}
+                  </div>
+                  <div style={{ marginBottom: "4px" }}>
+                    <strong>Tỷ giá:</strong> 1 {oldCurrency} = {exchangeRate.toLocaleString("vi-VN", { maximumFractionDigits: 6 })} {newCurrency}
+                  </div>
+                  <div style={{ color: "#059669", fontWeight: 600 }}>
+                    <strong>Số dư sau khi chuyển đổi:</strong> {formatMoney(convertedBalance, newCurrency)}
+                  </div>
+                  {(wallet.txCount > 0 || wallet.transactionCount > 0) && (
+                    <div style={{ color: "#dc2626", marginTop: "4px", fontSize: "0.85rem" }}>
+                      ⚠️ Lưu ý: Ví này có giao dịch. Tất cả giao dịch sẽ được chuyển đổi theo tỷ giá mới.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Ghi chú */}
@@ -268,17 +339,19 @@ export default function WalletEditModal({
               )}
             </div>
 
-            {/* Checkbox */}
-            <div className="fm-check">
-              <input
-                id="editDefaultWallet"
-                className="fm-check__input"
-                type="checkbox"
-                checked={form.isDefault}
-                onChange={(e) => setField("isDefault", e.target.checked)}
-              />
-              <label htmlFor="editDefaultWallet">Đặt làm ví mặc định</label>
-            </div>
+            {/* Checkbox - chỉ hiển thị khi ví không phải ví nhóm */}
+            {!wallet.isShared && (
+              <div className="fm-check">
+                <input
+                  id="editDefaultWallet"
+                  className="fm-check__input"
+                  type="checkbox"
+                  checked={form.isDefault}
+                  onChange={(e) => setField("isDefault", e.target.checked)}
+                />
+                <label htmlFor="editDefaultWallet">Đặt làm ví mặc định</label>
+              </div>
+            )}
 
             {/* Meta */}
             {createdAt && (

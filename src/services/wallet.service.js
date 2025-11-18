@@ -629,6 +629,7 @@ export const transferMoney = async (transferData) => {
       fromWalletId,
       toWalletId,
       amount: transferData.amount,
+      targetCurrencyCode: transferData.targetCurrencyCode, // Currency của số tiền nhập vào (theo ví gửi)
       note,
     };
     

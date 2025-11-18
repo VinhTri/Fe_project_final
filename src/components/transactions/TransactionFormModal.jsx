@@ -1,5 +1,5 @@
 // src/components/transactions/TransactionFormModal.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
@@ -90,54 +90,28 @@ const DEFAULT_CATEGORIES = ["Ăn uống", "Di chuyển", "Quà tặng", "Giải 
 /* WALLETS will be sourced from WalletDataContext; keep default fallback */
 const DEFAULT_WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng A", "Ngân hàng B"];
 
-/* ================== Autocomplete + Select Input ================== */
-function WalletSelectInput({ label, value, onChange, options, placeholder, id }) {
-  const [inputValue, setInputValue] = useState(value);
-
-  useEffect(() => setInputValue(value), [value]);
-
-  const handleInput = (e) => {
-    setInputValue(e.target.value);
-    onChange(e.target.value);
-  };
-
+/* ================== Select Input (chỉ dropdown) ================== */
+function SelectInput({ label, value, onChange, options, required = true }) {
   const handleSelect = (e) => {
-    const selected = e.target.value;
-    setInputValue(selected);
-    onChange(selected);
+    onChange(e.target.value);
   };
 
   return (
     <div className="mb-3">
       <label className="form-label fw-semibold">{label}</label>
-      <div className="d-flex gap-2">
-        <input
-          list={id}
-          className="form-control flex-grow-1"
-          placeholder={placeholder}
-          value={inputValue}
-          onChange={handleInput}
-          required
-        />
-        <select
-          className="form-select"
-          style={{ width: "auto", flexShrink: 0 }}
-          onChange={handleSelect}
-          value={options.includes(inputValue) ? inputValue : ""}
-        >
-          <option value="">Chọn</option>
-          {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      </div>
-      <datalist id={id}>
+      <select
+        className="form-select"
+        value={value || ""}
+        onChange={handleSelect}
+        required={required}
+      >
+        <option value="">Chọn</option>
         {options.map((opt) => (
-          <option key={opt} value={opt} />
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
         ))}
-      </datalist>
+      </select>
     </div>
   );
 }
@@ -169,6 +143,13 @@ export default function TransactionFormModal({
     document.body.style.overflow = "hidden";
     return () => (document.body.style.overflow = prev);
   }, [open]);
+
+  // get shared categories and wallets (cần lấy trước để dùng trong useEffect)
+  const { expenseCategories, incomeCategories } = useCategoryData();
+  const { wallets: walletList } = useWalletData();
+
+  // Tìm ví mặc định
+  const defaultWallet = walletList?.find(w => w.isDefault === true);
 
   /* ========== Đổ dữ liệu ban đầu ========== */
   useEffect(() => {
@@ -225,24 +206,135 @@ export default function TransactionFormModal({
         setAttachmentPreview(initialData.attachment || "");
       } else {
         // Mode create: luôn dùng thời gian hiện tại theo múi giờ Việt Nam
-        setForm({ ...EMPTY_FORM, date: getVietnamDateTime() });
+        // Tự động chọn ví mặc định nếu có
+        const defaultWalletName = defaultWallet?.name || "";
+        const defaultCurrency = defaultWallet?.currency || "VND";
+        setForm({ 
+          ...EMPTY_FORM, 
+          date: getVietnamDateTime(),
+          walletName: defaultWalletName,
+          currency: defaultCurrency,
+        });
         setAttachmentPreview("");
       }
     }
-  }, [open, mode, initialData, variant]);
-
-  // get shared categories and wallets
-  const { expenseCategories, incomeCategories } = useCategoryData();
-  const { wallets: walletList } = useWalletData();
+  }, [open, mode, initialData, variant, defaultWallet]);
 
   // Map categories - hỗ trợ cả name và categoryName
   const categoryOptions = form.type === "income"
     ? (incomeCategories?.map(c => c.name || c.categoryName || "").filter(Boolean) || DEFAULT_CATEGORIES)
     : (expenseCategories?.map(c => c.name || c.categoryName || "").filter(Boolean) || DEFAULT_CATEGORIES);
 
+  // Danh sách ví cho ví gửi (tất cả ví)
   const walletOptions = (walletList && walletList.length > 0)
     ? walletList.map(w => w.name)
     : DEFAULT_WALLETS;
+  
+  // Danh sách ví cho ví nhận (loại bỏ ví gửi đã chọn)
+  const targetWalletOptions = useMemo(() => {
+    if (!walletList || walletList.length === 0) return DEFAULT_WALLETS;
+    if (!form.sourceWallet) return walletList.map(w => w.name);
+    // Loại bỏ ví gửi khỏi danh sách ví nhận
+    return walletList
+      .filter(w => w.name !== form.sourceWallet)
+      .map(w => w.name);
+  }, [walletList, form.sourceWallet]);
+
+  // Tìm ví đã chọn trong form giao dịch thông thường
+  const selectedWallet = walletList?.find(w => w.name === form.walletName);
+
+  // Tìm ví gửi và ví nhận từ walletList để lấy số dư
+  const sourceWallet = walletList?.find(w => w.name === form.sourceWallet);
+  const targetWallet = walletList?.find(w => w.name === form.targetWallet);
+
+  // Helper functions để tính tỷ giá và chuyển đổi (tham khảo WalletInspector)
+  const decimalsOf = (c) => (String(c) === "VND" ? 0 : 2);
+  const roundTo = (n, d = 0) => {
+    const m = Math.pow(10, d);
+    return Math.round(n * m) / m;
+  };
+  
+  const getRate = (from, to) => {
+    if (!from || !to || from === to) return 1;
+    // Tỷ giá cố định (theo ExchangeRateServiceImpl)
+    const rates = {
+      VND: 1,
+      USD: 0.000041, // 1 VND = 0.000041 USD
+      EUR: 0.000038,
+      JPY: 0.0063,
+      GBP: 0.000032,
+      CNY: 0.00030,
+    };
+    if (!rates[from] || !rates[to]) return 1;
+    // Tính tỷ giá: from → VND → to
+    const fromToVND = 1 / rates[from];
+    const toToVND = 1 / rates[to];
+    return fromToVND / toToVND;
+  };
+
+  // Kiểm tra hai ví có khác loại tiền tệ không (cho chuyển tiền)
+  const currenciesDiffer = sourceWallet && targetWallet 
+    ? (sourceWallet.currency || "VND") !== (targetWallet.currency || "VND")
+    : false;
+  
+  // Tính tỷ giá và số tiền chuyển đổi (cho chuyển tiền)
+  const transferRate = sourceWallet && targetWallet 
+    ? getRate(sourceWallet.currency || "VND", targetWallet.currency || "VND")
+    : 1;
+  
+  const amountNum = Number(form.amount) || 0;
+  const convertedAmount = useMemo(() => {
+    if (!sourceWallet || !targetWallet || !amountNum) return 0;
+    if (!currenciesDiffer) return amountNum;
+    // Chuyển đổi từ sourceWallet.currency sang targetWallet.currency
+    return roundTo(amountNum * transferRate, decimalsOf(targetWallet.currency || "VND"));
+  }, [amountNum, transferRate, currenciesDiffer, sourceWallet, targetWallet]);
+
+  // Kiểm tra số tiền có hợp lệ không (cho loại chi tiêu và chuyển tiền)
+  const walletBalance = Number(selectedWallet?.balance || 0);
+  const sourceWalletBalance = Number(sourceWallet?.balance || 0);
+  
+  // Validation cho form giao dịch thông thường (chi tiêu)
+  const isExpenseAmountValid = form.type === "expense" 
+    ? (amountNum > 0 && amountNum <= walletBalance)
+    : (amountNum > 0);
+  const showExpenseAmountError = form.type === "expense" && form.amount && !isExpenseAmountValid;
+  
+  // Validation cho form chuyển tiền
+  const isTransferAmountValid = amountNum > 0 && amountNum <= sourceWalletBalance;
+  const showTransferAmountError = form.amount && !isTransferAmountValid;
+  
+  // Tổng hợp validation
+  const isAmountValid = variant === "internal" 
+    ? isTransferAmountValid 
+    : isExpenseAmountValid;
+  const showAmountError = variant === "internal" 
+    ? showTransferAmountError 
+    : showExpenseAmountError;
+
+  // Helper function để format số tiền
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    
+    // Custom format cho USD: hiển thị $ ở trước, không có số thập phân nếu là số nguyên
+    if (currency === "USD") {
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `$${formatted}`;
+    }
+    
+    // Format cho VND và các currency khác
+    try {
+      if (currency === "VND") {
+        return `${numAmount.toLocaleString("vi-VN")} VND`;
+      }
+      // Các currency khác
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+    } catch {
+      return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
+    }
+  };
 
   // Keep form.category in sync when type changes or categories update
   useEffect(() => {
@@ -253,6 +345,28 @@ export default function TransactionFormModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.type, expenseCategories, incomeCategories]);
+
+  // Tự động cập nhật currency khi chọn ví (chỉ cho variant external)
+  useEffect(() => {
+    if (variant !== "external") return;
+    if (!selectedWallet || !selectedWallet.currency) return;
+    // Chỉ cập nhật nếu currency khác với currency hiện tại
+    if (form.currency !== selectedWallet.currency) {
+      setForm(f => ({ ...f, currency: selectedWallet.currency }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.walletName, selectedWallet, variant]);
+
+  // Tự động cập nhật currency khi chọn ví gửi (cho variant internal - chuyển tiền)
+  useEffect(() => {
+    if (variant !== "internal") return;
+    if (!sourceWallet || !sourceWallet.currency) return;
+    // Cập nhật currency theo ví gửi
+    if (form.currency !== sourceWallet.currency) {
+      setForm(f => ({ ...f, currency: sourceWallet.currency }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.sourceWallet, sourceWallet, variant]);
 
   /* ========== Handlers ========== */
   const handleChange = (e) => {
@@ -274,6 +388,13 @@ export default function TransactionFormModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validation: Kiểm tra số tiền cho loại chi tiêu và chuyển tiền
+    if (!isAmountValid) {
+      // Không submit nếu số tiền không hợp lệ
+      return;
+    }
+    
     if (variant === "internal") {
       onSubmit?.({
         sourceWallet: form.sourceWallet,
@@ -372,12 +493,10 @@ export default function TransactionFormModal({
 
                   <div className="row g-3">
                     <div className="col-md-6">
-                      <WalletSelectInput
-                        id="wallet-options"
+                      <SelectInput
                         label="Ví"
                         value={form.walletName}
                         onChange={(v) => setForm((f) => ({ ...f, walletName: v }))}
-                        placeholder="Nhập hoặc chọn ví..."
                         options={walletOptions}
                       />
                     </div>
@@ -392,9 +511,25 @@ export default function TransactionFormModal({
                           value={form.amount}
                           onChange={handleChange}
                           required
+                          min={0}
                         />
                         <span className="input-group-text">{form.currency}</span>
                       </div>
+                      {/* Hiển thị số dư cho loại chi tiêu */}
+                      {form.type === "expense" && selectedWallet && (
+                        <div className="form-text">
+                          Số dư hiện tại:{" "}
+                          <strong>
+                            {formatMoney(selectedWallet.balance, selectedWallet.currency || "VND")}
+                          </strong>
+                        </div>
+                      )}
+                      {/* Hiển thị lỗi khi số tiền vượt quá số dư */}
+                      {showAmountError && (
+                        <div className="text-danger small mt-1">
+                          Số tiền không hợp lệ hoặc vượt quá số dư.
+                        </div>
+                      )}
                     </div>
 
                     <div className="col-md-6">
@@ -412,12 +547,10 @@ export default function TransactionFormModal({
                     </div>
 
                     <div className="col-md-6">
-                      <WalletSelectInput
-                        id="category-options"
+                      <SelectInput
                         label="Danh mục"
                         value={form.category}
                         onChange={(v) => setForm((f) => ({ ...f, category: v }))}
-                        placeholder="Nhập hoặc chọn danh mục..."
                         options={categoryOptions}
                       />
                     </div>
@@ -471,25 +604,37 @@ export default function TransactionFormModal({
                   </div>
 
                   <div className="col-md-6">
-                    <WalletSelectInput
-                      id="source-wallet"
+                    <SelectInput
                       label="Ví gửi"
                       value={form.sourceWallet}
-                      onChange={(v) => setForm((f) => ({ ...f, sourceWallet: v }))}
-                      placeholder="Nhập hoặc chọn ví gửi..."
+                      onChange={(v) => {
+                        setForm((f) => {
+                          // Nếu ví nhận trùng với ví gửi mới, reset ví nhận
+                          const newTarget = v === f.targetWallet ? "" : f.targetWallet;
+                          return { ...f, sourceWallet: v, targetWallet: newTarget };
+                        });
+                      }}
                       options={walletOptions}
                     />
+                    {sourceWallet && (
+                      <div className="text-muted small mt-1">
+                        Số dư: <strong>{formatMoney(sourceWallet.balance, sourceWallet.currency)}</strong>
+                      </div>
+                    )}
                   </div>
 
                   <div className="col-md-6">
-                    <WalletSelectInput
-                      id="target-wallet"
+                    <SelectInput
                       label="Ví nhận"
                       value={form.targetWallet}
                       onChange={(v) => setForm((f) => ({ ...f, targetWallet: v }))}
-                      placeholder="Nhập hoặc chọn ví nhận..."
-                      options={walletOptions}
+                      options={targetWalletOptions}
                     />
+                    {targetWallet && (
+                      <div className="text-muted small mt-1">
+                        Số dư: <strong>{formatMoney(targetWallet.balance, targetWallet.currency)}</strong>
+                      </div>
+                    )}
                   </div>
 
                   <div className="col-md-6">
@@ -502,9 +647,36 @@ export default function TransactionFormModal({
                         value={form.amount}
                         onChange={handleChange}
                         required
+                        min={0}
+                        placeholder={sourceWallet ? `Nhập số tiền bằng ${sourceWallet.currency || "ví gửi"}` : ""}
                       />
-                      <span className="input-group-text">{form.currency}</span>
+                      <span className="input-group-text">{sourceWallet?.currency || form.currency || "VND"}</span>
                     </div>
+                    {/* Hiển thị số tiền chuyển đổi nếu khác loại tiền tệ */}
+                    {currenciesDiffer && convertedAmount > 0 && (
+                      <div className="small text-muted mt-1">
+                        Tiền chuyển đổi:{" "}
+                        <strong>
+                          {formatMoney(convertedAmount, targetWallet?.currency || "VND")}
+                        </strong>
+                      </div>
+                    )}
+                    {/* Hiển thị tỷ giá nếu khác loại tiền tệ */}
+                    {currenciesDiffer && sourceWallet && targetWallet && (
+                      <div className="small text-muted mt-1">
+                        Tỷ giá: 1 {sourceWallet.currency || "VND"} ={" "}
+                        {new Intl.NumberFormat("vi-VN", {
+                          maximumFractionDigits: 6,
+                        }).format(transferRate)}{" "}
+                        {targetWallet.currency || "VND"}
+                      </div>
+                    )}
+                    {/* Hiển thị lỗi khi số tiền vượt quá số dư ví gửi */}
+                    {showTransferAmountError && (
+                      <div className="text-danger small mt-1">
+                        Số tiền không hợp lệ hoặc vượt quá số dư ví gửi.
+                      </div>
+                    )}
                   </div>
 
                   <div className="col-md-6">
@@ -540,7 +712,11 @@ export default function TransactionFormModal({
               <button type="button" className="btn btn-light" onClick={onClose}>
                 Hủy bỏ
               </button>
-              <button type="submit" className="btn btn-primary">
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                disabled={!isAmountValid}
+              >
                 Lưu
               </button>
             </div>
