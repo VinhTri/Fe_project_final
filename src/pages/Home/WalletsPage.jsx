@@ -86,10 +86,14 @@ export default function WalletsPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("default"); // default | name_asc | balance_desc | balance_asc
 
-  // ví đang chọn
-  const [selectedId, setSelectedId] = useState(wallets[0]?.id ?? null);
-  const selectedWallet =
-    wallets.find((w) => w.id === selectedId) || personalWallets[0] || null;
+  // ====== ví đang chọn: MẶC ĐỊNH CHƯA CHỌN VÍ NÀO ======
+  const [selectedId, setSelectedId] = useState(null);
+
+  // selectedWallet chỉ hợp lệ khi chọn từ danh sách
+  const selectedWallet = useMemo(
+    () => wallets.find((w) => w.id === selectedId) || null,
+    [wallets, selectedId]
+  );
 
   // TAB chi tiết: view | topup | withdraw | transfer | edit | merge | convert
   const [activeDetailTab, setActiveDetailTab] = useState("view");
@@ -149,6 +153,22 @@ export default function WalletsPage() {
     setActiveDetailTab("view");
   }, [selectedWallet?.id]);
 
+  // Khi đổi tab (Ví cá nhân / Ví nhóm) mà ví đang chọn không thuộc tab đó → bỏ chọn
+  useEffect(() => {
+    if (!selectedId) return;
+    const w = wallets.find((x) => x.id === selectedId);
+    if (!w) {
+      setSelectedId(null);
+      return;
+    }
+    if (activeTab === "personal" && w.isShared) {
+      setSelectedId(null);
+    }
+    if (activeTab === "group" && !w.isShared) {
+      setSelectedId(null);
+    }
+  }, [activeTab, wallets, selectedId]);
+
   const totalBalance = useMemo(
     () =>
       wallets.reduce(
@@ -198,8 +218,15 @@ export default function WalletsPage() {
     return arr;
   }, [filteredWallets, sortBy]);
 
+  // chọn ví từ danh sách
   const handleSelectWallet = (id) => {
     setSelectedId(id);
+    setActiveDetailTab("view");
+  };
+
+  // callback cho MergeTab / ConvertTab nếu muốn chủ động đổi ví đang chọn
+  const handleChangeSelectedWallet = (idOrNull) => {
+    setSelectedId(idOrNull);
     setActiveDetailTab("view");
   };
 
@@ -241,9 +268,15 @@ export default function WalletsPage() {
       return;
     }
 
-    await fn(payload);
+    const created = await fn(payload);
 
     showToast("Tạo ví cá nhân thành công!");
+
+    // nếu API trả về ví mới, chọn luôn ví đó
+    if (created?.id) {
+      setSelectedId(created.id);
+      setActiveDetailTab("view");
+    }
 
     setCreateForm(buildWalletForm());
     setCreateShareEmail("");
@@ -306,6 +339,12 @@ export default function WalletsPage() {
     });
 
     showToast("Đã chuyển ví sang ví nhóm!");
+
+    // vì ví chuyển sang nhóm → biến mất khỏi tab "Ví cá nhân"
+    // => clear selection & tự chuyển sang tab "Ví nhóm"
+    setSelectedId(null);
+    setActiveTab("group");
+    setActiveDetailTab("view");
   };
 
   // ========= DELETE WALLET =========
@@ -317,10 +356,10 @@ export default function WalletsPage() {
     await deleteWallet(walletId);
     showToast("Xoá ví thành công!");
 
-    // reset selectedId nếu vừa xoá ví đang xem
+    // nếu xoá đúng ví đang xem → bỏ chọn
     if (walletId === selectedId) {
-      const remaining = wallets.filter((w) => w.id !== walletId);
-      setSelectedId(remaining[0]?.id ?? null);
+      setSelectedId(null);
+      setActiveDetailTab("view");
     }
   };
 
@@ -356,6 +395,10 @@ export default function WalletsPage() {
       }
 
       showToast("Gộp ví thành công (demo)!");
+
+      // 3) Sau khi gộp: ví nguồn biến mất → chọn luôn ví đích
+      setSelectedId(targetWalletId);
+      setActiveDetailTab("view");
     } else {
       // Fallback nhánh cũ: không truyền options
       if (!selectedWallet || !mergeTargetId) return;
@@ -367,6 +410,9 @@ export default function WalletsPage() {
           categoryId: mergeCategoryId || null,
         });
         showToast("Gộp ví thành công (demo)!");
+
+        setSelectedId(mergeTargetId);
+        setActiveDetailTab("view");
       } else {
         console.warn("Chưa cấu hình mergeWallets trong WalletDataContext.");
       }
@@ -604,6 +650,9 @@ export default function WalletsPage() {
           onConvertToGroup={handleConvertToGroup}
           // delete (nếu bạn dùng trong WalletDetail)
           onDeleteWallet={handleDeleteWallet}
+          // cho MergeTab / ConvertTab chủ động đổi ví đang chọn
+          onChangeSelectedWallet={handleChangeSelectedWallet}
+           walletTabType={activeTab}
         />
       </div>
     </div>

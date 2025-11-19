@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 export default function WalletDetail(props) {
   const {
     wallet,
-
+ walletTabType = "personal",
     currencies,
     categories,
     showCreate,
@@ -72,12 +72,15 @@ export default function WalletDetail(props) {
 
     // convert
     onConvertToGroup,
+
+    // callback để thay đổi ví đang chọn ở cột trái
+    onChangeSelectedWallet,
   } = props;
 
   const sharedEmails = wallet?.sharedEmails || [];
   const balance = Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
 
-  // ======= VIEW STATES =======
+  // ======= VIEW: CREATE NEW WALLET =======
   if (showCreate) {
     return (
       <div className="wallets-detail-panel">
@@ -219,12 +222,42 @@ export default function WalletDetail(props) {
     );
   }
 
+  // ======= KHÔNG CÓ VÍ ĐANG CHỌN → HIỆN HƯỚNG DẪN =======
+  // ======= KHÔNG CÓ VÍ ĐANG CHỌN → HIỂN THỊ PLACEHOLDER (KHÔNG NÚT TẠO) =======
+   // ======= KHÔNG CÓ VÍ ĐANG CHỌN → PLACEHOLDER THEO TỪNG TAB =======
   if (!wallet) {
+    const isGroupTab = walletTabType === "group";
+
     return (
-      <div className="wallets-detail-panel">
-        <div className="wallets-detail__empty">
-          <h3>Chưa chọn ví</h3>
-          <p>Chọn một ví ở danh sách bên trái để xem chi tiết.</p>
+      <div className="wallets-detail-panel wallets-detail-panel--empty">
+        <div className="wallets-detail-empty">
+          {isGroupTab ? (
+            <>
+              <h2 className="wallets-detail-empty__title">
+                Chưa có ví nhóm nào
+              </h2>
+              <p className="wallets-detail-empty__text">
+                Bạn chưa có ví nhóm trong mục này.
+              </p>
+              <p className="wallets-detail-empty__hint">
+                Hãy tạo ví nhóm mới để bắt đầu quản lý chi tiêu chung với mọi
+                người.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="wallets-detail-empty__title">
+                Chưa có ví nào được chọn
+              </h2>
+              <p className="wallets-detail-empty__text">
+                Vui lòng chọn một ví ở danh sách bên trái để xem chi tiết.
+              </p>
+              <p className="wallets-detail-empty__hint">
+                Hoặc dùng nút <strong>“Tạo ví cá nhân”</strong> ở góc trên bên
+                phải để tạo ví mới.
+              </p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -410,11 +443,16 @@ export default function WalletDetail(props) {
           mergeCategoryId={mergeCategoryId}
           setMergeCategoryId={setMergeCategoryId}
           onSubmitMerge={onSubmitMerge}
+          onChangeSelectedWallet={onChangeSelectedWallet}
         />
       )}
 
       {activeDetailTab === "convert" && (
-        <ConvertTab wallet={wallet} onConvertToGroup={onConvertToGroup} />
+        <ConvertTab
+          wallet={wallet}
+          onConvertToGroup={onConvertToGroup}
+          onChangeSelectedWallet={onChangeSelectedWallet}
+        />
       )}
     </div>
   );
@@ -430,16 +468,13 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
         <span>Thông tin cơ bản, chia sẻ và lịch sử giao dịch.</span>
       </div>
 
-      {/* layout 2 cột */}
       <div className="wallets-detail-view">
-        {/* CARD TRÁI: Chi tiết + chia sẻ */}
         <div className="wallets-detail-view__col">
           <div className="wallets-detail-view__card">
             <div className="wallets-detail-view__card-header">
               <span>Thông tin &amp; chia sẻ</span>
             </div>
 
-            {/* Info */}
             <div className="wallet-detail-grid">
               <div className="wallet-detail-item">
                 <span className="wallet-detail-item__label">Loại ví</span>
@@ -469,7 +504,6 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
               </div>
             </div>
 
-            {/* Chia sẻ */}
             <div className="wallets-detail__share">
               <h4>Chia sẻ ví</h4>
               {sharedEmails.length === 0 ? (
@@ -492,7 +526,6 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
           </div>
         </div>
 
-        {/* CARD PHẢI: Lịch sử */}
         <div className="wallets-detail-view__col wallets-detail-view__col--history">
           <div className="wallets-detail-view__card">
             <div className="wallets-detail-view__card-header">
@@ -502,7 +535,6 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
               </span>
             </div>
 
-            {/* tóm tắt số giao dịch */}
             <div className="wallets-detail__history-summary">
               <div className="wallet-detail-item wallet-detail-item--inline">
                 <span className="wallet-detail-item__label">
@@ -514,7 +546,6 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
               </div>
             </div>
 
-            {/* danh sách lịch sử */}
             <div className="wallets-detail__history">
               {demoTransactions.length === 0 ? (
                 <p className="wallets-detail__history-empty">
@@ -541,7 +572,6 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
                       </div>
 
                       <div className="wallets-detail__history-meta">
-                        {/* danh mục + thời gian */}
                         <span className="wallets-detail__history-category">
                           {tx.categoryName || "Danh mục khác"}
                         </span>
@@ -709,7 +739,7 @@ function WithdrawTab({
   );
 }
 
-/* ========= TRANSFER TAB – có cảnh báo khác tiền tệ ========= */
+/* ========= TRANSFER TAB ========= */
 function TransferTab({
   wallet,
   allWallets,
@@ -813,7 +843,6 @@ function TransferTab({
           </label>
         </div>
 
-        {/* CẢNH BÁO KHÁC TIỀN TỆ */}
         {currencyMismatch && (
           <div className="wallet-transfer__fx-warning">
             <div className="wallet-transfer__fx-title">
@@ -852,6 +881,7 @@ function TransferTab({
 }
 
 function EditTab({
+  wallet,
   currencies,
   editForm,
   onEditFieldChange,
@@ -905,7 +935,6 @@ function EditTab({
           </label>
         </div>
 
-        {/* quản lý chia sẻ */}
         <div className="wallet-form__share-block">
           <label className="wallet-form__full">
             Thêm email chia sẻ
@@ -965,7 +994,7 @@ function EditTab({
   );
 }
 
-/* ===================== MERGE TAB (5 bước + xử lý default cho mọi case) ===================== */
+/* ===================== MERGE TAB ===================== */
 function MergeTab({
   wallet,
   allWallets,
@@ -975,24 +1004,19 @@ function MergeTab({
   mergeCategoryId,
   setMergeCategoryId,
   onSubmitMerge,
+  onChangeSelectedWallet,
 }) {
-  const [step, setStep] = useState(2); // 2: chọn ví & chiều, 3: xử lý ví mặc định, 4: loại tiền, 5: preview, 6: processing/success
+  const [step, setStep] = useState(2);
   const [targetId, setTargetId] = useState(mergeTargetId || "");
   const [currencyMode, setCurrencyMode] = useState("keepTarget");
   const [agree, setAgree] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // this_into_other: gộp "ví hiện tại" vào ví khác
-  // other_into_this: gộp ví khác vào "ví hiện tại"
-  const [direction, setDirection] = useState("this_into_other");
-
+  const [direction, setDirection] = useState("this_into_other"); // this_into_other | other_into_this
   const [searchTerm, setSearchTerm] = useState("");
-
-  // true = sau khi gộp sẽ cố gắng đặt ví đích làm ví mặc định mới
   const [makeTargetDefault, setMakeTargetDefault] = useState(false);
 
-  // progress giả lập
   useEffect(() => {
     if (!processing) return;
     setProgress(0);
@@ -1009,18 +1033,15 @@ function MergeTab({
     return () => clearInterval(timer);
   }, [processing]);
 
-  // sync targetId ra ngoài nếu cần
   useEffect(() => {
     if (setMergeTargetId) setMergeTargetId(targetId);
   }, [targetId, setMergeTargetId]);
 
-  // Đổi chiều gộp → reset
   useEffect(() => {
     setTargetId("");
     if (setMergeTargetId) setMergeTargetId("");
   }, [direction, setMergeTargetId]);
 
-  // đổi target → reset lựa chọn mặc định
   useEffect(() => {
     setMakeTargetDefault(false);
   }, [targetId, direction]);
@@ -1033,10 +1054,8 @@ function MergeTab({
     );
   }
 
-  // ======== TÍNH TOÁN CƠ BẢN ========
   const currentWallet = wallet;
   const thisName = currentWallet.name || "Ví hiện tại";
-  const isCurrentDefault = !!currentWallet.isDefault;
 
   const selectableWallets = (allWallets || []).filter(
     (w) => w.id !== currentWallet.id
@@ -1054,7 +1073,6 @@ function MergeTab({
 
   const isThisIntoOther = direction === "this_into_other";
 
-  // ví nguồn / ví đích cho bước 4–5–6
   const sourceWallet =
     direction === "this_into_other"
       ? currentWallet
@@ -1069,19 +1087,18 @@ function MergeTab({
   const srcName = sourceWallet?.name || "Ví nguồn";
   const srcBalance =
     Number(sourceWallet?.balance ?? sourceWallet?.current ?? 0) || 0;
-  const srcTxCount = sourceWallet?.txCount ?? 15; // demo
+  const srcTxCount = sourceWallet?.txCount ?? 15;
 
   const tgtCurrency = targetWallet?.currency || srcCurrency;
   const tgtName = targetWallet?.name || "Ví đích";
   const tgtBalance =
     Number(targetWallet?.balance ?? targetWallet?.current ?? 0) || 0;
-  const tgtTxCount = targetWallet?.txCount ?? 30; // demo
+  const tgtTxCount = targetWallet?.txCount ?? 30;
 
   const currentIsDefault = !!currentWallet.isDefault;
   const selectedIsDefault = !!selectedWallet?.isDefault;
   const anyDefaultInPair = currentIsDefault || selectedIsDefault;
 
-  // default đang ở ví nguồn hay ví đích (trong cặp đang gộp)
   const sourceIsDefault =
     (direction === "this_into_other" && currentIsDefault) ||
     (direction === "other_into_this" && selectedIsDefault);
@@ -1091,12 +1108,10 @@ function MergeTab({
     (direction === "other_into_this" && currentIsDefault);
 
   const differentCurrency = !!targetWallet && srcCurrency !== tgtCurrency;
-
   const RATE_USD_VND = 24350;
 
   const convertedSourceAmount = (() => {
     if (!differentCurrency || !sourceWallet) return srcBalance;
-
     if (currencyMode === "keepTarget") {
       if (srcCurrency === "USD" && tgtCurrency === "VND") {
         return srcBalance * RATE_USD_VND;
@@ -1121,10 +1136,37 @@ function MergeTab({
     return tgtBalance + convertedSourceAmount;
   })();
 
+  // ========= 4 LUẬT GỘP VÍ MẶC ĐỊNH =========
+  const needDefaultConfirmation = (() => {
+    if (!selectedWallet) return false;
+
+    // 1) Chọn ví mặc định, gộp ví khác vào ví mặc định → KHÔNG xác nhận
+    // 2) Chọn ví mặc định, gộp ví mặc định vào ví khác → CẦN xác nhận
+    // 3) Chọn ví thường, gộp ví thường vào ví mặc định → KHÔNG xác nhận
+    // 4) Chọn ví thường, gộp ví mặc định vào ví thường → CẦN xác nhận
+
+    if (currentIsDefault && direction === "this_into_other") {
+      // luật 2
+      return true;
+    }
+
+    if (!currentIsDefault && direction === "other_into_this" && selectedIsDefault) {
+      // luật 4
+      return true;
+    }
+
+    // các case còn lại đều không cần xác nhận
+    return false;
+  })();
+
   const handleNextFromStep2 = () => {
     if (!targetId) return;
-    // luôn đi qua bước xử lý ví mặc định (step 3) cho mọi case
-    setStep(3);
+    if (needDefaultConfirmation) {
+      setStep(3);
+    } else {
+      // bỏ qua bước xác nhận, đi thẳng sang tiền tệ
+      setStep(4);
+    }
   };
 
   const handleConfirmMerge = () => {
@@ -1150,12 +1192,14 @@ function MergeTab({
     setTimeout(() => {
       const fakeEvent = { preventDefault: () => {} };
       onSubmitMerge(fakeEvent, payload);
+
+      if (onChangeSelectedWallet && targetIdFinal) {
+        onChangeSelectedWallet(targetIdFinal);
+      }
     }, 3000);
   };
 
-  /* =========================
-     STEP 2: CHỌN VÍ & CHIỀU GỘP
-  ========================== */
+  /* STEP 2 */
   const renderStep2 = () => {
     const currentBal =
       Number(currentWallet.balance ?? currentWallet.current ?? 0) || 0;
@@ -1175,7 +1219,6 @@ function MergeTab({
         </div>
 
         <div className="wallet-merge__box">
-          {/* DÒNG MÔ TẢ QUAN HỆ GỘP */}
           {selectedWallet && (
             <div className="wallet-merge__relation">
               {isThisIntoOther ? (
@@ -1186,15 +1229,14 @@ function MergeTab({
               ) : (
                 <>
                   Gộp ví{" "}
-                    <strong>{selectedWallet.name || "Ví được chọn"}</strong> vào{" "}
-                    <strong>{thisName}</strong>
+                  <strong>{selectedWallet.name || "Ví được chọn"}</strong> vào{" "}
+                  <strong>{thisName}</strong>
                 </>
               )}
             </div>
           )}
 
           <div className="wallet-merge__grid-2">
-            {/* ====== CỘT TRÁI: TÓM TẮT VÍ NGUỒN & VÍ ĐÍCH ====== */}
             <div className="wallet-merge__summary-wrapper">
               <div className="wallet-merge__summary-wrapper-header">
                 <h4>Tóm tắt ví nguồn &amp; ví đích</h4>
@@ -1202,9 +1244,8 @@ function MergeTab({
               </div>
 
               <div className="wallet-merge__summary-col">
-                {/* VÍ NGUỒN = luôn là ví hiện tại trong phần tóm tắt */}
                 <div className="wallet-merge__summary-card wallet-merge__summary-card--source">
-                  <div className="wallet-merge__summary-title">VÍ NGUỒN</div>
+                  <div className="wallet-merge__summary-title">VÍ HIỆN TẠI</div>
                   <div className="wallet-merge__summary-name">{thisName}</div>
 
                   <div className="wallet-merge__summary-row">
@@ -1221,14 +1262,13 @@ function MergeTab({
                     <span>Số giao dịch (demo)</span>
                     <span>{currentTx}</span>
                   </div>
-                  {isCurrentDefault && (
+                  {currentIsDefault && (
                     <div className="wallet-merge__target-warning">
                       Đây là ví mặc định hiện tại.
                     </div>
                   )}
                 </div>
 
-                {/* VÍ ĐÍCH ĐANG CHỌN */}
                 <div className="wallet-merge__summary-card wallet-merge__summary-card--target">
                   <div className="wallet-merge__summary-title">
                     VÍ ĐÍCH ĐANG CHỌN
@@ -1263,14 +1303,19 @@ function MergeTab({
                   </div>
                   {selectedWallet?.isDefault && (
                     <div className="wallet-merge__target-warning">
-                      Đây là một ví mặc định.
+                      Ví này đang là ví mặc định.
                     </div>
                   )}
+                  {selectedWallet &&
+                    (selectedWallet.currency || "VND") !== currentCur && (
+                      <div className="wallet-merge__target-warning">
+                        Khác loại tiền tệ với ví hiện tại
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
 
-            {/* ====== CỘT PHẢI: THIẾT LẬP & DANH SÁCH VÍ ====== */}
             <div className="wallet-merge__right-wrapper">
               <div className="wallet-merge__right-header">
                 <h4>Thiết lập gộp &amp; chọn ví</h4>
@@ -1317,7 +1362,6 @@ function MergeTab({
                   Chỉ những ví khác với ví hiện tại mới được hiển thị.
                 </p>
 
-                {/* SEARCH */}
                 <div className="wallet-merge__search">
                   <input
                     type="text"
@@ -1327,7 +1371,6 @@ function MergeTab({
                   />
                 </div>
 
-                {/* LIST VÍ */}
                 <div className="wallet-merge__target-list">
                   {filteredWallets.length === 0 && (
                     <p className="wallet-merge__empty">
@@ -1342,7 +1385,7 @@ function MergeTab({
                         "vi-VN"
                       ) || "0";
                     const isDiff =
-                      (w.currency || "VND") !== currentCur; // so với ví hiện tại
+                      (w.currency || "VND") !== currentCur;
 
                     return (
                       <label
@@ -1420,16 +1463,12 @@ function MergeTab({
     );
   };
 
-  /* =========================
-     STEP 3: XỬ LÝ VÍ MẶC ĐỊNH (áp dụng cho mọi case)
-  ========================== */
+  /* STEP 3 */
   const renderStep3DefaultHandling = () => {
-    if (!selectedWallet) {
-      setStep(4);
-      return null;
-    }
+    // Step này chỉ vào khi needDefaultConfirmation = true
+    if (!selectedWallet || !sourceWallet || !targetWallet) return null;
 
-    // Case 1: ví mặc định là ví nguồn → nguy hiểm, có thể bị xoá
+    // TH 1: ví nguồn là ví mặc định (ví đang chọn là default, gộp vào ví khác)
     if (sourceIsDefault) {
       const defaultName = sourceWallet?.name || "Ví mặc định hiện tại";
       return (
@@ -1532,8 +1571,7 @@ function MergeTab({
       );
     }
 
-    // Case 2: các case còn lại (bao gồm ví thường gộp vào ví mặc định,
-    // hoặc cặp này không phải ví mặc định nhưng hệ thống có/không có default ở chỗ khác)
+    // TH 2: ví mặc định là ví còn lại trong cặp (gộp default vào ví thường)
     return (
       <div className="wallets-section wallet-merge__panel">
         <div className="wallet-merge__step-header">
@@ -1546,43 +1584,20 @@ function MergeTab({
         <div className="wallet-merge__box">
           <div className="wallet-merge__section-block wallet-merge__section-block--warning">
             <div className="wallet-merge__section-title">
-              Kiểm tra lại cấu hình ví mặc định
+              Bạn đang gộp một ví mặc định vào ví thường
             </div>
             <ul className="wallet-merge__list">
-              {targetIsDefault && (
-                <>
-                  <li>
-                    Ví đích <strong>{tgtName}</strong> hiện đang là ví mặc định.
-                  </li>
-                  <li>
-                    Sau khi gộp, ví mặc định vẫn là{" "}
-                    <strong>{tgtName}</strong>, trừ khi bạn thay đổi.
-                  </li>
-                </>
-              )}
-
-              {!targetIsDefault && anyDefaultInPair && !sourceIsDefault && (
-                <>
-                  <li>
-                    Một ví trong cặp gộp đang là ví mặc định, nhưng không phải
-                    ví nguồn.
-                  </li>
-                  <li>
-                    Bạn có thể giữ nguyên hoặc chuyển sang dùng ví đích làm ví
-                    mặc định mới.
-                  </li>
-                </>
-              )}
-
-              {!anyDefaultInPair && (
-                <>
-                  <li>Hiện tại hệ thống chưa có ví mặc định.</li>
-                  <li>
-                    Bạn có thể đặt ví đích <strong>{tgtName}</strong> làm ví
-                    mặc định sau khi gộp.
-                  </li>
-                </>
-              )}
+              <li>
+                Ví <strong>{srcName}</strong> hiện đang là ví mặc định.
+              </li>
+              <li>
+                Sau khi gộp, ví mặc định này sẽ bị xoá và chỉ còn ví{" "}
+                <strong>{tgtName}</strong>.
+              </li>
+              <li>
+                Bạn cần quyết định có đặt ví <strong>{tgtName}</strong> làm ví
+                mặc định mới hay không.
+              </li>
             </ul>
           </div>
 
@@ -1623,8 +1638,7 @@ function MergeTab({
                     Không tự động thay đổi ví mặc định
                   </div>
                   <div className="wallet-merge__option-desc">
-                    Giữ nguyên ví mặc định hiện tại (nếu đang có). Nếu hệ thống
-                    chưa có ví mặc định thì vẫn giữ trạng thái như cũ.
+                    Bạn có thể tự chọn lại ví mặc định sau ở phần quản lý ví.
                   </div>
                 </div>
               </label>
@@ -1652,9 +1666,7 @@ function MergeTab({
     );
   };
 
-  /* =========================
-     STEP 4: CHỌN LOẠI TIỀN ĐÍCH
-  ========================== */
+  /* STEP 4: TIỀN TỆ */
   const renderStep4Currency = () => {
     if (!targetWallet) return null;
 
@@ -1793,7 +1805,7 @@ function MergeTab({
                 </div>
                 <div className="wallet-merge__option-foot">
                   Tỷ giá demo: 1 USD ={" "}
-                  {RATE_USD_VND.toLocaleString("vi-VN")} VND
+                    {RATE_USD_VND.toLocaleString("vi-VN")} VND
                 </div>
               </div>
             </label>
@@ -1820,9 +1832,7 @@ function MergeTab({
     );
   };
 
-  /* =========================
-     STEP 5: XEM TRƯỚC KẾT QUẢ
-  ========================== */
+  /* STEP 5: PREVIEW */
   const renderStep5Preview = () => {
     if (!targetWallet || !sourceWallet) return null;
 
@@ -1864,13 +1874,13 @@ function MergeTab({
                 <span>{tgtCurrency}</span>
               </div>
               <div className="wallet-merge__summary-row">
-                <span>Số dư hiện tại </span>
+                <span>Số dư hiện tại</span>
                 <span>
                   {tgtBalance.toLocaleString("vi-VN")} {tgtCurrency}
                 </span>
               </div>
               <div className="wallet-merge__summary-row">
-                <span>Giao dịch hiện tại </span>
+                <span>Giao dịch hiện tại</span>
                 <span>{tgtTxCount}</span>
               </div>
             </div>
@@ -1892,13 +1902,13 @@ function MergeTab({
                 <span>{finalCurrency}</span>
               </div>
               <div className="wallet-merge__result-row">
-                <span>Số dư dự kiến </span>
+                <span>Số dư dự kiến</span>
                 <span>
                   {finalBalance.toLocaleString("vi-VN")} {finalCurrency}
                 </span>
               </div>
               <div className="wallet-merge__result-row">
-                <span>Tổng giao dịch </span>
+                <span>Tổng giao dịch</span>
                 <span>{srcTxCount + tgtTxCount}</span>
               </div>
             </div>
@@ -1927,11 +1937,9 @@ function MergeTab({
           </div>
 
           <div className="wallet-merge__section-block wallet-merge__section-block--warning">
-            <div className="wallet-merge__section-title">
-              Xác nhận 
-            </div>
+            <div className="wallet-merge__section-title">Xác nhận</div>
             <ul className="wallet-merge__list">
-              <li>Ví nguồn sẽ bị xoá sau khi gộp .</li>
+              <li>Ví nguồn sẽ bị xoá sau khi gộp.</li>
               <li>
                 Các giao dịch sẽ được chuyển sang ví đích theo loại tiền đã
                 chọn.
@@ -1971,15 +1979,11 @@ function MergeTab({
     );
   };
 
-  /* =========================
-     STEP 6: PROCESSING / SUCCESS
-  ========================== */
+  /* STEP 6: PROCESSING */
   const renderStep6Processing = () => (
     <div className="wallets-section wallet-merge__panel">
       <div className="wallet-merge__step-header">
-        <div className="wallet-merge__step-label">
-           Xử lý và hoàn tất
-        </div>
+        <div className="wallet-merge__step-label">Xử lý và hoàn tất</div>
         <div className="wallet-merge__step-pill">Hoàn thành</div>
       </div>
 
@@ -1987,7 +1991,7 @@ function MergeTab({
         {processing ? (
           <div className="wallet-merge__processing">
             <div className="wallet-merge__section-title">
-              Hệ thống đang gộp ví 
+              Hệ thống đang gộp ví
             </div>
             <p className="wallet-merge__hint">
               Đang chuyển số dư & giao dịch sang ví đích...
@@ -2005,7 +2009,7 @@ function MergeTab({
         ) : (
           <div className="wallet-merge__success">
             <div className="wallet-merge__section-title">
-              Gộp ví thành công 
+              Gộp ví thành công
             </div>
             <p className="wallet-merge__hint">
               Hệ thống đã cập nhật lại số dư & giao dịch theo thiết lập của
@@ -2034,7 +2038,17 @@ function MergeTab({
   return renderStep6Processing();
 }
 
-function ConvertTab({ wallet, onConvertToGroup }) {
+function ConvertTab({ wallet, onConvertToGroup, onChangeSelectedWallet }) {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    onConvertToGroup?.(e);
+
+    if (onChangeSelectedWallet) {
+      onChangeSelectedWallet(null);
+    }
+  };
+
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
@@ -2044,7 +2058,7 @@ function ConvertTab({ wallet, onConvertToGroup }) {
           viên ở phần chia sẻ.
         </span>
       </div>
-      <form className="wallet-form" onSubmit={onConvertToGroup}>
+      <form className="wallet-form" onSubmit={handleSubmit}>
         <div className="wallet-form__row">
           <div className="wallet-form__full">
             <p style={{ fontSize: 13, color: "#444" }}>
