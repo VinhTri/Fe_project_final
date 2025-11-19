@@ -1,5 +1,6 @@
 // src/components/wallets/WalletDetail.jsx
 import React, { useState, useEffect } from "react";
+import ConfirmModal from "../common/Modal/ConfirmModal";
 
 export default function WalletDetail(props) {
   const {
@@ -75,6 +76,8 @@ export default function WalletDetail(props) {
 
     // callback để thay đổi ví đang chọn ở cột trái
     onChangeSelectedWallet,
+    onDeleteWallet,
+    
   } = props;
 
   const sharedEmails = wallet?.sharedEmails || [];
@@ -439,6 +442,7 @@ export default function WalletDetail(props) {
           onAddEditShareEmail={onAddEditShareEmail}
           onRemoveEditShareEmail={onRemoveEditShareEmail}
           onSubmitEdit={onSubmitEdit}
+           onDeleteWallet={onDeleteWallet} 
         />
       )}
 
@@ -900,8 +904,24 @@ function EditTab({
   onAddEditShareEmail,
   onRemoveEditShareEmail,
   onSubmitEdit,
+  onDeleteWallet,
 }) {
   const isGroupWallet = !!wallet.isShared;
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleOpenDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleCloseDelete = () => {
+    setShowDeleteConfirm(false);
+  };
+
+  const handleConfirmDelete = () => {
+    setShowDeleteConfirm(false);
+    // gọi props xoá ví
+    onDeleteWallet?.(wallet.id);
+  };
 
   return (
     <div className="wallets-section">
@@ -909,6 +929,7 @@ function EditTab({
         <h3>Sửa ví & chia sẻ</h3>
         <span>Chỉnh thông tin ví và quản lý người được chia sẻ.</span>
       </div>
+
       <form className="wallet-form" onSubmit={onSubmitEdit} autoComplete="off">
         <div className="wallet-form__row">
           <label>
@@ -936,6 +957,7 @@ function EditTab({
             </select>
           </label>
         </div>
+
         <div className="wallet-form__row">
           <label className="wallet-form__full">
             Ghi chú
@@ -984,7 +1006,7 @@ function EditTab({
           )}
         </div>
 
-        <div className="wallet-form__footer wallet-form__footer--right">
+        <div className="wallet-form__footer">
           {/* Ví nhóm không được cài đặt mặc định */}
           {!isGroupWallet && (
             <label className="wallet-form__checkbox">
@@ -998,16 +1020,39 @@ function EditTab({
               <span>Đặt làm ví mặc định</span>
             </label>
           )}
+
           <div className="wallet-form__actions">
+            {onDeleteWallet && (
+              <button
+                type="button"
+                className="wallets-btn wallets-btn--danger-outline"
+                onClick={handleOpenDelete}
+              >
+                Xóa ví này
+              </button>
+            )}
             <button type="submit" className="wallets-btn wallets-btn--primary">
               Lưu thay đổi
             </button>
           </div>
         </div>
       </form>
+
+      {/* Modal xác nhận xoá */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Xác nhận xóa ví"
+        message={`Bạn có chắc chắn muốn xóa ví "${wallet.name || "Không tên"}"? Hành động này không thể hoàn tác.`}
+        okText="Xóa ví"
+        cancelText="Hủy"
+        danger={true}
+        onOk={handleConfirmDelete}
+        onClose={handleCloseDelete}
+      />
     </div>
   );
 }
+
 
 /* ===================== MERGE TAB ===================== */
 // (Giữ nguyên toàn bộ MergeTab & ConvertTab như bạn đã có – mình chỉ copy lại từ code của bạn)
@@ -2056,6 +2101,8 @@ function MergeTab({
 }
 
 /* ===================== CONVERT TAB ===================== */
+
+/* ===================== CONVERT TAB ===================== */
 function ConvertTab({
   wallet,
   allWallets = [],
@@ -2068,7 +2115,6 @@ function ConvertTab({
   // chỉ xử lý chọn ví mặc định mới trong phạm vi ví cá nhân
   const personalWallets = (allWallets || []).filter((w) => !w.isShared);
   const candidateDefaults = personalWallets.filter((w) => w.id !== wallet.id);
-
   const hasCandidate = candidateDefaults.length > 0;
 
   const [defaultMode, setDefaultMode] = useState(
@@ -2080,14 +2126,15 @@ function ConvertTab({
 
   useEffect(() => {
     // reset nếu ví / danh sách thay đổi
-    const hasCandidateNow =
-      (allWallets || []).filter((w) => !w.isShared && w.id !== wallet.id)
-        .length > 0;
-    setDefaultMode(hasCandidateNow ? "chooseOther" : "noDefault");
-    const first = (allWallets || []).filter(
+    const newCandidates = (allWallets || []).filter(
       (w) => !w.isShared && w.id !== wallet.id
-    )[0];
-    setNewDefaultId(first ? String(first.id) : "");
+    );
+    const hasCandidateNow = newCandidates.length > 0;
+
+    setDefaultMode(hasCandidateNow ? "chooseOther" : "noDefault");
+    setNewDefaultId(
+      hasCandidateNow ? String(newCandidates[0].id) : ""
+    );
   }, [wallet.id, allWallets]);
 
   const handleSubmit = (e) => {
@@ -2113,6 +2160,7 @@ function ConvertTab({
     onConvertToGroup?.(e, options || null);
 
     if (onChangeSelectedWallet) {
+      // sau khi chuyển thành ví nhóm → bỏ chọn ở cột trái
       onChangeSelectedWallet(null);
     }
   };
@@ -2134,50 +2182,58 @@ function ConvertTab({
           viên ở phần chia sẻ.
         </span>
       </div>
+
       <form className="wallet-form" onSubmit={handleSubmit}>
+        {/* Thông tin tóm tắt ví */}
         <div className="wallet-form__row">
-          <div className="wallet-form__full">
-            <p style={{ fontSize: 13, color: "#444" }}>
-              Tên ví: <strong>{wallet.name}</strong>
-              <br />
-              Trạng thái:{" "}
-              {wallet.isShared ? "Đã là ví nhóm" : "Hiện là ví cá nhân"}
-              <br />
+          <label className="wallet-form__full">
+            <span className="wallet-detail-item__label">Tóm tắt ví</span>
+            <div className="wallet-detail-item" style={{ marginTop: 4 }}>
+              <div className="wallet-detail-item__value">
+                <strong>Tên ví:</strong> {wallet.name}
+              </div>
+              <div className="wallet-detail-item__value">
+                <strong>Trạng thái:</strong>{" "}
+                {wallet.isShared ? "Đã là ví nhóm" : "Hiện là ví cá nhân"}
+              </div>
               {isDefault && !wallet.isShared && (
-                <span style={{ color: "#c0392b" }}>
-                  Ví này đang là ví mặc định.
-                </span>
+                <div className="wallet-detail-item__value" style={{ marginTop: 4 }}>
+                  <strong>Ghi chú:</strong> Ví này đang là ví mặc định.
+                </div>
               )}
-            </p>
-          </div>
+            </div>
+          </label>
         </div>
 
-        {/* Nếu ví hiện tại là ví mặc định & là ví cá nhân → yêu cầu xử lý mặc định */}
+        {/* Nếu ví hiện tại là ví mặc định & là ví cá nhân → hiển thị cảnh báo + lựa chọn */}
         {isDefault && !wallet.isShared && (
-          <div className="wallet-form__row">
-            <div className="wallet-form__full">
-              <div
-                style={{
-                  padding: 12,
-                  borderRadius: 8,
-                  background: "#fff5f5",
-                  border: "1px solid #ffd5d5",
-                  marginBottom: 12,
-                  fontSize: 13,
-                  color: "#c0392b",
-                }}
-              >
-                <strong>Chú ý:</strong> Bạn đang chuyển một ví mặc định sang ví
-                nhóm. Ví nhóm sẽ không được đặt làm ví mặc định, vui lòng chọn
-                cách xử lý ví mặc định hiện tại.
+          <>
+            {/* Cảnh báo đỏ */}
+            <div className="wallet-merge__section-block wallet-merge__section-block--warning">
+              <div className="wallet-merge__section-title">
+                Bạn đang chuyển một ví mặc định sang ví nhóm
+              </div>
+              <ul className="wallet-merge__list">
+                <li>
+                  <strong>{wallet.name}</strong> hiện đang là ví mặc định của hệ thống.
+                </li>
+                <li>
+                  Ví nhóm không được phép đặt làm ví mặc định, vì vậy cần chọn
+                  cách xử lý ví mặc định hiện tại.
+                </li>
+              </ul>
+            </div>
+
+            {/* Lựa chọn cách xử lý ví mặc định */}
+            <div className="wallet-merge__section-block">
+              <div className="wallet-merge__section-title">
+                Chọn cách xử lý ví mặc định
               </div>
 
               {hasCandidate ? (
-                <>
-                  <label
-                    className="wallet-form__checkbox"
-                    style={{ alignItems: "flex-start", gap: 8 }}
-                  >
+                <div className="wallet-merge__options">
+                  {/* Option 1: chọn ví khác làm mặc định */}
+                  <label className="wallet-merge__option">
                     <input
                       type="radio"
                       name="defaultBehavior"
@@ -2186,15 +2242,17 @@ function ConvertTab({
                       onChange={() => setDefaultMode("chooseOther")}
                     />
                     <div>
-                      <div style={{ fontWeight: 500 }}>
+                      <div className="wallet-merge__option-title">
                         Chọn một ví cá nhân khác làm ví mặc định mới
+                      </div>
+                      <div className="wallet-merge__option-desc">
+                        Sau khi chuyển sang ví nhóm, ví được chọn dưới đây sẽ trở thành ví mặc định.
                       </div>
                       <div style={{ marginTop: 6 }}>
                         <select
                           value={newDefaultId}
                           disabled={defaultMode !== "chooseOther"}
                           onChange={(e) => setNewDefaultId(e.target.value)}
-                          style={{ minWidth: 220 }}
                         >
                           {candidateDefaults.map((w) => (
                             <option key={w.id} value={w.id}>
@@ -2206,10 +2264,8 @@ function ConvertTab({
                     </div>
                   </label>
 
-                  <label
-                    className="wallet-form__checkbox"
-                    style={{ alignItems: "flex-start", gap: 8, marginTop: 8 }}
-                  >
+                  {/* Option 2: tạm thời không có ví mặc định */}
+                  <label className="wallet-merge__option">
                     <input
                       type="radio"
                       name="defaultBehavior"
@@ -2218,27 +2274,30 @@ function ConvertTab({
                       onChange={() => setDefaultMode("noDefault")}
                     />
                     <div>
-                      <div style={{ fontWeight: 500 }}>
+                      <div className="wallet-merge__option-title">
                         Tạm thời không có ví mặc định
                       </div>
-                      <div style={{ fontSize: 12, color: "#666" }}>
-                        Bạn có thể chọn lại ví mặc định sau trong phần quản lý
-                        ví.
+                      <div className="wallet-merge__option-desc">
+                        Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể
+                        đặt lại ví mặc định sau trong phần quản lý ví.
                       </div>
                     </div>
                   </label>
-                </>
+                </div>
               ) : (
-                <div style={{ fontSize: 13, color: "#444" }}>
-                  Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển ví
-                  này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc định.
-                  Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.
+                <div className="wallet-merge__section-block">
+                  <p className="wallet-merge__hint">
+                    Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển
+                    ví này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc
+                    định. Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.
+                  </p>
                 </div>
               )}
             </div>
-          </div>
+          </>
         )}
 
+        {/* Footer nút hành động */}
         <div className="wallet-form__footer wallet-form__footer--right">
           <button
             type="submit"
