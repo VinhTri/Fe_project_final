@@ -522,6 +522,40 @@ export const walletAPI = {
   getAllTransfers: async () => {
     return apiCall('/wallets/transfers');
   },
+
+  /**
+   * Cập nhật giao dịch chuyển tiền (chỉ ghi chú)
+   * @param {number} transferId 
+   * @param {string} note 
+   */
+  updateTransfer: async (transferId, note) => {
+    const id = Number(transferId);
+    if (isNaN(id)) {
+      throw new Error(`Invalid transfer ID: ${transferId}`);
+    }
+    console.log(`Calling PUT /wallets/transfers/${id}`);
+    return apiCall(`/wallets/transfers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        note: note || null,
+      }),
+    });
+  },
+
+  /**
+   * Xóa giao dịch chuyển tiền
+   * @param {number} transferId 
+   */
+  deleteTransfer: async (transferId) => {
+    const id = Number(transferId);
+    if (isNaN(id)) {
+      throw new Error(`Invalid transfer ID: ${transferId}`);
+    }
+    console.log(`Calling DELETE /wallets/transfers/${id}`);
+    return apiCall(`/wallets/transfers/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 /**
@@ -581,6 +615,50 @@ export const transactionAPI = {
         note,
         imageUrl,
       }),
+    });
+  },
+
+  /**
+   * Cập nhật giao dịch (chỉ được sửa category, note, imageUrl)
+   * @param {number} transactionId 
+   * @param {number} categoryId 
+   * @param {string} note 
+   * @param {string} imageUrl 
+   */
+  updateTransaction: async (transactionId, categoryId, note, imageUrl) => {
+    // Đảm bảo transactionId là số nguyên
+    const id = Number(transactionId);
+    if (isNaN(id)) {
+      throw new Error(`Invalid transaction ID: ${transactionId}`);
+    }
+    
+    console.log(`Calling PUT /transactions/${id}`);
+    
+    return apiCall(`/transactions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        categoryId: Number(categoryId),
+        note: note || null,
+        imageUrl: imageUrl || null,
+      }),
+    });
+  },
+
+  /**
+   * Xóa giao dịch
+   * @param {number} transactionId 
+   */
+  deleteTransaction: async (transactionId) => {
+    // Đảm bảo transactionId là số nguyên
+    const id = Number(transactionId);
+    if (isNaN(id)) {
+      throw new Error(`Invalid transaction ID: ${transactionId}`);
+    }
+    
+    console.log(`Calling DELETE /transactions/${id}`);
+    
+    return apiCall(`/transactions/${id}`, {
+      method: 'DELETE',
     });
   },
 };

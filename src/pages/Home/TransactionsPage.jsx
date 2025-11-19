@@ -288,7 +288,7 @@ export default function TransactionsPage() {
           setToast({ 
             open: true, 
             message: `Không tìm thấy danh mục "${payload.category}" trong loại ${payload.type === "income" ? "thu nhập" : "chi tiêu"}.`,
-            type: "error",
+            type: "error"
           });
           return;
         }
@@ -324,7 +324,7 @@ export default function TransactionsPage() {
           );
         }
 
-        setToast({ open: true, message: "Đã thêm giao dịch mới.", type: "success" });
+        setToast({ open: true, message: "Đã thêm giao dịch mới." });
       } else {
         // Internal transfer
         const sourceWallet = wallets.find(w => w.walletName === payload.sourceWallet || w.name === payload.sourceWallet);
@@ -345,7 +345,7 @@ export default function TransactionsPage() {
           payload.note || ""
         );
 
-        setToast({ open: true, message: "Đã thêm giao dịch chuyển tiền mới.", type: "success" });
+        setToast({ open: true, message: "Đã thêm giao dịch chuyển tiền mới." });
       }
 
       // Reload wallets để cập nhật số dư sau khi tạo giao dịch
@@ -391,18 +391,168 @@ export default function TransactionsPage() {
     setCreating(true); // Go back to create form
   };
 
-  const handleUpdate = (payload) => {
-    // TODO: Backend chưa có API update transaction
-    // Tạm thời hiển thị thông báo
-    setEditing(null);
-    setToast({ open: true, message: "Tính năng chỉnh sửa giao dịch chưa được hỗ trợ. Vui lòng xóa và tạo lại.", type: "error" });
+  const handleUpdate = async (payload) => {
+    if (!editing) {
+      console.error("handleUpdate: editing is null");
+      return;
+    }
+
+    if (!editing.id) {
+      console.error("handleUpdate: editing.id is missing", editing);
+      setToast({ open: true, message: "Không tìm thấy ID giao dịch.", type: "error" });
+      return;
+    }
+
+    try {
+      // Xử lý giao dịch chuyển tiền (transfer)
+      if (editing.type === "transfer") {
+        console.log("Updating transfer:", {
+          transferId: editing.id,
+          note: payload.note || "",
+        });
+        
+        const response = await walletAPI.updateTransfer(
+          editing.id,
+          payload.note || ""
+        );
+        
+        console.log("Update transfer response:", response);
+
+        // Reload transfers
+        const transferResponse = await walletAPI.getAllTransfers();
+        if (transferResponse.transfers) {
+          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+          setInternalTransactions(mapped);
+        }
+
+        setEditing(null);
+        setToast({ open: true, message: "Đã cập nhật giao dịch chuyển tiền thành công.", type: "success" });
+        return;
+      }
+
+      // Xử lý giao dịch thu nhập/chi tiêu (external transactions)
+      // Tìm categoryId từ category name
+      const categoryList = editing.type === "income" 
+        ? (incomeCategories || [])
+        : (expenseCategories || []);
+      
+      const category = categoryList.find(
+        c => c.name === payload.category || 
+             c.categoryName === payload.category ||
+             (c.name && c.name.trim() === payload.category?.trim()) ||
+             (c.categoryName && c.categoryName.trim() === payload.category?.trim())
+      );
+      
+      if (!category) {
+        setToast({ 
+          open: true, 
+          message: `Không tìm thấy danh mục "${payload.category}" trong loại ${editing.type === "income" ? "thu nhập" : "chi tiêu"}.`,
+          type: "error",
+        });
+        return;
+      }
+
+      const categoryId = category.categoryId || category.id;
+      if (!categoryId) {
+        setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.", type: "error" });
+        return;
+      }
+
+      // Gọi API update
+      console.log("Updating transaction:", {
+        transactionId: editing.id,
+        categoryId,
+        note: payload.note || "",
+        attachment: payload.attachment || null
+      });
+      
+      const response = await transactionAPI.updateTransaction(
+        editing.id,
+        categoryId,
+        payload.note || "",
+        payload.attachment || null
+      );
+      
+      console.log("Update transaction response:", response);
+
+      // Reload transactions
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse.transactions) {
+        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+        setExternalTransactions(mapped);
+      }
+
+      setEditing(null);
+      setToast({ open: true, message: "Đã cập nhật giao dịch thành công.", type: "success" });
+    } catch (error) {
+      console.error("Error updating transaction/transfer:", error);
+      const errorMessage = error.message || "Lỗi không xác định";
+      if (editing.type === "transfer") {
+        setToast({ open: true, message: "Lỗi khi cập nhật giao dịch chuyển tiền: " + errorMessage, type: "error" });
+      } else {
+        setToast({ open: true, message: "Lỗi khi cập nhật giao dịch: " + errorMessage, type: "error" });
+      }
+    }
   };
 
-  const handleDelete = () => {
-    // TODO: Backend chưa có API delete transaction
-    // Tạm thời hiển thị thông báo
-    setConfirmDel(null);
-    setToast({ open: true, message: "Tính năng xóa giao dịch chưa được hỗ trợ." });
+  const handleDelete = async () => {
+    if (!confirmDel) return;
+
+    const item = confirmDel;
+    setConfirmDel(null); // Đóng modal
+
+    try {
+      // Xử lý xóa giao dịch chuyển tiền
+      if (item.type === "transfer") {
+        // Gọi API xóa transfer
+        await walletAPI.deleteTransfer(item.id);
+
+        // Reload transfers
+        const transferResponse = await walletAPI.getAllTransfers();
+        if (transferResponse.transfers) {
+          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+          setInternalTransactions(mapped);
+        }
+
+        // Reload wallets để cập nhật số dư
+        await loadWallets();
+
+        setToast({ open: true, message: "Đã xóa giao dịch chuyển tiền thành công.", type: "success" });
+        return;
+      }
+
+      // Xử lý xóa giao dịch thu nhập/chi tiêu
+      // Gọi API xóa
+      await transactionAPI.deleteTransaction(item.id);
+
+      // Reload transactions
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse.transactions) {
+        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+        setExternalTransactions(mapped);
+      }
+
+      // Reload wallets để cập nhật số dư
+      await loadWallets();
+
+      setToast({ open: true, message: "Đã xóa giao dịch thành công.", type: "success" });
+    } catch (error) {
+      console.error("Error deleting transaction/transfer:", error);
+      // Kiểm tra nếu lỗi là về ví âm tiền
+      const errorMessage = error.message || "Lỗi không xác định";
+      if (errorMessage.includes("Không thể xóa giao dịch vì ví không được âm tiền") || 
+          errorMessage.includes("ví không được âm tiền") || 
+          errorMessage.includes("ví âm tiền") ||
+          errorMessage.includes("âm tiền")) {
+        setToast({ open: true, message: "Không thể xóa giao dịch vì ví âm tiền", type: "error" });
+      } else {
+        if (item.type === "transfer") {
+          setToast({ open: true, message: "Lỗi khi xóa giao dịch chuyển tiền: " + errorMessage, type: "error" });
+        } else {
+          setToast({ open: true, message: "Lỗi khi xóa giao dịch: " + errorMessage, type: "error" });
+        }
+      }
+    }
   };
 
   // Update budget data when transactions change

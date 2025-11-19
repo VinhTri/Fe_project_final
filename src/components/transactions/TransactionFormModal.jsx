@@ -306,9 +306,12 @@ export default function TransactionFormModal({
   const showTransferAmountError = form.amount && !isTransferAmountValid;
   
   // Tổng hợp validation
-  const isAmountValid = variant === "internal" 
-    ? isTransferAmountValid 
-    : isExpenseAmountValid;
+  // Khi edit transfer, không cần validate số tiền vì chỉ cho phép sửa ghi chú
+  const isAmountValid = (mode === "edit" && variant === "internal")
+    ? true  // Luôn valid khi edit transfer (chỉ sửa ghi chú)
+    : (variant === "internal" 
+        ? isTransferAmountValid 
+        : isExpenseAmountValid);
   const showAmountError = variant === "internal" 
     ? showTransferAmountError 
     : showExpenseAmountError;
@@ -375,37 +378,99 @@ export default function TransactionFormModal({
     setForm((f) => ({ ...f, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) {
       setForm((f) => ({ ...f, attachment: "" }));
       setAttachmentPreview("");
       return;
     }
-    const url = URL.createObjectURL(file);
-    setForm((f) => ({ ...f, attachment: url }));
-    setAttachmentPreview(url);
+    
+    // Kiểm tra kích thước file (tối đa 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Kích thước file không được vượt quá 5MB");
+      e.target.value = ""; // Reset input
+      return;
+    }
+    
+    // Resize và compress ảnh trước khi convert sang base64
+    const compressImage = (file, maxWidth = 1920, maxHeight = 1920, quality = 0.8) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            // Tính toán kích thước mới
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxWidth || height > maxHeight) {
+              if (width > height) {
+                height = (height * maxWidth) / width;
+                width = maxWidth;
+              } else {
+                width = (width * maxHeight) / height;
+                height = maxHeight;
+              }
+            }
+            
+            // Tạo canvas để resize và compress
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convert sang base64 với quality
+            const base64String = canvas.toDataURL('image/jpeg', quality);
+            resolve(base64String);
+          };
+          img.onerror = reject;
+          img.src = event.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    };
+    
+    try {
+      const base64String = await compressImage(file);
+      setForm((f) => ({ ...f, attachment: base64String }));
+      setAttachmentPreview(base64String);
+    } catch (error) {
+      console.error("Error processing image:", error);
+      alert("Lỗi khi xử lý ảnh. Vui lòng thử lại.");
+      e.target.value = ""; // Reset input
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validation: Kiểm tra số tiền cho loại chi tiêu và chuyển tiền
-    if (!isAmountValid) {
+    // Validation: Kiểm tra số tiền cho loại chi tiêu và chuyển tiền (chỉ khi tạo mới)
+    if (mode !== "edit" && !isAmountValid) {
       // Không submit nếu số tiền không hợp lệ
       return;
     }
     
     if (variant === "internal") {
-      onSubmit?.({
-        sourceWallet: form.sourceWallet,
-        targetWallet: form.targetWallet,
-        amount: Number(form.amount || 0),
-        date: form.date,
-        note: form.note || "",
-        currency: form.currency || "VND",
-        attachment: form.attachment,
-      });
+      // Khi edit transfer, chỉ gửi note
+      if (mode === "edit") {
+        onSubmit?.({
+          note: form.note || "",
+        });
+      } else {
+        // Khi tạo mới, gửi đầy đủ thông tin
+        onSubmit?.({
+          sourceWallet: form.sourceWallet,
+          targetWallet: form.targetWallet,
+          amount: Number(form.amount || 0),
+          date: form.date,
+          note: form.note || "",
+          currency: form.currency || "VND",
+          attachment: form.attachment,
+        });
+      }
     } else {
       onSubmit?.({
         ...form,
@@ -441,6 +506,15 @@ export default function TransactionFormModal({
           max-width: 95%;
           overflow: hidden;
           z-index: 2147483648;
+        }
+
+        .type-pill.active:disabled {
+          border-width: 2px !important;
+          border-color: #1d4ed8 !important;
+        }
+
+        .type-pill:disabled:not(.active) {
+          border: none !important;
         }
       `}</style>
 
@@ -479,6 +553,7 @@ export default function TransactionFormModal({
                         type="button"
                         className={`btn type-pill ${form.type === "income" ? "active" : ""}`}
                         onClick={() => setForm((f) => ({ ...f, type: "income" }))}
+                        disabled={mode === "edit"}
                       >
                         Thu nhập
                       </button>
@@ -486,6 +561,7 @@ export default function TransactionFormModal({
                         type="button"
                         className={`btn type-pill ${form.type === "expense" ? "active" : ""}`}
                         onClick={() => setForm((f) => ({ ...f, type: "expense" }))}
+                        disabled={mode === "edit"}
                       >
                         Chi tiêu
                       </button>
@@ -494,12 +570,23 @@ export default function TransactionFormModal({
 
                   <div className="row g-3">
                     <div className="col-md-6">
-                      <SelectInput
-                        label="Ví"
-                        value={form.walletName}
-                        onChange={(v) => setForm((f) => ({ ...f, walletName: v }))}
-                        options={walletOptions}
-                      />
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Ví</label>
+                        <select
+                          className="form-select"
+                          value={form.walletName || ""}
+                          onChange={(e) => setForm((f) => ({ ...f, walletName: e.target.value }))}
+                          disabled={mode === "edit"}
+                          required
+                        >
+                          <option value="">Chọn</option>
+                          {walletOptions.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div className="col-md-6">
@@ -516,11 +603,14 @@ export default function TransactionFormModal({
                           }}
                           required
                           inputMode="numeric"
+                          disabled={mode === "edit"}
+                          readOnly={mode === "edit"}
+                          style={mode === "edit" ? { backgroundColor: "#f8f9fa", cursor: "not-allowed" } : {}}
                         />
                         <span className="input-group-text">{form.currency}</span>
                       </div>
-                      {/* Hiển thị số dư cho loại chi tiêu */}
-                      {form.type === "expense" && selectedWallet && (
+                      {/* Hiển thị số dư cho loại chi tiêu (chỉ khi tạo mới) */}
+                      {mode !== "edit" && form.type === "expense" && selectedWallet && (
                         <div className="form-text">
                           Số dư hiện tại:{" "}
                           <strong>
@@ -528,8 +618,8 @@ export default function TransactionFormModal({
                           </strong>
                         </div>
                       )}
-                      {/* Hiển thị lỗi khi số tiền vượt quá số dư */}
-                      {showAmountError && (
+                      {/* Hiển thị lỗi khi số tiền vượt quá số dư (chỉ khi tạo mới) */}
+                      {mode !== "edit" && showAmountError && (
                         <div className="text-danger small mt-1">
                           Số tiền không hợp lệ hoặc vượt quá số dư.
                         </div>
@@ -547,7 +637,9 @@ export default function TransactionFormModal({
                         style={{ backgroundColor: "#f8f9fa", cursor: "not-allowed" }}
                         required
                       />
-                      <small className="text-muted">Tự động lấy thời gian hiện tại</small>
+                      {mode !== "edit" && (
+                        <small className="text-muted">Tự động lấy thời gian hiện tại</small>
+                      )}
                     </div>
 
                     <div className="col-md-6">
@@ -608,19 +700,31 @@ export default function TransactionFormModal({
                   </div>
 
                   <div className="col-md-6">
-                    <SelectInput
-                      label="Ví gửi"
-                      value={form.sourceWallet}
-                      onChange={(v) => {
-                        setForm((f) => {
-                          // Nếu ví nhận trùng với ví gửi mới, reset ví nhận
-                          const newTarget = v === f.targetWallet ? "" : f.targetWallet;
-                          return { ...f, sourceWallet: v, targetWallet: newTarget };
-                        });
-                      }}
-                      options={walletOptions}
-                    />
-                    {sourceWallet && (
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Ví gửi</label>
+                      <select
+                        className="form-select"
+                        value={form.sourceWallet || ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setForm((f) => {
+                            // Nếu ví nhận trùng với ví gửi mới, reset ví nhận
+                            const newTarget = v === f.targetWallet ? "" : f.targetWallet;
+                            return { ...f, sourceWallet: v, targetWallet: newTarget };
+                          });
+                        }}
+                        disabled={mode === "edit"}
+                        required
+                      >
+                        <option value="">Chọn</option>
+                        {walletOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {sourceWallet && mode !== "edit" && (
                       <div className="text-muted small mt-1">
                         Số dư: <strong>{formatMoney(sourceWallet.balance, sourceWallet.currency)}</strong>
                       </div>
@@ -628,13 +732,24 @@ export default function TransactionFormModal({
                   </div>
 
                   <div className="col-md-6">
-                    <SelectInput
-                      label="Ví nhận"
-                      value={form.targetWallet}
-                      onChange={(v) => setForm((f) => ({ ...f, targetWallet: v }))}
-                      options={targetWalletOptions}
-                    />
-                    {targetWallet && (
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Ví nhận</label>
+                      <select
+                        className="form-select"
+                        value={form.targetWallet || ""}
+                        onChange={(e) => setForm((f) => ({ ...f, targetWallet: e.target.value }))}
+                        disabled={mode === "edit"}
+                        required
+                      >
+                        <option value="">Chọn</option>
+                        {targetWalletOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {targetWallet && mode !== "edit" && (
                       <div className="text-muted small mt-1">
                         Số dư: <strong>{formatMoney(targetWallet.balance, targetWallet.currency)}</strong>
                       </div>
@@ -656,6 +771,9 @@ export default function TransactionFormModal({
                         required
                         inputMode="numeric"
                         placeholder={sourceWallet ? `Nhập số tiền bằng ${sourceWallet.currency || "ví gửi"}` : ""}
+                        disabled={mode === "edit"}
+                        readOnly={mode === "edit"}
+                        style={mode === "edit" ? { backgroundColor: "#f8f9fa", cursor: "not-allowed" } : {}}
                       />
                       <span className="input-group-text">{sourceWallet?.currency || form.currency || "VND"}</span>
                     </div>
@@ -678,8 +796,8 @@ export default function TransactionFormModal({
                         {targetWallet.currency || "VND"}
                       </div>
                     )}
-                    {/* Hiển thị lỗi khi số tiền vượt quá số dư ví gửi */}
-                    {showTransferAmountError && (
+                    {/* Hiển thị lỗi khi số tiền vượt quá số dư ví gửi (chỉ khi tạo mới) */}
+                    {mode !== "edit" && showTransferAmountError && (
                       <div className="text-danger small mt-1">
                         Số tiền không hợp lệ hoặc vượt quá số dư ví gửi.
                       </div>
@@ -694,10 +812,13 @@ export default function TransactionFormModal({
                       className="form-control"
                       value={form.date}
                       readOnly
+                      disabled={mode === "edit"}
                       style={{ backgroundColor: "#f8f9fa", cursor: "not-allowed" }}
                       required
                     />
-                    <small className="text-muted">Tự động lấy thời gian hiện tại</small>
+                    {mode !== "edit" && (
+                      <small className="text-muted">Tự động lấy thời gian hiện tại</small>
+                    )}
                   </div>
 
                   <div className="col-12">
