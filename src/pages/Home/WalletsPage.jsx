@@ -325,7 +325,7 @@ export default function WalletsPage() {
   };
 
   // ========= CONVERT TO GROUP =========
-  const handleConvertToGroup = async (e) => {
+  const handleConvertToGroup = async (e, options) => {
     e?.preventDefault?.();
     if (!selectedWallet) return;
     if (!updateWallet) {
@@ -333,9 +333,33 @@ export default function WalletsPage() {
       return;
     }
 
+    const isDefault = !!selectedWallet.isDefault;
+    const isPersonal = !selectedWallet.isShared;
+
+    // Nếu là ví mặc định & là ví cá nhân, và đã có options từ ConvertTab
+    if (isDefault && isPersonal && options) {
+      const { newDefaultWalletId, noDefault } = options;
+
+      // 1) Nếu chọn một ví cá nhân khác làm mặc định mới
+      if (newDefaultWalletId && !noDefault) {
+        await updateWallet(newDefaultWalletId, { isDefault: true });
+      }
+
+      // 2) Nếu chọn "tạm thời không có ví mặc định"
+      if (noDefault) {
+        // Bỏ cờ mặc định khỏi tất cả ví hiện tại
+        const currentDefaultList = wallets.filter((w) => w.isDefault);
+        for (const w of currentDefaultList) {
+          await updateWallet(w.id, { isDefault: false });
+        }
+      }
+    }
+
+    // 3) Chuyển ví hiện tại sang ví nhóm và chắc chắn bỏ cờ mặc định
     await updateWallet(selectedWallet.id, {
       ...selectedWallet,
       isShared: true,
+      isDefault: false,
     });
 
     showToast("Đã chuyển ví sang ví nhóm!");
@@ -652,7 +676,7 @@ export default function WalletsPage() {
           onDeleteWallet={handleDeleteWallet}
           // cho MergeTab / ConvertTab chủ động đổi ví đang chọn
           onChangeSelectedWallet={handleChangeSelectedWallet}
-           walletTabType={activeTab}
+          walletTabType={activeTab}
         />
       </div>
     </div>

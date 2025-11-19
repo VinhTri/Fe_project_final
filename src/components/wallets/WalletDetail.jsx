@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 export default function WalletDetail(props) {
   const {
     wallet,
- walletTabType = "personal",
+    walletTabType = "personal",
     currencies,
     categories,
     showCreate,
@@ -79,6 +79,13 @@ export default function WalletDetail(props) {
 
   const sharedEmails = wallet?.sharedEmails || [];
   const balance = Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
+
+  // Nếu ví đã là ví nhóm mà tab đang là "convert" -> tự về "view"
+  useEffect(() => {
+    if (wallet?.isShared && activeDetailTab === "convert") {
+      setActiveDetailTab("view");
+    }
+  }, [wallet?.isShared, activeDetailTab, setActiveDetailTab]);
 
   // ======= VIEW: CREATE NEW WALLET =======
   if (showCreate) {
@@ -222,9 +229,7 @@ export default function WalletDetail(props) {
     );
   }
 
-  // ======= KHÔNG CÓ VÍ ĐANG CHỌN → HIỆN HƯỚNG DẪN =======
-  // ======= KHÔNG CÓ VÍ ĐANG CHỌN → HIỂN THỊ PLACEHOLDER (KHÔNG NÚT TẠO) =======
-   // ======= KHÔNG CÓ VÍ ĐANG CHỌN → PLACEHOLDER THEO TỪNG TAB =======
+  // ======= KHÔNG CÓ VÍ ĐANG CHỌN → PLACEHOLDER THEO TỪNG TAB =======
   if (!wallet) {
     const isGroupTab = walletTabType === "group";
 
@@ -276,7 +281,7 @@ export default function WalletDetail(props) {
             <span className="wallet-tag">
               {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
             </span>
-            {wallet.isDefault && (
+            {!wallet.isShared && wallet.isDefault && (
               <span className="wallet-tag wallet-tag--outline">
                 Ví mặc định
               </span>
@@ -353,16 +358,20 @@ export default function WalletDetail(props) {
         >
           Gộp ví
         </button>
-        <button
-          className={
-            activeDetailTab === "convert"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("convert")}
-        >
-          Chuyển thành ví nhóm
-        </button>
+
+        {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
+        {!wallet.isShared && walletTabType === "personal" && (
+          <button
+            className={
+              activeDetailTab === "convert"
+                ? "wallets-detail-tab wallets-detail-tab--active"
+                : "wallets-detail-tab"
+            }
+            onClick={() => setActiveDetailTab("convert")}
+          >
+            Chuyển thành ví nhóm
+          </button>
+        )}
       </div>
 
       {/* NỘI DUNG THEO TAB */}
@@ -447,9 +456,10 @@ export default function WalletDetail(props) {
         />
       )}
 
-      {activeDetailTab === "convert" && (
+      {activeDetailTab === "convert" && !wallet.isShared && (
         <ConvertTab
           wallet={wallet}
+          allWallets={allWallets}
           onConvertToGroup={onConvertToGroup}
           onChangeSelectedWallet={onChangeSelectedWallet}
         />
@@ -891,6 +901,8 @@ function EditTab({
   onRemoveEditShareEmail,
   onSubmitEdit,
 }) {
+  const isGroupWallet = !!wallet.isShared;
+
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
@@ -973,16 +985,19 @@ function EditTab({
         </div>
 
         <div className="wallet-form__footer wallet-form__footer--right">
-          <label className="wallet-form__checkbox">
-            <input
-              type="checkbox"
-              checked={editForm.isDefault}
-              onChange={(e) =>
-                onEditFieldChange("isDefault", e.target.checked)
-              }
-            />
-            <span>Đặt làm ví mặc định</span>
-          </label>
+          {/* Ví nhóm không được cài đặt mặc định */}
+          {!isGroupWallet && (
+            <label className="wallet-form__checkbox">
+              <input
+                type="checkbox"
+                checked={editForm.isDefault}
+                onChange={(e) =>
+                  onEditFieldChange("isDefault", e.target.checked)
+                }
+              />
+              <span>Đặt làm ví mặc định</span>
+            </label>
+          )}
           <div className="wallet-form__actions">
             <button type="submit" className="wallets-btn wallets-btn--primary">
               Lưu thay đổi
@@ -995,6 +1010,8 @@ function EditTab({
 }
 
 /* ===================== MERGE TAB ===================== */
+// (Giữ nguyên toàn bộ MergeTab & ConvertTab như bạn đã có – mình chỉ copy lại từ code của bạn)
+
 function MergeTab({
   wallet,
   allWallets,
@@ -1805,7 +1822,7 @@ function MergeTab({
                 </div>
                 <div className="wallet-merge__option-foot">
                   Tỷ giá demo: 1 USD ={" "}
-                    {RATE_USD_VND.toLocaleString("vi-VN")} VND
+                  {RATE_USD_VND.toLocaleString("vi-VN")} VND
                 </div>
               </div>
             </label>
@@ -2038,16 +2055,75 @@ function MergeTab({
   return renderStep6Processing();
 }
 
-function ConvertTab({ wallet, onConvertToGroup, onChangeSelectedWallet }) {
+/* ===================== CONVERT TAB ===================== */
+function ConvertTab({
+  wallet,
+  allWallets = [],
+  onConvertToGroup,
+  onChangeSelectedWallet,
+}) {
+  const isDefault = !!wallet.isDefault;
+  const isShared = !!wallet.isShared;
+
+  // chỉ xử lý chọn ví mặc định mới trong phạm vi ví cá nhân
+  const personalWallets = (allWallets || []).filter((w) => !w.isShared);
+  const candidateDefaults = personalWallets.filter((w) => w.id !== wallet.id);
+
+  const hasCandidate = candidateDefaults.length > 0;
+
+  const [defaultMode, setDefaultMode] = useState(
+    hasCandidate ? "chooseOther" : "noDefault"
+  ); // 'chooseOther' | 'noDefault'
+  const [newDefaultId, setNewDefaultId] = useState(
+    hasCandidate ? String(candidateDefaults[0].id) : ""
+  );
+
+  useEffect(() => {
+    // reset nếu ví / danh sách thay đổi
+    const hasCandidateNow =
+      (allWallets || []).filter((w) => !w.isShared && w.id !== wallet.id)
+        .length > 0;
+    setDefaultMode(hasCandidateNow ? "chooseOther" : "noDefault");
+    const first = (allWallets || []).filter(
+      (w) => !w.isShared && w.id !== wallet.id
+    )[0];
+    setNewDefaultId(first ? String(first.id) : "");
+  }, [wallet.id, allWallets]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    onConvertToGroup?.(e);
+    let options = null;
+
+    // Chỉ cần xử lý options khi ví hiện tại là ví mặc định & là ví cá nhân
+    if (isDefault && !isShared) {
+      if (hasCandidate && defaultMode === "chooseOther" && newDefaultId) {
+        options = {
+          newDefaultWalletId: Number(newDefaultId),
+          noDefault: false,
+        };
+      } else {
+        options = {
+          newDefaultWalletId: null,
+          noDefault: true,
+        };
+      }
+    }
+
+    onConvertToGroup?.(e, options || null);
 
     if (onChangeSelectedWallet) {
       onChangeSelectedWallet(null);
     }
   };
+
+  const isSubmitDisabled =
+    wallet.isShared ||
+    (isDefault &&
+      !isShared &&
+      defaultMode === "chooseOther" &&
+      hasCandidate &&
+      !newDefaultId);
 
   return (
     <div className="wallets-section">
@@ -2066,14 +2142,108 @@ function ConvertTab({ wallet, onConvertToGroup, onChangeSelectedWallet }) {
               <br />
               Trạng thái:{" "}
               {wallet.isShared ? "Đã là ví nhóm" : "Hiện là ví cá nhân"}
+              <br />
+              {isDefault && !wallet.isShared && (
+                <span style={{ color: "#c0392b" }}>
+                  Ví này đang là ví mặc định.
+                </span>
+              )}
             </p>
           </div>
         </div>
+
+        {/* Nếu ví hiện tại là ví mặc định & là ví cá nhân → yêu cầu xử lý mặc định */}
+        {isDefault && !wallet.isShared && (
+          <div className="wallet-form__row">
+            <div className="wallet-form__full">
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  background: "#fff5f5",
+                  border: "1px solid #ffd5d5",
+                  marginBottom: 12,
+                  fontSize: 13,
+                  color: "#c0392b",
+                }}
+              >
+                <strong>Chú ý:</strong> Bạn đang chuyển một ví mặc định sang ví
+                nhóm. Ví nhóm sẽ không được đặt làm ví mặc định, vui lòng chọn
+                cách xử lý ví mặc định hiện tại.
+              </div>
+
+              {hasCandidate ? (
+                <>
+                  <label
+                    className="wallet-form__checkbox"
+                    style={{ alignItems: "flex-start", gap: 8 }}
+                  >
+                    <input
+                      type="radio"
+                      name="defaultBehavior"
+                      value="chooseOther"
+                      checked={defaultMode === "chooseOther"}
+                      onChange={() => setDefaultMode("chooseOther")}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        Chọn một ví cá nhân khác làm ví mặc định mới
+                      </div>
+                      <div style={{ marginTop: 6 }}>
+                        <select
+                          value={newDefaultId}
+                          disabled={defaultMode !== "chooseOther"}
+                          onChange={(e) => setNewDefaultId(e.target.value)}
+                          style={{ minWidth: 220 }}
+                        >
+                          {candidateDefaults.map((w) => (
+                            <option key={w.id} value={w.id}>
+                              {w.name || "Ví cá nhân khác"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label
+                    className="wallet-form__checkbox"
+                    style={{ alignItems: "flex-start", gap: 8, marginTop: 8 }}
+                  >
+                    <input
+                      type="radio"
+                      name="defaultBehavior"
+                      value="noDefault"
+                      checked={defaultMode === "noDefault"}
+                      onChange={() => setDefaultMode("noDefault")}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        Tạm thời không có ví mặc định
+                      </div>
+                      <div style={{ fontSize: 12, color: "#666" }}>
+                        Bạn có thể chọn lại ví mặc định sau trong phần quản lý
+                        ví.
+                      </div>
+                    </div>
+                  </label>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: "#444" }}>
+                  Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển ví
+                  này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc định.
+                  Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="wallet-form__footer wallet-form__footer--right">
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={wallet.isShared}
+            disabled={isSubmitDisabled}
           >
             {wallet.isShared ? "Đã là ví nhóm" : "Chuyển sang ví nhóm"}
           </button>
