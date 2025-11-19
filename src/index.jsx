@@ -1,4 +1,5 @@
 // index.jsx
+// index.jsx
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -13,9 +14,11 @@ import { BudgetDataProvider } from "./home/store/BudgetDataContext";
 import { CategoryDataProvider } from "./home/store/CategoryDataContext";
 import { AuthProvider } from "./home/store/AuthContext";
 import { NotificationProvider } from "./home/store/NotificationContext";
+import { FeedbackProvider } from "./home/store/FeedbackDataContext"; // ⬅️ THÊM DÒNG NÀY
 
 // Toast
 import { ToastProvider } from "./components/common/Toast/ToastContext";
+
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -23,12 +26,13 @@ createRoot(document.getElementById("root")).render(
       <CategoryDataProvider>
         <WalletDataProvider>
           <BudgetDataProvider>
-            <ToastProvider>
-              {/* 👉 Thêm NotificationProvider ở đây */}
-              <NotificationProvider>
-                <App />
-              </NotificationProvider>
-            </ToastProvider>
+            <NotificationProvider>
+              <FeedbackProvider>         {/* ⬅️ BỌC Ở ĐÂY */}
+                <ToastProvider>
+                  <App />
+                </ToastProvider>
+              </FeedbackProvider>
+            </NotificationProvider>
           </BudgetDataProvider>
         </WalletDataProvider>
       </CategoryDataProvider>
