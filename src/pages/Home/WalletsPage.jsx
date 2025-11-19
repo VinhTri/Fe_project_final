@@ -9,7 +9,6 @@ import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
 import WalletCreateChooser from "../../components/wallets/WalletCreateChooser";
 import WalletCreatePersonalModal from "../../components/wallets/WalletCreatePersonalModal";
-import WalletCreateGroupModal from "../../components/wallets/WalletCreateGroupModal";
 
 import WalletInspector from "../../components/wallets/WalletInspector";
 import useToggleMask from "../../hooks/useToggleMask";
@@ -128,7 +127,6 @@ export default function WalletsPage() {
   // ====== Tạo / chooser ======
   const [showChooser, setShowChooser] = useState(false);
   const [showPersonal, setShowPersonal] = useState(false);
-  const [showGroup, setShowGroup] = useState(false);
   const anchorRef = useRef(null);
 
   // ====== Modals / toast ======
@@ -412,23 +410,6 @@ const doDelete = async (wallet) => {
     setToast({ open: true, message: `Đã tạo ví cá nhân "${w.name}"`, type: "success" });
   };
 
-  /** Sau khi tạo ví nhóm: chêm include flags + color nếu thiếu */
-  const afterCreateGroupWallet = async (w) => {
-    if (!w) return;
-    const patch = {};
-    if (w.includeOverall === undefined || w.includeGroup === undefined) {
-      patch.includeOverall = true;
-      patch.includeGroup = true;
-    }
-    if (!w.color) {
-      patch.color = pickWalletColor(wallets);
-    }
-    if (Object.keys(patch).length) {
-      const updated = { ...w, ...patch };
-      await updateWallet(updated);
-    }
-    setToast({ open: true, message: `Đã tạo ví nhóm "${w?.name || ""}"`, type: "success" });
-  };
 
   const handleSubmitEdit = async (data) => {
     try {
@@ -911,10 +892,6 @@ const doDelete = async (wallet) => {
                   setShowChooser(false);
                   setShowPersonal(true);
                 }}
-                onChooseGroup={() => {
-                  setShowChooser(false);
-                  setShowGroup(true);
-                }}
               />
             </div>
           </div>
@@ -1341,12 +1318,6 @@ const doDelete = async (wallet) => {
         currencies={CURRENCIES}
         existingNames={existingNames}
         onSubmit={handleCreatePersonal}
-      />
-      <WalletCreateGroupModal
-        open={showGroup}
-        onClose={() => setShowGroup(false)}
-        currencies={CURRENCIES}
-        onCreated={afterCreateGroupWallet}
       />
 
       {editing && (

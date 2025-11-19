@@ -6,7 +6,6 @@ export default function WalletCreateChooser({
   open,
   anchorRef,
   onChoosePersonal,
-  onChooseGroup,
   onClose,
 }) {
   const menuRef = useRef(null);
@@ -101,11 +100,6 @@ export default function WalletCreateChooser({
         <button className="dropdown-item" onClick={onChoosePersonal}>
           <i className="bi bi-person"></i>
           <span>Tạo ví cá nhân</span>
-        </button>
-
-        <button className="dropdown-item" onClick={onChooseGroup}>
-          <i className="bi bi-people"></i>
-          <span>Tạo ví nhóm (ngân sách nhóm)</span>
         </button>
       </div>
     </>
