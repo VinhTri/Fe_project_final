@@ -1,6 +1,6 @@
 /* Trang Danh mục – đồng bộ style với các page Home khác */
 .category-page {
-  padding: 18px 24px 32px;
+  padding: 24px;
 }
 
 /* Ensure container wrapper is fluid and doesn't cause horizontal scroll */
@@ -20,7 +20,7 @@
 /* small alias so header styling doesn't completely vanish if component uses .cat-header */
 .cat-header {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 24px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
@@ -112,7 +112,7 @@
 /* Card danh sách */
 .category-list-card {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 24px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
@@ -221,7 +221,7 @@
   width: 100%;
   max-width: 420px;
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 20px 24px;
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.55);
 }
@@ -308,4 +308,45 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ======================
+   RESPONSIVE ADJUSTMENTS
+   ====================== */
+@media (max-width: 992px) {
+  .category-page {
+    padding: 16px !important;
+  }
+  
+  /* Target the actual class used in JSX */
+  .cat-header .card-body {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+
+  /* Left side */
+  .cat-header .card-body > div:first-child {
+    width: 100%;
+  }
+
+  /* Right side (Controls) */
+  .cat-header .card-body > div:last-child {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+  
+  .category-title {
+    font-size: 1.4rem;
+  }
+  
+  /* Mobile card styling */
+  .d-md-none .card {
+    border-radius: 18px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+    border: 1px solid #f1f5f9 !important;
+  }
 }

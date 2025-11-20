@@ -152,12 +152,7 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: conic-gradient(
-    #2d99ae 0 210deg,
-    #0c5776 210deg 282deg,
-    #bcfefe 282deg 324deg,
-    #f8dad0 324deg 360deg
-  );
+  /* background is set inline via JS */
   position: relative;
   box-shadow: 0 12px 24px rgba(0, 28, 68, 0.35);
 }

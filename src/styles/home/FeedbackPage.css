@@ -15,7 +15,7 @@
    ========================== */
 .feedback-summary-card {
   background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
-  border-radius: 18px;
+  border-radius: 24px;
   padding: 18px 20px;
   margin-bottom: 20px;
   box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
@@ -168,7 +168,7 @@
    ========================== */
 .feedback-form-card {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 24px;
   padding: 18px 20px 16px;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
   border: 1px solid #e5e7eb;
@@ -294,7 +294,7 @@
 
 .feedback-item {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 14px 16px 12px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
@@ -395,7 +395,7 @@
    ========================== */
 .feedback-empty {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 18px 20px;
   border: 1px dashed #d1d5db;
   font-size: 0.9rem;

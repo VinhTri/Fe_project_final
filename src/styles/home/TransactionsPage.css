@@ -4,7 +4,7 @@
 /* alias: some pages use `.tx-page` as root class */
 .transactions-page,
 .tx-page {
-  padding: 18px 24px 32px;
+  padding: 24px;
 }
 
 /* Ensure container doesn't force horizontal scroll like other pages */
@@ -69,7 +69,7 @@
 /* Card tìm kiếm – bo góc + đổ bóng mạnh giống Danh mục */
 .transaction-filters {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 24px;
   padding: 12px 16px;
   margin-bottom: 18px;
 
@@ -499,8 +499,87 @@
 /* Bo góc + đổ bóng cho card danh sách giao dịch giống Danh mục */
 .tx-table-card,
 .transaction-table-wrapper {
-  border-radius: 8px !important;
+  border-radius: 24px !important;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12) !important;
   overflow: hidden;
   border: none;
+}
+
+/* ======================
+   MOBILE CARD LIST
+   ====================== */
+.tx-card {
+  border-radius: 18px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: #ffffff;
+}
+
+.tx-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.tx-card .card-body {
+  padding: 16px;
+}
+
+.tx-amount-expense {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.tx-amount-income {
+  color: #059669;
+  font-weight: 700;
+}
+
+.tx-amount-transfer {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .transactions-page, .tx-page {
+    padding: 16px !important;
+  }
+  
+  /* Target the actual class used in JSX */
+  .tx-header .card-body {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+  
+  /* Left side (Icon + Title) */
+  .tx-header .card-body > div:first-child {
+    width: 100%;
+  }
+
+  /* Right side (Controls) */
+  .tx-header .card-body > div:last-child {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    flex-wrap: nowrap; /* Keep buttons on one line if possible, scroll if not */
+  }
+
+  .page-title {
+    font-size: 1.4rem;
+  }
+  
+  .transaction-filters {
+    padding: 12px;
+  }
+
+  .filter-row {
+    flex-direction: column;
+  }
+
+  .filter-datetime-range {
+    width: 100%;
+  }
 }

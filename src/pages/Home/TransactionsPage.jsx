@@ -1058,7 +1058,7 @@ export default function TransactionsPage() {
                 </span>
                 <input
                   className="form-control border-start-0"
-                  placeholder={t("transactions.filter.search_placeholder")}
+                  placeholder="Tìm kiếm giao dịch..."
                   value={searchText}
                   onChange={(e) => {
                     setSearchText(e.target.value);
@@ -1146,7 +1146,7 @@ export default function TransactionsPage() {
 
       {/* Bảng danh sách */}
       <div className="card border-0 shadow-sm tx-table-card">
-        <div className="table-responsive">
+        <div className="table-responsive d-none d-lg-block">
           {activeTab === TABS.EXTERNAL ? (
             <table className="table table-hover align-middle mb-0">
               <thead>

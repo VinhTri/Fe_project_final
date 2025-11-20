@@ -48,7 +48,7 @@
   max-width: none;
   margin-left: auto;
   margin-right: auto;
-  border-radius: 16px;
+  border-radius: 24px;
   background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
   color: #ffffff;      /* chữ trắng cho tương phản */
   border: 1px solid rgba(255,255,255,0.06);
@@ -165,7 +165,7 @@
 .wallet-page .row { padding-left:15px; padding-right:15px; }
 
 .wallet-section {
-  position:relative; border-radius:16px; overflow:hidden;
+  position:relative; border-radius:24px; overflow:hidden;
   background:#fff; box-shadow:0 6px 18px rgba(0,0,0,.08);
   transition: all .3s;
 }
@@ -175,7 +175,7 @@
   background: #ffffff;
   color: #001c44;
   border: 1px solid rgba(0, 28, 68, 0.12);
-  border-radius: 16px 16px 0 0;
+  border-radius: 24px 24px 0 0;
   padding: 0.85rem 1.1rem;
   position: relative;
   z-index: 3;
@@ -211,7 +211,7 @@
   position: relative;
   width: 100%;
   padding: 20px 24px;
-  border-radius: 22px;
+  border-radius: 24px;
   color: #ffffff;
   background:  linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
   border: 1px solid rgba(255,255,255,0.06);
@@ -411,7 +411,7 @@
    06) WALLET CARD (Neo Glass Dark)
    ============================================================== */
 .wallet-grid__item .wallet-card{
-  width:100%; padding:1.2rem 1.4rem; border-radius:18px;
+  width:100%; padding:1.2rem 1.4rem; border-radius:24px;
   background: rgba(255,255,255,.05);
   backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255,255,255,.12);
@@ -508,7 +508,7 @@
 /* ==============================================================
    08) INSPECTOR + TABS (mono)
    ============================================================== */
-.inspector{ border-radius:16px; background:rgba(255,255,255,.92); box-shadow:0 10px 24px rgba(0,0,0,.08); }
+.inspector{ border-radius:24px; background:rgba(255,255,255,.92); box-shadow:0 10px 24px rgba(0,0,0,.08); }
 .inspector .card-body{ padding:1rem 1.1rem; }
 
 .inspector__tabs{
@@ -785,9 +785,9 @@
    FIX CĂN LỀ TIÊU ĐỀ TRANG VÍ GIỐNG TRANG GIAO DỊCH
    ============================================ */
 
-/* Đảm bảo trang Ví có padding 18px 24px giống trang Giao dịch */
+/* Đảm bảo trang Ví có padding 24px giống trang Dashboard */
 .wallet-page {
-  padding: 18px 24px 32px !important;
+  padding: 24px !important;
   max-width: 100% !important;
 }
 
@@ -810,4 +810,62 @@
 .wallet-header__controls {
   padding-left: 0 !important;
   padding-right: 0 !important;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 992px) {
+  .wallet-page {
+    padding: 16px !important;
+  }
+  
+  .wallet-page.container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .wallet-header {
+    padding: 16px !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .wallet-header__controls {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px; /* Space for scrollbar if needed */
+    flex-wrap: wrap !important; /* Allow wrapping on tablet */
+    gap: 12px;
+  }
+  
+  /* Ensure controls don't shrink too much */
+  .wallet-header__controls > * {
+    flex-shrink: 0;
+  }
+
+  .wallet-header__title {
+    font-size: 1.4rem;
+  }
+  
+  /* Stack inspector below content */
+  .wallet-section .row {
+    flex-direction: column;
+  }
+  
+  .wallet-section aside.col-lg-4 {
+    margin-top: 24px;
+  }
+}
+
+@media (max-width: 576px) {
+  .wallet-grid {
+    grid-template-columns: 1fr !important; /* Force 1 column on mobile */
+  }
+  
+  .sum-card__value {
+    font-size: 24px;
+  }
 }

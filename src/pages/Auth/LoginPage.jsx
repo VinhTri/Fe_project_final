@@ -172,11 +172,16 @@ export default function LoginPage() {
         <div className="d-grid gap-2">
           <button
             type="button"
-            className="btn btn-outline-danger"
+            className="btn btn-outline-danger d-flex align-items-center justify-content-center"
             disabled
             title="Đã tắt trong chế độ demo"
           >
-            <i className="bi bi-google me-2"></i> Google (đã tắt ở chế độ demo)
+            <img 
+              src="/logo_google.png" 
+              alt="Google" 
+              style={{ width: '18px', height: '18px', marginRight: '8px' }} 
+            />
+            Google (đã tắt ở chế độ demo)
           </button>
         </div>
       </form>

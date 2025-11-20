@@ -28,8 +28,7 @@ export default function BudgetsPage() {
   const [editingId, setEditingId] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "" });
-  const [searchName, setSearchName] = useState("");
-  const [searchDesc, setSearchDesc] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   const handleAddBudget = () => {
     setModalMode("create");
@@ -89,16 +88,17 @@ export default function BudgetsPage() {
 
   // Filter budgets by search criteria
   const filteredBudgets = useMemo(() => {
+    if (!searchText) return budgets;
+    const lower = searchText.toLowerCase();
     return budgets.filter((budget) => {
-      const nameMatch = (budget.categoryName || "").toLowerCase().includes((searchName || "").toLowerCase());
-      const descMatch = (budget.walletName || "").toLowerCase().includes((searchDesc || "").toLowerCase());
-      return nameMatch && descMatch;
+      const nameMatch = (budget.categoryName || "").toLowerCase().includes(lower);
+      const walletMatch = (budget.walletName || "").toLowerCase().includes(lower);
+      return nameMatch || walletMatch;
     });
-  }, [budgets, searchName, searchDesc]);
+  }, [budgets, searchText]);
 
   const handleSearchReset = () => {
-    setSearchName("");
-    setSearchDesc("");
+    setSearchText("");
   };
 
   return (
@@ -139,32 +139,19 @@ export default function BudgetsPage() {
       {/* FORM TÌM KIẾM */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
-          <form className="row g-3 align-items-end" onSubmit={(e) => e.preventDefault()}>
-            <div className="col-md-4">
-              <label className="form-label fw-semibold">{t("budgets.filter.category")}</label>
-              <input
-                className="form-control"
-                placeholder={t("budgets.filter.category_placeholder")}
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
-            </div>
-            <div className="col-md-5">
-              <label className="form-label fw-semibold">{t("budgets.filter.desc")}</label>
-              <input
-                className="form-control"
-                placeholder={t("budgets.filter.desc_placeholder")}
-                value={searchDesc}
-                onChange={(e) => setSearchDesc(e.target.value)}
-              />
-            </div>
-            <div className="col-md-3 d-flex gap-2">
-              <button type="submit" className="btn btn-primary flex-grow-1">
-                {t("budgets.btn.search")}
-              </button>
-              <button type="button" className="btn btn-outline-secondary" onClick={handleSearchReset}>
-                {t("budgets.btn.clear")}
-              </button>
+          <form className="row g-3 align-items-center" onSubmit={(e) => e.preventDefault()}>
+            <div className="col-12">
+              <div className="input-group">
+                <span className="input-group-text bg-white border-end-0">
+                  <i className="bi bi-search text-muted" />
+                </span>
+                <input
+                  className="form-control border-start-0"
+                  placeholder="Tìm kiếm hạn mức..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+              </div>
             </div>
           </form>
         </div>

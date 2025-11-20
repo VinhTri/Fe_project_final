@@ -198,15 +198,18 @@ export default function DashboardPage() {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value);
 
-    const top3 = sorted.slice(0, 3);
-    const others = sorted.slice(3);
+    // Yêu cầu: 4 dịch vụ nhiều nhất + 1 Khác
+    const top4 = sorted.slice(0, 4);
+    const others = sorted.slice(4);
     const otherValue = others.reduce((sum, item) => sum + item.value, 0);
 
-    const result = top3.map((item, index) => ({
+    const colors = ["#0C5776", "#2D99AE", "#58D3F7", "#BCFEFE"];
+
+    const result = top4.map((item, index) => ({
       id: item.label,
       label: item.label,
       value: total ? Math.round((item.value / total) * 100) : 0,
-      color: ["#2D99AE", "#0C5776", "#BCFEFE"][index] || "#ccc",
+      color: colors[index] || "#ccc",
     }));
 
     if (otherValue > 0) {
@@ -326,6 +329,30 @@ export default function DashboardPage() {
   // Main Donut Value (Lấy cái lớn nhất)
   const mainDonutValue = transactionTypeData.length > 0 ? transactionTypeData[0] : { value: 0 };
 
+  // Tạo gradient động cho biểu đồ tròn
+  const donutGradient = useMemo(() => {
+    if (!transactionTypeData || transactionTypeData.length === 0) {
+      return "conic-gradient(#eee 0% 100%)";
+    }
+    
+    let parts = [];
+    let currentPercent = 0;
+    
+    transactionTypeData.forEach((item) => {
+      const start = currentPercent;
+      const end = currentPercent + item.value;
+      parts.push(`${item.color} ${start}% ${end}%`);
+      currentPercent = end;
+    });
+    
+    // Nếu chưa đủ 100% do làm tròn, lấp đầy bằng màu cuối cùng hoặc trong suốt
+    if (currentPercent < 100) {
+       // parts.push(`${transactionTypeData[transactionTypeData.length-1].color} ${currentPercent}% 100%`);
+    }
+
+    return `conic-gradient(${parts.join(", ")})`;
+  }, [transactionTypeData]);
+
   return (
     <div className="dashboard-page">
       {/* Ô bọc trắng cho phần tiêu đề */}
@@ -380,7 +407,10 @@ export default function DashboardPage() {
               </div>
               <div className="db-card__body db-card__body--horizontal">
                 <div className="db-donut">
-                  <div className="db-donut__ring" />
+                  <div 
+                    className="db-donut__ring" 
+                    style={{ background: donutGradient }}
+                  />
                   <div className="db-donut__center">
                     <span className="db-donut__value">
                       {mainDonutValue.value}%

@@ -9,7 +9,7 @@
   --funds-text-muted: #6b7280;
   --funds-border: #e5e7eb;
   --funds-bg-card: #ffffff;
-  --funds-radius-lg: 18px;
+  --funds-radius-lg: 24px;
   --funds-radius-md: 12px;
   --funds-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.12);
   --funds-shadow-subtle: 0 8px 18px rgba(15, 23, 42, 0.08);
@@ -22,6 +22,7 @@
    ========================= */
 .funds-page {
   color: var(--funds-text);
+  padding: 24px;
 }
 
 /* Ensure page container is fluid and doesn't force horizontal scroll at zoom */
@@ -664,7 +665,7 @@
 ================================ */
 .funds-box {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 24px;
   border: 1px solid var(--funds-border);
   box-shadow: var(--funds-shadow-subtle);
   overflow: hidden;

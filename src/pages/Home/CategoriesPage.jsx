@@ -11,8 +11,7 @@ export default function CategoriesPage() {
 
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
   // search inputs (the inline form will be used for search)
-  const [searchName, setSearchName] = useState("");
-  const [searchDesc, setSearchDesc] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   // modal for create/edit
   const [modalOpen, setModalOpen] = useState(false);
@@ -27,9 +26,11 @@ export default function CategoriesPage() {
   const currentList =
     activeTab === "expense" ? expenseCategories : incomeCategories;
   const displayedList = currentList.filter((c) => {
-    const nameMatch = (c.name || "").toLowerCase().includes((searchName || "").toLowerCase());
-    const descMatch = (c.description || "").toLowerCase().includes((searchDesc || "").toLowerCase());
-    return nameMatch && descMatch;
+    if (!searchText) return true;
+    const lower = searchText.toLowerCase();
+    const nameMatch = (c.name || "").toLowerCase().includes(lower);
+    const descMatch = (c.description || "").toLowerCase().includes(lower);
+    return nameMatch || descMatch;
   });
   const totalPages = Math.max(1, Math.ceil(displayedList.length / pageSize));
   const paginatedList = displayedList.slice((page - 1) * pageSize, page * pageSize);
@@ -41,15 +42,14 @@ export default function CategoriesPage() {
   }, [page, totalPages, displayedList.length]);
 
   const resetSearch = () => {
-    setSearchName("");
-    setSearchDesc("");
+    setSearchText("");
     setPage(1);
   };
 
   // inline form becomes search; add/edit handled by modal
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    // search is reactive via searchName/searchDesc
+    // search is reactive via searchText
   };
 
   const openAddModal = () => {
@@ -200,34 +200,19 @@ export default function CategoriesPage() {
       {/* FORM THÊM / SỬA */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
-          <form className="row g-3 align-items-end" onSubmit={handleSearchSubmit}>
-            <div className="col-md-4">
-              <label className="form-label fw-semibold">{t("categories.filter.name")}</label>
-              <input
-                className="form-control"
-                placeholder={t("categories.filter.name_placeholder")}
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                maxLength={40}
-              />
-            </div>
-            <div className="col-md-5">
-              <label className="form-label fw-semibold">{t("categories.filter.desc")}</label>
-              <input
-                className="form-control"
-                placeholder={t("categories.filter.desc_placeholder")}
-                value={searchDesc}
-                onChange={(e) => setSearchDesc(e.target.value)}
-                maxLength={80}
-              />
-            </div>
-            <div className="col-md-3 d-flex gap-2">
-              <button type="submit" className="btn btn-primary flex-grow-1">
-                {t("categories.btn.search")}
-              </button>
-              <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
-                {t("categories.btn.clear")}
-              </button>
+          <form className="row g-3 align-items-center" onSubmit={handleSearchSubmit}>
+            <div className="col-12">
+              <div className="input-group">
+                <span className="input-group-text bg-white border-end-0">
+                  <i className="bi bi-search text-muted" />
+                </span>
+                <input
+                  className="form-control border-start-0"
+                  placeholder="Tìm kiếm danh mục..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+              </div>
             </div>
           </form>
         </div>
@@ -237,7 +222,8 @@ export default function CategoriesPage() {
       <div className="card border-0 shadow-sm category-list-card">
 
         <div className="card-body p-0">
-          <div className="table-responsive">
+          {/* Desktop Table View */}
+          <div className="table-responsive d-none d-lg-block">
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
@@ -301,6 +287,71 @@ export default function CategoriesPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="d-lg-none p-3">
+            {displayedList.length === 0 ? (
+              <div className="text-center text-muted py-4">
+                {t("categories.table.empty")}
+              </div>
+            ) : (
+              <div className="d-flex flex-column gap-3">
+                {paginatedList.map((c, idx) => (
+                  <div className="card border shadow-sm" key={c.id} style={{ borderRadius: 16 }}>
+                    <div className="card-body p-3">
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="badge bg-light text-dark border">
+                            #{(page - 1) * pageSize + idx + 1}
+                          </span>
+                          <h6 className="mb-0 fw-bold text-primary">{c.name}</h6>
+                        </div>
+                        <div className="dropdown">
+                          <button
+                            className="btn btn-link btn-sm text-muted p-0"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                          >
+                            <i className="bi bi-three-dots-vertical" />
+                          </button>
+                          <ul className="dropdown-menu dropdown-menu-end">
+                            <li>
+                              <button
+                                className="dropdown-item"
+                                type="button"
+                                onClick={() => openEditModal(c)}
+                              >
+                                <i className="bi bi-pencil-square me-2" /> {t("categories.action.edit")}
+                              </button>
+                            </li>
+                            <li><hr className="dropdown-divider" /></li>
+                            <li>
+                              <button
+                                className="dropdown-item text-danger"
+                                type="button"
+                                onClick={() => handleDelete(c)}
+                              >
+                                <i className="bi bi-trash me-2" /> {t("categories.action.delete")}
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                      
+                      <div className="text-muted small">
+                        {c.description ? (
+                          <span>{c.description}</span>
+                        ) : (
+                          <span className="fst-italic opacity-50">{t("categories.table.no_desc")}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
