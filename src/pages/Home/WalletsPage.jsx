@@ -86,11 +86,20 @@ function useAutoHeight(isOpen, deps = []) {
 const formatMoney = (amount = 0, currency = "VND") => {
   const numAmount = Number(amount) || 0;
   
-  // Custom format cho USD: hiển thị $ ở trước, không có số thập phân nếu là số nguyên
+  // Custom format cho USD: hiển thị $ ở trước
+  // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ (ví dụ: 0.000041 USD)
   if (currency === "USD") {
+    // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      const formatted = numAmount.toLocaleString("en-US", { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 8 
+      });
+      return `$${formatted}`;
+    }
     const formatted = numAmount % 1 === 0 
       ? numAmount.toLocaleString("en-US")
-      : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
     return `$${formatted}`;
   }
   
@@ -99,8 +108,11 @@ const formatMoney = (amount = 0, currency = "VND") => {
     if (currency === "VND") {
       return `${numAmount.toLocaleString("vi-VN")} VND`;
     }
-    // Các currency khác
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
   } catch {
     return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
   }

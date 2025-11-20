@@ -23,17 +23,30 @@ export default function WalletCard({
   const fmtMoney = (n, c = "VND") => {
     const numAmount = Number(n || 0);
     // Custom format cho USD: hiển thị $ ở trước
+    // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ (ví dụ: 0.000041 USD)
     if (c === "USD") {
+      // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
       const formatted = numAmount % 1 === 0 
         ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
       return `$${formatted}`;
     }
     // Format cho VND và các currency khác
     if (c === "VND") {
       return `${numAmount.toLocaleString("vi-VN")} VND`;
     }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c}`;
+    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${c}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${c}`;
   };
 
   const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "");

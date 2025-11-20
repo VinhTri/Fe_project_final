@@ -34,6 +34,45 @@ function formatVietnamTime(date) {
   });
 }
 
+/**
+ * Format số tiền với độ chính xác cao (tối đa 8 chữ số thập phân)
+ * Để hiển thị chính xác số tiền nhỏ khi chuyển đổi tiền tệ
+ */
+function formatMoney(amount = 0, currency = "VND") {
+  const numAmount = Number(amount) || 0;
+  
+  // Custom format cho USD: hiển thị $ ở trước
+  // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
+  if (currency === "USD") {
+    // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      const formatted = numAmount.toLocaleString("en-US", { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 8 
+      });
+      return `$${formatted}`;
+    }
+    const formatted = numAmount % 1 === 0 
+      ? numAmount.toLocaleString("en-US")
+      : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+    return `$${formatted}`;
+  }
+  
+  // Format cho VND và các currency khác
+  try {
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  } catch {
+    return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
+  }
+}
+
 export default function TransactionViewModal({ open, tx, onClose }) {
   if (!open || !tx) return null;
 
@@ -114,7 +153,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                       }`}
                     >
                       {tx.type === "expense" ? "-" : "+"}
-                      {tx.amount.toLocaleString("vi-VN")} {tx.currency}
+                      {formatMoney(tx.amount, tx.currency)}
                     </div>
                   </div>
                 </>
