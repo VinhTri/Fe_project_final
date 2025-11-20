@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 /* ================== CẤU HÌNH MẶC ĐỊNH ================== */
 const EMPTY_FORM = {
@@ -26,6 +27,7 @@ const DEFAULT_WALLETS = ["Ví tiền mặt", "Techcombank", "Momo", "Ngân hàng
 
 /* ================== Autocomplete + Select Input ================== */
 function WalletSelectInput({ label, value, onChange, options, placeholder, id }) {
+  const { t } = useLanguage();
   const [inputValue, setInputValue] = useState(value);
 
   useEffect(() => setInputValue(value), [value]);
@@ -59,7 +61,7 @@ function WalletSelectInput({ label, value, onChange, options, placeholder, id })
           onChange={handleSelect}
           value={options.includes(inputValue) ? inputValue : ""}
         >
-          <option value="">Chọn</option>
+          <option value="">{t("transactions.form.select_option")}</option>
           {options.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
@@ -85,6 +87,7 @@ export default function TransactionFormModal({
   onClose,
   variant = "external",
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(EMPTY_FORM);
   const [attachmentPreview, setAttachmentPreview] = useState("");
 
@@ -122,7 +125,7 @@ export default function TransactionFormModal({
           targetWallet: initialData.targetWallet || "",
           amount: String(initialData.amount ?? ""),
           date: dateValue || now,
-          category: initialData.category || "Chuyển tiền giữa các ví",
+          category: initialData.category || t("transactions.type.transfer"),
           note: initialData.note || "",
           currency: initialData.currency || "VND",
           attachment: initialData.attachment || "",
@@ -133,7 +136,7 @@ export default function TransactionFormModal({
           ...EMPTY_FORM,
           type: "transfer",
           date: now,
-          category: "Chuyển tiền giữa các ví",
+          category: t("transactions.type.transfer"),
         });
         setAttachmentPreview("");
       }
@@ -267,11 +270,11 @@ export default function TransactionFormModal({
             <h5 className="modal-title fw-semibold">
               {mode === "create"
                 ? variant === "internal"
-                  ? "Chuyển tiền giữa các ví"
-                  : "Thêm Giao dịch Mới"
+                  ? t("transactions.form.title_create_transfer")
+                  : t("transactions.form.title_create")
                 : variant === "internal"
-                ? "Sửa giao dịch chuyển tiền"
-                : "Chỉnh sửa Giao dịch"}
+                ? t("transactions.form.title_edit_transfer")
+                : t("transactions.form.title_edit")}
             </h5>
             <button type="button" className="btn-close" onClick={onClose} />
           </div>
@@ -282,21 +285,21 @@ export default function TransactionFormModal({
                 <>
                   {/* ===== GIAO DỊCH NGOÀI ===== */}
                   <div className="mb-3">
-                    <div className="form-label fw-semibold">Loại giao dịch</div>
+                    <div className="form-label fw-semibold">{t("transactions.form.type_label")}</div>
                     <div className="btn-group btn-group-sm" role="group">
                       <button
                         type="button"
                         className={`btn type-pill ${form.type === "income" ? "active" : ""}`}
                         onClick={() => setForm((f) => ({ ...f, type: "income" }))}
                       >
-                        Thu nhập
+                        {t("transactions.type.income")}
                       </button>
                       <button
                         type="button"
                         className={`btn type-pill ${form.type === "expense" ? "active" : ""}`}
                         onClick={() => setForm((f) => ({ ...f, type: "expense" }))}
                       >
-                        Chi tiêu
+                        {t("transactions.type.expense")}
                       </button>
                     </div>
                   </div>
@@ -305,16 +308,16 @@ export default function TransactionFormModal({
                     <div className="col-md-6">
                       <WalletSelectInput
                         id="wallet-options"
-                        label="Ví"
+                        label={t("transactions.form.wallet")}
                         value={form.walletName}
                         onChange={(v) => setForm((f) => ({ ...f, walletName: v }))}
-                        placeholder="Nhập hoặc chọn ví..."
+                        placeholder={t("transactions.form.wallet_placeholder")}
                         options={walletOptions}
                       />
                     </div>
 
                     <div className="col-md-6">
-                      <label className="form-label fw-semibold">Số tiền</label>
+                      <label className="form-label fw-semibold">{t("transactions.form.amount")}</label>
                       <div className="input-group">
                         <input
                           type="number"
@@ -329,7 +332,7 @@ export default function TransactionFormModal({
                     </div>
 
                     <div className="col-md-6">
-                      <label className="form-label fw-semibold">Ngày & giờ</label>
+                      <label className="form-label fw-semibold">{t("transactions.form.date")}</label>
                       <input
                         type="datetime-local"
                         name="date"
@@ -343,28 +346,28 @@ export default function TransactionFormModal({
                     <div className="col-md-6">
                       <WalletSelectInput
                         id="category-options"
-                        label="Danh mục"
+                        label={t("transactions.form.category")}
                         value={form.category}
                         onChange={(v) => setForm((f) => ({ ...f, category: v }))}
-                        placeholder="Nhập hoặc chọn danh mục..."
+                        placeholder={t("transactions.form.category_placeholder")}
                         options={categoryOptions}
                       />
                     </div>
 
                     <div className="col-12">
-                      <label className="form-label fw-semibold">Ghi chú</label>
+                      <label className="form-label fw-semibold">{t("transactions.form.note")}</label>
                       <textarea
                         name="note"
                         className="form-control"
                         rows={2}
                         value={form.note}
                         onChange={handleChange}
-                        placeholder="Thêm mô tả cho giao dịch..."
+                        placeholder={t("transactions.form.note_placeholder")}
                       />
                     </div>
 
                     <div className="col-12">
-                      <label className="form-label fw-semibold">Ảnh đính kèm</label>
+                      <label className="form-label fw-semibold">{t("transactions.form.attachment")}</label>
                       <input
                         type="file"
                         className="form-control"
@@ -393,19 +396,19 @@ export default function TransactionFormModal({
                 /* ===== CHUYỂN TIỀN ===== */
                 <div className="row g-3">
                   <div className="col-12">
-                    <div className="form-label fw-semibold mb-0">Chuyển tiền giữa các ví</div>
+                    <div className="form-label fw-semibold mb-0">{t("transactions.form.transfer_legend")}</div>
                     <div className="text-muted small">
-                      Chọn ví gửi, ví nhận và số tiền cần chuyển.
+                      {t("transactions.form.transfer_hint")}
                     </div>
                   </div>
 
                   <div className="col-md-6">
                     <WalletSelectInput
                       id="source-wallet"
-                      label="Ví gửi"
+                      label={t("transactions.form.source_wallet")}
                       value={form.sourceWallet}
                       onChange={(v) => setForm((f) => ({ ...f, sourceWallet: v }))}
-                      placeholder="Nhập hoặc chọn ví gửi..."
+                      placeholder={t("transactions.form.source_wallet_placeholder")}
                       options={walletOptions}
                     />
                   </div>
@@ -413,16 +416,16 @@ export default function TransactionFormModal({
                   <div className="col-md-6">
                     <WalletSelectInput
                       id="target-wallet"
-                      label="Ví nhận"
+                      label={t("transactions.form.target_wallet")}
                       value={form.targetWallet}
                       onChange={(v) => setForm((f) => ({ ...f, targetWallet: v }))}
-                      placeholder="Nhập hoặc chọn ví nhận..."
+                      placeholder={t("transactions.form.target_wallet_placeholder")}
                       options={walletOptions}
                     />
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label fw-semibold">Số tiền</label>
+                    <label className="form-label fw-semibold">{t("transactions.form.amount")}</label>
                     <div className="input-group">
                       <input
                         type="number"
@@ -437,7 +440,7 @@ export default function TransactionFormModal({
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label fw-semibold">Ngày & giờ</label>
+                    <label className="form-label fw-semibold">{t("transactions.form.date")}</label>
                     <input
                       type="datetime-local"
                       name="date"
@@ -449,14 +452,14 @@ export default function TransactionFormModal({
                   </div>
 
                   <div className="col-12">
-                    <label className="form-label fw-semibold">Ghi chú</label>
+                    <label className="form-label fw-semibold">{t("transactions.form.note")}</label>
                     <textarea
                       name="note"
                       className="form-control"
                       rows={2}
                       value={form.note}
                       onChange={handleChange}
-                      placeholder="Thêm ghi chú cho lần chuyển tiền..."
+                      placeholder={t("transactions.form.transfer_note_placeholder")}
                     />
                   </div>
                 </div>
@@ -465,10 +468,10 @@ export default function TransactionFormModal({
 
             <div className="modal-footer border-0 pt-0" style={{ padding: "8px 22px 16px" }}>
               <button type="button" className="btn btn-light" onClick={onClose}>
-                Hủy bỏ
+                {t("transactions.btn.cancel")}
               </button>
               <button type="submit" className="btn btn-primary">
-                Lưu
+                {t("transactions.btn.save")}
               </button>
             </div>
           </form>

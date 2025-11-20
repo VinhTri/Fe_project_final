@@ -8,6 +8,7 @@ import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 // ===== GIAO DỊCH NGOÀI – 20 dữ liệu mẫu =====
 const MOCK_TRANSACTIONS = [
@@ -18,7 +19,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Tiền mặt",
     amount: 50000,
     currency: "VND",
-    date: "2023-10-20T12:00",
+    date: "2025-11-20T12:00",
     category: "Ăn uống",
     note: "Bữa trưa với đồng nghiệp",
     creatorCode: "USR001",
@@ -31,9 +32,9 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng A",
     amount: 1500000,
     currency: "VND",
-    date: "2023-10-19T09:00",
+    date: "2025-11-19T09:00",
     category: "Lương",
-    note: "Lương tháng 10",
+    note: "Lương tháng 11",
     creatorCode: "USR001",
     attachment: "",
   },
@@ -44,7 +45,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Momo",
     amount: 120000,
     currency: "VND",
-    date: "2023-10-18T18:30",
+    date: "2025-11-18T18:30",
     category: "Giải trí",
     note: "Xem phim",
     creatorCode: "USR001",
@@ -57,7 +58,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Tiền mặt",
     amount: 80000,
     currency: "VND",
-    date: "2023-10-18T07:45",
+    date: "2025-11-18T07:45",
     category: "Ăn uống",
     note: "Ăn sáng",
     creatorCode: "USR001",
@@ -70,7 +71,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng B",
     amount: 300000,
     currency: "VND",
-    date: "2023-10-17T16:10",
+    date: "2025-11-17T16:10",
     category: "Thưởng",
     note: "Thưởng dự án",
     creatorCode: "USR001",
@@ -83,7 +84,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Techcombank",
     amount: 450000,
     currency: "VND",
-    date: "2023-10-17T20:05",
+    date: "2025-11-17T20:05",
     category: "Mua sắm",
     note: "Mua áo khoác",
     creatorCode: "USR001",
@@ -96,7 +97,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Tiền mặt",
     amount: 30000,
     currency: "VND",
-    date: "2023-10-16T10:20",
+    date: "2025-11-16T10:20",
     category: "Di chuyển",
     note: "Gửi xe",
     creatorCode: "USR001",
@@ -109,7 +110,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Momo",
     amount: 200000,
     currency: "VND",
-    date: "2023-10-16T21:00",
+    date: "2025-11-16T21:00",
     category: "Bán đồ",
     note: "Bán sách cũ",
     creatorCode: "USR001",
@@ -122,7 +123,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng A",
     amount: 900000,
     currency: "VND",
-    date: "2023-10-15T08:30",
+    date: "2025-11-15T08:30",
     category: "Hóa đơn",
     note: "Thanh toán tiền điện",
     creatorCode: "USR001",
@@ -135,7 +136,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng B",
     amount: 350000,
     currency: "VND",
-    date: "2023-10-15T19:15",
+    date: "2025-11-15T19:15",
     category: "Ăn uống",
     note: "Đi ăn với gia đình",
     creatorCode: "USR001",
@@ -148,9 +149,9 @@ const MOCK_TRANSACTIONS = [
     walletName: "Techcombank",
     amount: 1200000,
     currency: "VND",
-    date: "2023-10-14T09:05",
+    date: "2025-11-14T09:05",
     category: "Lãi tiết kiệm",
-    note: "Lãi tháng 10",
+    note: "Lãi tháng 11",
     creatorCode: "USR001",
     attachment: "",
   },
@@ -161,7 +162,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Momo",
     amount: 60000,
     currency: "VND",
-    date: "2023-10-14T13:25",
+    date: "2025-11-14T13:25",
     category: "Giải trí",
     note: "Mua game",
     creatorCode: "USR001",
@@ -174,7 +175,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Tiền mặt",
     amount: 40000,
     currency: "VND",
-    date: "2023-10-13T07:50",
+    date: "2025-11-13T07:50",
     category: "Ăn uống",
     note: "Ăn sáng",
     creatorCode: "USR001",
@@ -187,7 +188,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng A",
     amount: 250000,
     currency: "VND",
-    date: "2023-10-13T18:40",
+    date: "2025-11-13T18:40",
     category: "Tiền thưởng",
     note: "Thưởng KPI quý",
     creatorCode: "USR001",
@@ -200,7 +201,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Techcombank",
     amount: 150000,
     currency: "VND",
-    date: "2023-10-12T20:10",
+    date: "2025-11-12T20:10",
     category: "Mua sắm",
     note: "Mua giày",
     creatorCode: "USR001",
@@ -213,7 +214,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Tiền mặt",
     amount: 20000,
     currency: "VND",
-    date: "2023-10-12T09:15",
+    date: "2025-11-12T09:15",
     category: "Di chuyển",
     note: "Xe buýt",
     creatorCode: "USR001",
@@ -226,7 +227,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Momo",
     amount: 500000,
     currency: "VND",
-    date: "2023-10-11T14:00",
+    date: "2025-11-11T14:00",
     category: "Bán đồ",
     note: "Bán tai nghe cũ",
     creatorCode: "USR001",
@@ -239,7 +240,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng B",
     amount: 700000,
     currency: "VND",
-    date: "2023-10-11T19:30",
+    date: "2025-11-11T19:30",
     category: "Hóa đơn",
     note: "Thanh toán tiền nước",
     creatorCode: "USR001",
@@ -252,7 +253,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Tiền mặt",
     amount: 100000,
     currency: "VND",
-    date: "2023-10-10T11:45",
+    date: "2025-11-10T11:45",
     category: "Giải trí",
     note: "Đi cafe",
     creatorCode: "USR001",
@@ -265,7 +266,7 @@ const MOCK_TRANSACTIONS = [
     walletName: "Ngân hàng A",
     amount: 1000000,
     currency: "VND",
-    date: "2023-10-10T08:00",
+    date: "2025-11-10T08:00",
     category: "Lương phụ",
     note: "Làm thêm",
     creatorCode: "USR001",
@@ -283,7 +284,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Techcombank",
     amount: 200000,
     currency: "VND",
-    date: "2023-10-20T09:00",
+    date: "2025-11-20T09:00",
     category: "Chuyển tiền giữa các ví",
     note: "Chuyển tiền tiết kiệm",
     creatorCode: "USR001",
@@ -297,7 +298,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Momo",
     amount: 150000,
     currency: "VND",
-    date: "2023-10-19T20:10",
+    date: "2025-11-19T20:10",
     category: "Chuyển tiền giữa các ví",
     note: "Chuyển tiền tiêu vặt",
     creatorCode: "USR001",
@@ -311,7 +312,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Tiền mặt",
     amount: 300000,
     currency: "VND",
-    date: "2023-10-19T08:30",
+    date: "2025-11-19T08:30",
     category: "Chuyển tiền giữa các ví",
     note: "Rút tiền mặt",
     creatorCode: "USR001",
@@ -325,7 +326,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng B",
     amount: 500000,
     currency: "VND",
-    date: "2023-10-18T15:00",
+    date: "2025-11-18T15:00",
     category: "Chuyển tiền giữa các ví",
     note: "Chuyển tiền trả nợ",
     creatorCode: "USR001",
@@ -339,7 +340,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Tiền mặt",
     amount: 100000,
     currency: "VND",
-    date: "2023-10-18T11:20",
+    date: "2025-11-18T11:20",
     category: "Chuyển tiền giữa các ví",
     note: "Rút tiền từ ví điện tử",
     creatorCode: "USR001",
@@ -353,7 +354,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Techcombank",
     amount: 800000,
     currency: "VND",
-    date: "2023-10-17T09:30",
+    date: "2025-11-17T09:30",
     category: "Chuyển tiền giữa các ví",
     note: "Gộp tài khoản",
     creatorCode: "USR001",
@@ -367,7 +368,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Momo",
     amount: 50000,
     currency: "VND",
-    date: "2023-10-17T18:45",
+    date: "2025-11-17T18:45",
     category: "Chuyển tiền giữa các ví",
     note: "Nạp ví Momo",
     creatorCode: "USR001",
@@ -381,7 +382,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng A",
     amount: 2000000,
     currency: "VND",
-    date: "2023-10-16T10:15",
+    date: "2025-11-16T10:15",
     category: "Chuyển tiền giữa các ví",
     note: "Chuyển về tài khoản chính",
     creatorCode: "USR001",
@@ -395,7 +396,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Techcombank",
     amount: 400000,
     currency: "VND",
-    date: "2023-10-16T21:05",
+    date: "2025-11-16T21:05",
     category: "Chuyển tiền giữa các ví",
     note: "Đầu tư",
     creatorCode: "USR001",
@@ -409,7 +410,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Momo",
     amount: 60000,
     currency: "VND",
-    date: "2023-10-15T19:40",
+    date: "2025-11-15T19:40",
     category: "Chuyển tiền giữa các ví",
     note: "Thanh toán hóa đơn online",
     creatorCode: "USR001",
@@ -423,7 +424,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng A",
     amount: 250000,
     currency: "VND",
-    date: "2023-10-15T08:20",
+    date: "2025-11-15T08:20",
     category: "Chuyển tiền giữa các ví",
     note: "Nộp vào ngân hàng",
     creatorCode: "USR001",
@@ -437,7 +438,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng A",
     amount: 90000,
     currency: "VND",
-    date: "2023-10-14T13:00",
+    date: "2025-11-14T13:00",
     category: "Chuyển tiền giữa các ví",
     note: "Rút tiền hoàn",
     creatorCode: "USR001",
@@ -451,7 +452,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Tiền mặt",
     amount: 150000,
     currency: "VND",
-    date: "2023-10-14T09:45",
+    date: "2025-11-14T09:45",
     category: "Chuyển tiền giữa các ví",
     note: "Tiền đi chơi",
     creatorCode: "USR001",
@@ -465,7 +466,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Tiền mặt",
     amount: 100000,
     currency: "VND",
-    date: "2023-10-13T18:15",
+    date: "2025-11-13T18:15",
     category: "Chuyển tiền giữa các ví",
     note: "Rút tiền tiêu",
     creatorCode: "USR001",
@@ -479,7 +480,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Techcombank",
     amount: 300000,
     currency: "VND",
-    date: "2023-10-13T11:35",
+    date: "2025-11-13T11:35",
     category: "Chuyển tiền giữa các ví",
     note: "Chuyển khoản chung",
     creatorCode: "USR001",
@@ -493,7 +494,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng B",
     amount: 70000,
     currency: "VND",
-    date: "2023-10-12T20:25",
+    date: "2025-11-12T20:25",
     category: "Chuyển tiền giữa các ví",
     note: "Hoàn tiền về ngân hàng",
     creatorCode: "USR001",
@@ -507,7 +508,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Momo",
     amount: 40000,
     currency: "VND",
-    date: "2023-10-12T09:55",
+    date: "2025-11-12T09:55",
     category: "Chuyển tiền giữa các ví",
     note: "Nạp ví để thanh toán",
     creatorCode: "USR001",
@@ -521,7 +522,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng B",
     amount: 1000000,
     currency: "VND",
-    date: "2023-10-11T16:00",
+    date: "2025-11-11T16:00",
     category: "Chuyển tiền giữa các ví",
     note: "Chia tiền tiết kiệm",
     creatorCode: "USR001",
@@ -535,7 +536,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng A",
     amount: 350000,
     currency: "VND",
-    date: "2023-10-11T10:20",
+    date: "2025-11-11T10:20",
     category: "Chuyển tiền giữa các ví",
     note: "Cân bằng tài khoản",
     creatorCode: "USR001",
@@ -549,7 +550,7 @@ const MOCK_INTERNAL_TRANSFERS = [
     targetWallet: "Ngân hàng B",
     amount: 220000,
     currency: "VND",
-    date: "2023-10-10T14:30",
+    date: "2025-11-10T14:30",
     category: "Chuyển tiền giữa các ví",
     note: "Gửi tiết kiệm",
     creatorCode: "USR001",
@@ -571,6 +572,7 @@ function toDateObj(str) {
 }
 
 export default function TransactionsPage() {
+  const { t } = useLanguage();
   // Persist transactions to localStorage so newly-created items survive navigation
   const STORAGE_EXTERNAL = "app_external_transactions_v1";
   const STORAGE_INTERNAL = "app_internal_transfers_v1";
@@ -719,7 +721,7 @@ export default function TransactionsPage() {
     }
 
     setCreating(false);
-    setToast({ open: true, message: "Đã thêm giao dịch mới." });
+    setToast({ open: true, message: t("transactions.toast.add_success") });
     setCurrentPage(1);
   };
 
@@ -741,7 +743,7 @@ export default function TransactionsPage() {
 
     setBudgetWarning(null);
     setPendingTransaction(null);
-    setToast({ open: true, message: "Đã thêm giao dịch mới (vượt hạn mức)." });
+    setToast({ open: true, message: t("transactions.toast.add_warning_success") });
     setCurrentPage(1);
   };
 
@@ -784,7 +786,7 @@ export default function TransactionsPage() {
     }
 
     setEditing(null);
-    setToast({ open: true, message: "Đã cập nhật giao dịch." });
+    setToast({ open: true, message: t("transactions.toast.update_success") });
   };
 
   const handleDelete = () => {
@@ -802,7 +804,7 @@ export default function TransactionsPage() {
     }
 
     setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa giao dịch." });
+    setToast({ open: true, message: t("transactions.toast.delete_success") });
   };
 
   // Update budget data when transactions change
@@ -1012,10 +1014,10 @@ export default function TransactionsPage() {
             </div>
             <div>
               <h2 className="tx-title mb-1" style={{ color: "#ffffff" }}>
-                Quản lý Giao dịch
+                {t("transactions.page.title")}
               </h2>
               <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-                Xem, tìm kiếm và quản lý các khoản thu chi gần đây.
+                {t("transactions.page.subtitle")}
               </p>
             </div>
           </div>
@@ -1028,8 +1030,8 @@ export default function TransactionsPage() {
               value={activeTab}
               onChange={handleTabChange}
             >
-              <option value={TABS.EXTERNAL}>Giao dịch ngoài</option>
-              <option value={TABS.INTERNAL}>Giao dịch giữa các ví</option>
+              <option value={TABS.EXTERNAL}>{t("transactions.tab.external")}</option>
+              <option value={TABS.INTERNAL}>{t("transactions.tab.internal")}</option>
             </select>
 
             <button
@@ -1038,7 +1040,7 @@ export default function TransactionsPage() {
               onClick={() => setCreating(true)}
             >
               <i className="bi bi-plus-lg me-2" />
-              Thêm giao dịch mới
+              {t("transactions.btn.add")}
             </button>
           </div>
         </div>
@@ -1056,7 +1058,7 @@ export default function TransactionsPage() {
                 </span>
                 <input
                   className="form-control border-start-0"
-                  placeholder="Tìm kiếm giao dịch..."
+                  placeholder={t("transactions.filter.search_placeholder")}
                   value={searchText}
                   onChange={(e) => {
                     setSearchText(e.target.value);
@@ -1073,9 +1075,9 @@ export default function TransactionsPage() {
                   value={filterType}
                   onChange={handleFilterChange(setFilterType)}
                 >
-                  <option value="all">Loại giao dịch</option>
-                  <option value="income">Thu nhập</option>
-                  <option value="expense">Chi tiêu</option>
+                  <option value="all">{t("transactions.filter.type_all")}</option>
+                  <option value="income">{t("transactions.type.income")}</option>
+                  <option value="expense">{t("transactions.type.expense")}</option>
                 </select>
               </div>
             )}
@@ -1086,7 +1088,7 @@ export default function TransactionsPage() {
                 value={filterCategory}
                 onChange={handleFilterChange(setFilterCategory)}
               >
-                <option value="all">Danh mục</option>
+                <option value="all">{t("transactions.filter.category_all")}</option>
                 {allCategories.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -1103,7 +1105,7 @@ export default function TransactionsPage() {
                 value={filterWallet}
                 onChange={handleFilterChange(setFilterWallet)}
               >
-                <option value="all">Ví</option>
+                <option value="all">{t("transactions.filter.wallet_all")}</option>
                 {allWallets.map((w) => (
                   <option key={w} value={w}>
                     {w}
@@ -1119,7 +1121,7 @@ export default function TransactionsPage() {
                 value={fromDateTime}
                 onChange={handleDateChange(setFromDateTime)}
               />
-              <span className="text-muted small px-1">đến</span>
+              <span className="text-muted small px-1">{t("transactions.filter.to")}</span>
               <input
                 type="datetime-local"
                 className="form-control"
@@ -1135,7 +1137,7 @@ export default function TransactionsPage() {
                 onClick={clearFilters}
               >
                 <i className="bi bi-x-circle me-1" />
-                Xóa lọc
+                {t("transactions.filter.clear")}
               </button>
             </div>
           </div>
@@ -1149,28 +1151,28 @@ export default function TransactionsPage() {
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th style={{ width: 60 }}>STT</th>
-                  <th>Ngày</th>
-                  <th>Thời gian</th>
-                  <th>Loại</th>
-                  <th>Ví</th>
-                  <th>Danh mục</th>
-                  <th className="tx-note-col">Mô tả</th>
-                  <th className="text-end">Số tiền</th>
-                  <th className="text-center">Hành động</th>
+                  <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
+                  <th>{t("transactions.table.date")}</th>
+                  <th>{t("transactions.table.time")}</th>
+                  <th>{t("transactions.table.type")}</th>
+                  <th>{t("transactions.table.wallet")}</th>
+                  <th>{t("transactions.table.category")}</th>
+                  <th className="tx-note-col">{t("transactions.table.note")}</th>
+                  <th className="text-end">{t("transactions.table.amount")}</th>
+                  <th className="text-center">{t("transactions.table.action")}</th>
                 </tr>
               </thead>
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="text-center text-muted py-4">
-                      Không có giao dịch nào.
+                      {t("transactions.table.empty")}
                     </td>
                   </tr>
                 ) : (
-                  paginated.map((t, i) => {
+                  paginated.map((tx, i) => {
                     const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                    const d = toDateObj(t.date);
+                    const d = toDateObj(tx.date);
                     const dateStr = d
                       ? d.toLocaleDateString("vi-VN", {
                           day: "2-digit",
@@ -1186,26 +1188,26 @@ export default function TransactionsPage() {
                       : "";
 
                     return (
-                      <tr key={t.id}>
+                      <tr key={tx.id}>
                         <td>{serial}</td>
                         <td>{dateStr}</td>
                         <td>{timeStr}</td>
-                        <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
-                        <td>{t.walletName}</td>
-                        <td>{t.category}</td>
-                        <td className="tx-note-cell" title={t.note || "-"}>
-                          {t.note || "-"}
+                        <td>{tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}</td>
+                        <td>{tx.walletName}</td>
+                        <td>{tx.category}</td>
+                        <td className="tx-note-cell" title={tx.note || "-"}>
+                          {tx.note || "-"}
                         </td>
                         <td className="text-end">
                           <span
                             className={
-                              t.type === "expense"
+                              tx.type === "expense"
                                 ? "tx-amount-expense"
                                 : "tx-amount-income"
                             }
                           >
-                            {t.type === "expense" ? "-" : "+"}
-                            {t.amount.toLocaleString("vi-VN")} {t.currency}
+                            {tx.type === "expense" ? "-" : "+"}
+                            {tx.amount.toLocaleString("vi-VN")} {tx.currency}
                           </span>
                         </td>
                         <td className="text-center">
@@ -1215,7 +1217,7 @@ export default function TransactionsPage() {
                               type="button"
                               data-bs-toggle="dropdown"
                               aria-expanded="false"
-                              title="Thêm, sửa, xóa"
+                              title={t("transactions.action.tooltip")}
                             >
                               <i className="bi bi-three-dots-vertical" />
                             </button>
@@ -1224,18 +1226,18 @@ export default function TransactionsPage() {
                                 <button
                                   className="dropdown-item"
                                   type="button"
-                                  onClick={() => setViewing(t)}
+                                  onClick={() => setViewing(tx)}
                                 >
-                                  <i className="bi bi-eye me-2" /> Xem
+                                  <i className="bi bi-eye me-2" /> {t("transactions.action.view")}
                                 </button>
                               </li>
                               <li>
                                 <button
                                   className="dropdown-item"
                                   type="button"
-                                  onClick={() => setEditing(t)}
+                                  onClick={() => setEditing(tx)}
                                 >
-                                  <i className="bi bi-pencil-square me-2" /> Sửa
+                                  <i className="bi bi-pencil-square me-2" /> {t("transactions.action.edit")}
                                 </button>
                               </li>
                               <li><hr className="dropdown-divider" /></li>
@@ -1243,9 +1245,9 @@ export default function TransactionsPage() {
                                 <button
                                   className="dropdown-item text-danger"
                                   type="button"
-                                  onClick={() => setConfirmDel(t)}
+                                  onClick={() => setConfirmDel(tx)}
                                 >
-                                  <i className="bi bi-trash me-2" /> Xóa
+                                  <i className="bi bi-trash me-2" /> {t("transactions.action.delete")}
                                 </button>
                               </li>
                             </ul>
@@ -1262,27 +1264,27 @@ export default function TransactionsPage() {
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th style={{ width: 60 }}>STT</th>
-                  <th>Ngày</th>
-                  <th>Thời gian</th>
-                  <th>Ví gửi</th>
-                  <th>Ví nhận</th>
-                  <th className="tx-note-col">Ghi chú</th>
-                  <th className="text-end">Số tiền</th>
-                  <th className="text-center">Hành động</th>
+                  <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
+                  <th>{t("transactions.table.date")}</th>
+                  <th>{t("transactions.table.time")}</th>
+                  <th>{t("transactions.table.source_wallet")}</th>
+                  <th>{t("transactions.table.target_wallet")}</th>
+                  <th className="tx-note-col">{t("transactions.table.note")}</th>
+                  <th className="text-end">{t("transactions.table.amount")}</th>
+                  <th className="text-center">{t("transactions.table.action")}</th>
                 </tr>
               </thead>
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center text-muted py-4">
-                      Không có giao dịch nào.
+                      {t("transactions.table.empty")}
                     </td>
                   </tr>
                 ) : (
-                  paginated.map((t, i) => {
+                  paginated.map((tx, i) => {
                     const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                    const d = toDateObj(t.date);
+                    const d = toDateObj(tx.date);
                     const dateStr = d
                       ? d.toLocaleDateString("vi-VN", {
                           day: "2-digit",
@@ -1298,18 +1300,18 @@ export default function TransactionsPage() {
                       : "";
 
                     return (
-                      <tr key={t.id}>
+                      <tr key={tx.id}>
                         <td>{serial}</td>
                         <td>{dateStr}</td>
                         <td>{timeStr}</td>
-                        <td>{t.sourceWallet}</td>
-                        <td>{t.targetWallet}</td>
-                        <td className="tx-note-cell" title={t.note || "-"}>
-                          {t.note || "-"}
+                        <td>{tx.sourceWallet}</td>
+                        <td>{tx.targetWallet}</td>
+                        <td className="tx-note-cell" title={tx.note || "-"}>
+                          {tx.note || "-"}
                         </td>
                         <td className="text-end">
                           <span className="tx-amount-transfer">
-                            {t.amount.toLocaleString("vi-VN")} {t.currency}
+                            {tx.amount.toLocaleString("vi-VN")} {tx.currency}
                           </span>
                         </td>
                         <td className="text-center">
@@ -1319,7 +1321,7 @@ export default function TransactionsPage() {
                               type="button"
                               data-bs-toggle="dropdown"
                               aria-expanded="false"
-                              title="Thêm, sửa, xóa"
+                              title={t("transactions.action.tooltip")}
                             >
                               <i className="bi bi-three-dots-vertical" />
                             </button>
@@ -1328,18 +1330,18 @@ export default function TransactionsPage() {
                                 <button
                                   className="dropdown-item"
                                   type="button"
-                                  onClick={() => setViewing(t)}
+                                  onClick={() => setViewing(tx)}
                                 >
-                                  <i className="bi bi-eye me-2" /> Xem
+                                  <i className="bi bi-eye me-2" /> {t("transactions.action.view")}
                                 </button>
                               </li>
                               <li>
                                 <button
                                   className="dropdown-item"
                                   type="button"
-                                  onClick={() => setEditing(t)}
+                                  onClick={() => setEditing(tx)}
                                 >
-                                  <i className="bi bi-pencil-square me-2" /> Sửa
+                                  <i className="bi bi-pencil-square me-2" /> {t("transactions.action.edit")}
                                 </button>
                               </li>
                               <li><hr className="dropdown-divider" /></li>
@@ -1347,9 +1349,9 @@ export default function TransactionsPage() {
                                 <button
                                   className="dropdown-item text-danger"
                                   type="button"
-                                  onClick={() => setConfirmDel(t)}
+                                  onClick={() => setConfirmDel(tx)}
                                 >
-                                  <i className="bi bi-trash me-2" /> Xóa
+                                  <i className="bi bi-trash me-2" /> {t("transactions.action.delete")}
                                 </button>
                               </li>
                             </ul>
@@ -1369,9 +1371,9 @@ export default function TransactionsPage() {
         {/* Mobile card lists (visible only on small screens) */}
         {activeTab === TABS.EXTERNAL && (
           <div className="tx-card-list d-lg-none mt-2">
-            {paginated.map((t, i) => {
+            {paginated.map((tx, i) => {
               const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-              const d = toDateObj(t.date);
+              const d = toDateObj(tx.date);
               const dateStr = d
                 ? d.toLocaleDateString("vi-VN", {
                     day: "2-digit",
@@ -1386,26 +1388,26 @@ export default function TransactionsPage() {
                   })
                 : "";
               return (
-                <div className="tx-card card mb-2" key={t.id}>
+                <div className="tx-card card mb-2" key={tx.id}>
                   <div className="card-body p-2">
                     <div className="d-flex justify-content-between align-items-start">
                       <div>
                         <div className="text-muted small">{dateStr} {timeStr && `· ${timeStr}`}</div>
-                        <div className="fw-semibold">{t.type === "income" ? "Thu" : t.type === "expense" ? "Chi" : "Chuyển"} • {t.walletName}</div>
-                        <div className="text-muted small">{t.category}</div>
+                        <div className="fw-semibold">{tx.type === "income" ? "Thu" : tx.type === "expense" ? "Chi" : "Chuyển"} • {tx.walletName}</div>
+                        <div className="text-muted small">{tx.category}</div>
                       </div>
                       <div className="text-end">
-                        <div className={t.type === "expense" ? "tx-amount-expense" : "tx-amount-income"}>
-                          {t.type === "expense" ? "-" : "+"}{t.amount.toLocaleString("vi-VN")} {t.currency}
+                        <div className={tx.type === "expense" ? "tx-amount-expense" : "tx-amount-income"}>
+                          {tx.type === "expense" ? "-" : "+"}{tx.amount.toLocaleString("vi-VN")} {tx.currency}
                         </div>
                         <div className="mt-1">
-                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setViewing(t)} title="Xem chi tiết"><i className="bi bi-eye" /></button>
-                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setEditing(t)} title="Chỉnh sửa"><i className="bi bi-pencil-square" /></button>
-                          <button className="btn btn-link btn-sm text-danger" onClick={() => setConfirmDel(t)} title="Xóa"><i className="bi bi-trash" /></button>
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setViewing(tx)} title="Xem chi tiết"><i className="bi bi-eye" /></button>
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setEditing(tx)} title="Chỉnh sửa"><i className="bi bi-pencil-square" /></button>
+                          <button className="btn btn-link btn-sm text-danger" onClick={() => setConfirmDel(tx)} title="Xóa"><i className="bi bi-trash" /></button>
                         </div>
                       </div>
                     </div>
-                    {t.note && <div className="mt-2 text-muted small">{t.note}</div>}
+                    {tx.note && <div className="mt-2 text-muted small">{tx.note}</div>}
                   </div>
                 </div>
               );
@@ -1415,9 +1417,9 @@ export default function TransactionsPage() {
 
         {activeTab === TABS.INTERNAL && (
           <div className="tx-card-list d-lg-none mt-2">
-            {paginated.map((t, i) => {
+            {paginated.map((tx, i) => {
               const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-              const d = toDateObj(t.date);
+              const d = toDateObj(tx.date);
               const dateStr = d
                 ? d.toLocaleDateString("vi-VN", {
                     day: "2-digit",
@@ -1432,24 +1434,24 @@ export default function TransactionsPage() {
                   })
                 : "";
               return (
-                <div className="tx-card card mb-2" key={t.id}>
+                <div className="tx-card card mb-2" key={tx.id}>
                   <div className="card-body p-2">
                     <div className="d-flex justify-content-between align-items-start">
                       <div>
                         <div className="text-muted small">{dateStr} {timeStr && `· ${timeStr}`}</div>
-                        <div className="fw-semibold">{t.sourceWallet} → {t.targetWallet}</div>
-                        <div className="text-muted small">{t.category}</div>
+                        <div className="fw-semibold">{tx.sourceWallet} → {tx.targetWallet}</div>
+                        <div className="text-muted small">{tx.category}</div>
                       </div>
                       <div className="text-end">
-                        <div className="tx-amount-transfer">{t.amount.toLocaleString("vi-VN")} {t.currency}</div>
+                        <div className="tx-amount-transfer">{tx.amount.toLocaleString("vi-VN")} {tx.currency}</div>
                         <div className="mt-1">
-                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setViewing(t)} title="Xem chi tiết"><i className="bi bi-eye" /></button>
-                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setEditing(t)} title="Chỉnh sửa"><i className="bi bi-pencil-square" /></button>
-                          <button className="btn btn-link btn-sm text-danger" onClick={() => setConfirmDel(t)} title="Xóa"><i className="bi bi-trash" /></button>
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setViewing(tx)} title="Xem chi tiết"><i className="bi bi-eye" /></button>
+                          <button className="btn btn-link btn-sm text-muted me-1" onClick={() => setEditing(tx)} title="Chỉnh sửa"><i className="bi bi-pencil-square" /></button>
+                          <button className="btn btn-link btn-sm text-danger" onClick={() => setConfirmDel(tx)} title="Xóa"><i className="bi bi-trash" /></button>
                         </div>
                       </div>
                     </div>
-                    {t.note && <div className="mt-2 text-muted small">{t.note}</div>}
+                    {tx.note && <div className="mt-2 text-muted small">{tx.note}</div>}
                   </div>
                 </div>
               );
@@ -1572,12 +1574,12 @@ export default function TransactionsPage() {
 
       <ConfirmModal
         open={!!confirmDel}
-        title="Xóa giao dịch"
+        title={t("transactions.confirm.delete_title")}
         message={
-          confirmDel ? `Bạn chắc chắn muốn xóa giao dịch ${confirmDel.code}?` : ""
+          confirmDel ? t("transactions.confirm.delete_message", { code: confirmDel.code }) : ""
         }
-        okText="Xóa"
-        cancelText="Hủy"
+        okText={t("transactions.confirm.delete_ok")}
+        cancelText={t("transactions.confirm.delete_cancel")}
         onOk={handleDelete}
         onClose={() => setConfirmDel(null)}
       />

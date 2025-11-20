@@ -3,8 +3,10 @@ import React, { useMemo, useState } from "react";
 import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function PersonalNoTermForm({ wallets }) {
+  const { t } = useLanguage();
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
     () => wallets.find((w) => String(w.id) === String(srcWalletId)) || null,
@@ -24,7 +26,7 @@ export default function PersonalNoTermForm({ wallets }) {
 
   const handleSave = () => {
     if (!selectedWallet) {
-      alert("Vui lòng chọn ví nguồn trước khi lưu quỹ.");
+      alert(t("funds.form.alert_wallet"));
       return;
     }
     console.log("Lưu quỹ cá nhân không thời hạn", {
@@ -36,16 +38,16 @@ export default function PersonalNoTermForm({ wallets }) {
   return (
     <div className="funds-grid">
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">Thông tin quỹ</div>
+        <div className="funds-fieldset__legend">{t("funds.form.info_legend")}</div>
 
         <div className="funds-field">
           <label>
-            Tên quỹ <span className="req">*</span>
+            {t("funds.form.name")} <span className="req">*</span>
           </label>
           <input
             type="text"
             maxLength={50}
-            placeholder="Ví dụ: Quỹ khẩn cấp"
+            placeholder={t("funds.form.name_placeholder_no_term")}
           />
         </div>
 
@@ -58,37 +60,37 @@ export default function PersonalNoTermForm({ wallets }) {
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Số dư hiện tại của ví</label>
+            <label>{t("funds.form.current_balance")}</label>
             <input
               type="text"
               disabled
-              placeholder="Tự động hiển thị sau khi chọn ví"
+              placeholder={t("funds.form.auto_balance")}
               value={currentBalanceText}
             />
           </div>
           <div>
-            <label>Ngày bắt đầu</label>
+            <label>{t("funds.form.start_date")}</label>
             <input type="date" />
           </div>
         </div>
       </div>
 
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">Tần suất gửi (tuỳ chọn)</div>
+        <div className="funds-fieldset__legend">{t("funds.form.freq_legend_optional")}</div>
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Tần suất gửi quỹ</label>
+            <label>{t("funds.form.freq_label")}</label>
             <select value={freq} onChange={(e) => setFreq(e.target.value)}>
-              <option value="day">Theo ngày</option>
-              <option value="week">Theo tuần</option>
-              <option value="month">Theo tháng</option>
-              <option value="year">Theo năm</option>
+              <option value="day">{t("funds.form.freq_day")}</option>
+              <option value="week">{t("funds.form.freq_week")}</option>
+              <option value="month">{t("funds.form.freq_month")}</option>
+              <option value="year">{t("funds.form.freq_year")}</option>
             </select>
           </div>
           <div>
-            <label>Số tiền gửi mỗi kỳ</label>
-            <input type="number" min={0} placeholder="Tuỳ chọn" />
+            <label>{t("funds.form.period_amount")}</label>
+            <input type="number" min={0} placeholder={t("funds.form.period_placeholder_optional")} />
           </div>
         </div>
       </div>
@@ -108,8 +110,8 @@ export default function PersonalNoTermForm({ wallets }) {
 
       <div className="funds-fieldset funds-fieldset--full">
         <div className="funds-field">
-          <label>Ghi chú</label>
-          <textarea rows={3} placeholder="Ghi chú cho quỹ này" />
+          <label>{t("funds.form.note")}</label>
+          <textarea rows={3} placeholder={t("funds.form.note_placeholder")} />
         </div>
 
         <div className="funds-actions">
@@ -120,14 +122,14 @@ export default function PersonalNoTermForm({ wallets }) {
               console.log("Hủy tạo quỹ cá nhân không thời hạn")
             }
           >
-            Hủy
+            {t("funds.form.cancel")}
           </button>
           <button
             type="button"
             className="btn-primary"
             onClick={handleSave}
           >
-            Lưu quỹ cá nhân
+            {t("funds.form.save_personal")}
           </button>
         </div>
       </div>

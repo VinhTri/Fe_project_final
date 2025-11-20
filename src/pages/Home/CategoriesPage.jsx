@@ -3,8 +3,10 @@ import "../../styles/home/CategoriesPage.css";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function CategoriesPage() {
+  const { t } = useLanguage();
   const { expenseCategories, incomeCategories, createExpenseCategory, createIncomeCategory, updateExpenseCategory, updateIncomeCategory, deleteExpenseCategory, deleteIncomeCategory } = useCategoryData();
 
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
@@ -74,14 +76,14 @@ export default function CategoriesPage() {
       }
       // go to first page to show the new item
       setPage(1);
-      setToast({ open: true, message: "Đã thêm danh mục mới." });
+      setToast({ open: true, message: t("categories.toast.add_success") });
     } else if (modalMode === "edit") {
       if (activeTab === "expense") {
         updateExpenseCategory(modalEditingId, payload);
       } else {
         updateIncomeCategory(modalEditingId, payload);
       }
-      setToast({ open: true, message: "Đã cập nhật danh mục." });
+      setToast({ open: true, message: t("categories.toast.update_success") });
     }
     setModalOpen(false);
     setModalEditingId(null);
@@ -92,7 +94,7 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = (cat) => {
-    if (!window.confirm(`Xóa danh mục "${cat.name}"?`)) return;
+    if (!window.confirm(t("categories.confirm.delete", { name: cat.name }))) return;
 
     if (activeTab === "expense") {
       deleteExpenseCategory(cat.id);
@@ -100,7 +102,7 @@ export default function CategoriesPage() {
       deleteIncomeCategory(cat.id);
     }
 
-    setToast({ open: true, message: "Đã xóa danh mục." });
+    setToast({ open: true, message: t("categories.toast.delete_success") });
     if (modalEditingId === cat.id) {
       setModalEditingId(null);
       setModalOpen(false);
@@ -128,11 +130,10 @@ export default function CategoriesPage() {
             </div>
             <div>
               <h2 className="mb-1" style={{ color: "#ffffff" }}>
-                Danh Mục
+                {t("categories.page.title")}
               </h2>
               <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-                Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ
-                đây.
+                {t("categories.page.subtitle")}
               </p>
             </div>
           
@@ -159,7 +160,7 @@ export default function CategoriesPage() {
                   setPage(1);
                 }}
               >
-                Chi phí
+                {t("categories.tab.expense")}
               </button>
 
               <button
@@ -176,7 +177,7 @@ export default function CategoriesPage() {
                   setPage(1);
                 }}
               >
-                Thu nhập
+                {t("categories.tab.income")}
               </button>
             </div>
             <div className="ms-3">
@@ -184,10 +185,10 @@ export default function CategoriesPage() {
                 type="button"
                 className="btn category-add-header-btn d-flex align-items-center"
                 onClick={openAddModal}
-                aria-label="Thêm danh mục"
+                aria-label={t("categories.btn.add")}
               >
                 <i className="bi bi-plus-lg me-2" />
-                Thêm danh mục
+                {t("categories.btn.add")}
               </button>
             </div>
           </div>
@@ -201,20 +202,20 @@ export default function CategoriesPage() {
         <div className="card-body">
           <form className="row g-3 align-items-end" onSubmit={handleSearchSubmit}>
             <div className="col-md-4">
-              <label className="form-label fw-semibold">Tên danh mục</label>
+              <label className="form-label fw-semibold">{t("categories.filter.name")}</label>
               <input
                 className="form-control"
-                placeholder="VD: Ăn uống, Lương..."
+                placeholder={t("categories.filter.name_placeholder")}
                 value={searchName}
                 onChange={(e) => setSearchName(e.target.value)}
                 maxLength={40}
               />
             </div>
             <div className="col-md-5">
-              <label className="form-label fw-semibold">Mô tả</label>
+              <label className="form-label fw-semibold">{t("categories.filter.desc")}</label>
               <input
                 className="form-control"
-                placeholder="Mô tả ngắn cho danh mục (tùy chọn)"
+                placeholder={t("categories.filter.desc_placeholder")}
                 value={searchDesc}
                 onChange={(e) => setSearchDesc(e.target.value)}
                 maxLength={80}
@@ -222,10 +223,10 @@ export default function CategoriesPage() {
             </div>
             <div className="col-md-3 d-flex gap-2">
               <button type="submit" className="btn btn-primary flex-grow-1">
-                Tìm kiếm
+                {t("categories.btn.search")}
               </button>
               <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
-                Xóa
+                {t("categories.btn.clear")}
               </button>
             </div>
           </form>
@@ -240,11 +241,11 @@ export default function CategoriesPage() {
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th style={{ width: "5%" }}>STT</th>
-                  <th style={{ width: "25%" }}>Tên danh mục</th>
-                  <th>Mô tả</th>
+                  <th style={{ width: "5%" }}>{t("categories.table.no")}</th>
+                  <th style={{ width: "25%" }}>{t("categories.table.name")}</th>
+                  <th>{t("categories.table.desc")}</th>
                   <th className="text-center" style={{ width: "15%" }}>
-                    Hành động
+                    {t("categories.table.action")}
                   </th>
                 </tr>
               </thead>
@@ -252,7 +253,7 @@ export default function CategoriesPage() {
                 {displayedList.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center text-muted py-4">
-                      Chưa có danh mục nào.
+                      {t("categories.table.empty")}
                     </td>
                   </tr>
                 ) : (
@@ -268,7 +269,7 @@ export default function CategoriesPage() {
                             type="button"
                             data-bs-toggle="dropdown"
                             aria-expanded="false"
-                            title="Sửa, xóa"
+                            title={t("categories.action.tooltip")}
                           >
                             <i className="bi bi-three-dots-vertical" />
                           </button>
@@ -279,7 +280,7 @@ export default function CategoriesPage() {
                                 type="button"
                                 onClick={() => openEditModal(c)}
                               >
-                                <i className="bi bi-pencil-square me-2" /> Sửa
+                                <i className="bi bi-pencil-square me-2" /> {t("categories.action.edit")}
                               </button>
                             </li>
                             <li><hr className="dropdown-divider" /></li>
@@ -289,7 +290,7 @@ export default function CategoriesPage() {
                                 type="button"
                                 onClick={() => handleDelete(c)}
                               >
-                                <i className="bi bi-trash me-2" /> Xóa
+                                <i className="bi bi-trash me-2" /> {t("categories.action.delete")}
                               </button>
                             </li>
                           </ul>
@@ -400,7 +401,7 @@ export default function CategoriesPage() {
         open={modalOpen}
         mode={modalMode}
         initialValue={modalInitial}
-        typeLabel={activeTab === "expense" ? "chi phí" : "thu nhập"}
+        typeLabel={activeTab === "expense" ? t("categories.type.expense") : t("categories.type.income")}
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
       />

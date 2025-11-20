@@ -5,8 +5,10 @@ import ConfirmModal from "../../common/Modal/ConfirmModal";
 
 // 👇 THÊM
 import { useAuth, ROLES } from "../../../home/store/AuthContext";
+import { useLanguage } from "../../../home/store/LanguageContext";
 
 export default function UserMenu({ avatarUrl }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const ref = useRef(null);
@@ -39,7 +41,7 @@ export default function UserMenu({ avatarUrl }) {
     <div className="tb__dd" ref={ref}>
       <button
         className="tb__avatar btn-reset"
-        title="Tài khoản"
+        title={t("topbar.account")}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -59,7 +61,7 @@ export default function UserMenu({ avatarUrl }) {
               }}
             >
               <i className="bi bi-gear dd__icon" />
-              <span>Cài đặt</span>
+              <span>{t("settings.title")}</span>
             </button>
 
             {/* Đánh giá ứng dụng → ẨN với ADMIN */}
@@ -72,7 +74,7 @@ export default function UserMenu({ avatarUrl }) {
                 }}
               >
                 <i className="bi bi-stars dd__icon" />
-                <span>Đánh giá ứng dụng</span>
+                <span>{t("topbar.feedback")}</span>
               </button>
             )}
           </div>
@@ -82,7 +84,7 @@ export default function UserMenu({ avatarUrl }) {
           <div className="dd__section">
             <button className="dd__link dd__danger" onClick={onLogout}>
               <i className="bi bi-box-arrow-right dd__icon" />
-              <span>Đăng xuất</span>
+              <span>{t("topbar.logout")}</span>
             </button>
           </div>
         </div>
@@ -90,9 +92,9 @@ export default function UserMenu({ avatarUrl }) {
 
       <ConfirmModal
         open={confirm}
-        title="Đăng xuất"
-        message="Bạn có chắc chắn muốn đăng xuất không?"
-        okText="Đăng xuất"
+        title={t("topbar.logout_confirm_title")}
+        message={t("topbar.logout_confirm_message")}
+        okText={t("topbar.logout_confirm_ok")}
         onOk={doLogout}
         onClose={() => setConfirm(false)}
       />

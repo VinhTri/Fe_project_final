@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function WalletEditModal({
   wallet,
@@ -8,6 +9,7 @@ export default function WalletEditModal({
   currencies = [],
   existingNames = [],
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     name: "",
     currency: "VND",
@@ -53,27 +55,27 @@ export default function WalletEditModal({
   function validate(values = form) {
     const e = {};
     const name = (values.name || "").trim();
-    if (!name) e.name = "Vui lòng nhập tên ví";
-    else if (name.length < 2) e.name = "Tên ví phải từ 2 ký tự";
-    else if (name.length > 40) e.name = "Tên ví tối đa 40 ký tự";
-    else if (exists.has(name.toLowerCase())) e.name = "Tên ví đã tồn tại";
+    if (!name) e.name = t("wallets.validation.name_required");
+    else if (name.length < 2) e.name = t("wallets.validation.name_min");
+    else if (name.length > 40) e.name = t("wallets.validation.name_max");
+    else if (exists.has(name.toLowerCase())) e.name = t("wallets.validation.name_exists");
 
-    if (!values.currency) e.currency = "Vui lòng chọn loại tiền tệ";
+    if (!values.currency) e.currency = t("wallets.validation.currency_required");
     else if (!currencies.includes(values.currency))
-      e.currency = "Loại tiền tệ không hợp lệ";
+      e.currency = t("wallets.validation.currency_invalid");
 
     if (values.balance === "" || values.balance === null)
-      e.balance = "Vui lòng nhập số dư";
+      e.balance = t("wallets.validation.balance_required_edit");
     else {
       const bn = Number(values.balance);
-      if (!isFinite(bn)) e.balance = "Số dư không hợp lệ";
-      else if (bn < 0) e.balance = "Số dư phải ≥ 0";
+      if (!isFinite(bn)) e.balance = t("wallets.validation.balance_invalid");
+      else if (bn < 0) e.balance = t("wallets.validation.balance_min");
       else if (String(values.balance).includes("."))
-        e.balance = "Số dư chỉ nhận số nguyên";
+        e.balance = t("wallets.validation.balance_integer_edit");
     }
 
     if ((values.note || "").length > 200)
-      e.note = "Mô tả tối đa 200 ký tự";
+      e.note = t("wallets.validation.description_max");
     return e;
   }
 
@@ -201,20 +203,20 @@ export default function WalletEditModal({
       <div className="wallet-modal-overlay" onClick={onClose}>
         <form className="wallet-modal" onClick={(e)=>e.stopPropagation()} onSubmit={handleSubmit}>
           <div className="wallet-modal__header">
-            <h5 className="wallet-modal__title">Sửa ví</h5>
+            <h5 className="wallet-modal__title">{t("wallets.modal.edit_title")}</h5>
             <button type="button" className="wallet-modal__close" onClick={onClose}>×</button>
           </div>
 
           <div className="wallet-modal__body">
             {/* Tên ví */}
             <div className="fm-row">
-              <label className="fm-label">Tên ví<span className="req">*</span></label>
+              <label className="fm-label">{t("wallets.modal.name_label")}<span className="req">*</span></label>
               <input
                 className={`fm-input ${touched.name && errors.name ? "is-invalid" : ""}`}
                 value={form.name}
                 onBlur={() => setTouched((t) => ({ ...t, name: true }))}
                 onChange={(e) => setField("name", e.target.value)}
-                placeholder="Ví tiền mặt, Ngân hàng ACB…"
+                placeholder={t("wallets.modal.name_placeholder")}
                 maxLength={40}
               />
               {touched.name && errors.name && <div className="fm-feedback">{errors.name}</div>}
@@ -223,7 +225,7 @@ export default function WalletEditModal({
             {/* Loại tiền & Số dư */}
             <div className="grid-2">
               <div className="fm-row">
-                <label className="fm-label">Loại tiền tệ<span className="req">*</span></label>
+                <label className="fm-label">{t("wallets.modal.currency_label")}<span className="req">*</span></label>
                 <select
                   className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
                   value={form.currency}
@@ -240,7 +242,7 @@ export default function WalletEditModal({
               </div>
 
               <div className="fm-row">
-                <label className="fm-label">Số dư<span className="req">*</span></label>
+                <label className="fm-label">{t("wallets.modal.balance_label_edit")}<span className="req">*</span></label>
                 <input
                   type="number"
                   className={`fm-input ${touched.balance && errors.balance ? "is-invalid" : ""}`}
@@ -260,7 +262,7 @@ export default function WalletEditModal({
 
             {/* Mô tả */}
             <div className="fm-row">
-              <label className="fm-label">Mô tả (tùy chọn)</label>
+              <label className="fm-label">{t("wallets.modal.description_label")}</label>
               <textarea
                 className={`fm-textarea ${touched.note && errors.note ? "is-invalid" : ""}`}
                 rows="2"
@@ -268,7 +270,7 @@ export default function WalletEditModal({
                 onBlur={() => setTouched((t) => ({ ...t, note: true }))}
                 onChange={(e) => setField("note", e.target.value)}
                 maxLength={200}
-                placeholder="Ghi chú cho ví này (tối đa 200 ký tự)"
+                placeholder={t("wallets.modal.description_placeholder")}
               />
               {touched.note && errors.note && <div className="fm-feedback">{errors.note}</div>}
             </div>
@@ -282,21 +284,21 @@ export default function WalletEditModal({
                 checked={form.isDefault}
                 onChange={(e) => setField("isDefault", e.target.checked)}
               />
-              <label htmlFor="editDefaultWallet">Đặt làm ví mặc định</label>
+              <label htmlFor="editDefaultWallet">{t("wallets.modal.edit_default_label")}</label>
             </div>
 
             {/* Meta */}
             {createdAt && (
               <div className="fm-meta">
-                <span>Thời gian tạo</span>
+                <span>{t("wallets.modal.created_at")}</span>
                 <strong>{createdAt}</strong>
               </div>
             )}
           </div>
 
           <div className="wallet-modal__footer">
-            <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
-            <button type="submit" className="btn-submit" disabled={!isValid}>Lưu</button>
+            <button type="button" className="btn-cancel" onClick={onClose}>{t("wallets.modal.cancel")}</button>
+            <button type="submit" className="btn-submit" disabled={!isValid}>{t("wallets.modal.save_btn")}</button>
           </div>
         </form>
       </div>

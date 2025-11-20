@@ -1,8 +1,10 @@
 // src/components/funds/ParticipateManager.jsx
 import React, { useEffect, useState } from "react";
 import FundSection from "./FundSection";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function ParticipateManager({ viewFunds, useFunds }) {
+  const { t } = useLanguage();
   const [selectedFund, setSelectedFund] = useState(null);
   const [members, setMembers] = useState([]);
 
@@ -54,8 +56,8 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
       {/* CỘT TRÁI: DANH SÁCH QUỸ ĐƯỢC THAM GIA */}
       <div className="col-lg-5">
         <FundSection
-          title="Quỹ tham gia (chỉ xem)"
-          subtitle="Bạn chỉ có quyền xem số dư và lịch sử."
+          title={t("funds.participate.view_title")}
+          subtitle={t("funds.participate.view_desc")}
           items={viewFunds}
           onSelectFund={() => {
             // quỹ xem: không cho chỉnh
@@ -63,8 +65,8 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
         />
 
         <FundSection
-          title="Quỹ tham gia (được sử dụng)"
-          subtitle="Bạn được phép thao tác tiền và quản lý thành viên (tuỳ quyền)."
+          title={t("funds.participate.use_title")}
+          subtitle={t("funds.participate.use_desc")}
           items={useFunds}
           onSelectFund={(fund) => setSelectedFund(fund)}
         />
@@ -74,21 +76,17 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
       <div className="col-lg-7">
         {!selectedFund ? (
           <div className="card border-0 shadow-sm p-3 p-lg-4">
-            <h5 className="mb-2">Chọn một quỹ được sử dụng</h5>
-            <p className="mb-0 text-muted">
-              Hãy bấm vào một quỹ trong phần{" "}
-              <strong>Quỹ tham gia (được sử dụng)</strong> bên trái để xem chi
-              tiết và quản lý thành viên.
-            </p>
+            <h5 className="mb-2">{t("funds.participate.select_hint_title")}</h5>
+            <p className="mb-0 text-muted" dangerouslySetInnerHTML={{ __html: t("funds.participate.select_hint_desc") }} />
           </div>
         ) : (
           <div className="funds-fieldset">
             <div className="funds-fieldset__legend">
-              Quản lý quỹ được tham gia
+              {t("funds.participate.manage_title")}
             </div>
 
             <div className="funds-field">
-              <label>Tên quỹ</label>
+              <label>{t("funds.form.name")}</label>
               <input
                 type="text"
                 value={selectedFund.name}
@@ -97,32 +95,32 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                 }
               />
               <div className="funds-hint">
-                Bạn có thể đổi tên quỹ này (đang demo trên FE).
+                {t("funds.participate.name_hint")}
               </div>
             </div>
 
             <div className="funds-field funds-field--inline">
               <div>
-                <label>Loại quỹ</label>
+                <label>{t("funds.form.type")}</label>
                 <input
                   type="text"
                   disabled
                   value={
                     selectedFund.type === "group"
-                      ? "Quỹ nhóm"
-                      : "Quỹ cá nhân"
+                      ? t("funds.detail.group_fund")
+                      : t("funds.detail.personal_fund")
                   }
                 />
               </div>
               <div>
-                <label>Vai trò của bạn</label>
+                <label>{t("funds.participate.role")}</label>
                 <input
                   type="text"
                   disabled
                   value={
                     selectedFund.role === "manage"
-                      ? "Được sử dụng"
-                      : "Chỉ xem"
+                      ? t("funds.detail.role.manage")
+                      : t("funds.detail.role.view")
                   }
                 />
               </div>
@@ -130,7 +128,7 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
 
             <div className="funds-field funds-field--inline">
               <div>
-                <label>Số dư hiện tại</label>
+                <label>{t("funds.form.current")}</label>
                 <input
                   type="text"
                   disabled
@@ -140,7 +138,7 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                 />
               </div>
               <div>
-                <label>Mục tiêu (nếu có)</label>
+                <label>{t("funds.form.target")}</label>
                 <input
                   type="text"
                   disabled
@@ -149,25 +147,23 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                       ? `${selectedFund.target.toLocaleString("vi-VN")} ${
                           selectedFund.currency || ""
                         }`
-                      : "Không thiết lập"
+                      : t("funds.detail.no_target")
                   }
                 />
               </div>
             </div>
 
             <div className="funds-field mt-2">
-              <label>Thành viên quỹ</label>
+              <label>{t("funds.form.members")}</label>
 
               {selectedFund.role !== "manage" ? (
                 <div className="funds-hint">
-                  Bạn chỉ có quyền xem. Không thể chỉnh sửa thành viên trong
-                  quỹ này.
+                  {t("funds.participate.role_hint")}
                 </div>
               ) : (
                 <>
                   <div className="funds-hint">
-                    Bạn có thể thêm, xoá và sửa tên / email / quyền của thành
-                    viên.
+                    {t("funds.participate.role_manage_hint")}
                   </div>
 
                   <div className="funds-members">
@@ -175,7 +171,7 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                       <div key={m.id} className="funds-member-row">
                         <input
                           type="text"
-                          placeholder="Tên"
+                          placeholder={t("funds.form.member_name_placeholder")}
                           value={m.name}
                           onChange={(e) =>
                             handleChangeMember(m.id, "name", e.target.value)
@@ -183,7 +179,7 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                         />
                         <input
                           type="email"
-                          placeholder="Email"
+                          placeholder={t("funds.form.member_email_placeholder")}
                           value={m.email}
                           onChange={(e) =>
                             handleChangeMember(m.id, "email", e.target.value)
@@ -195,9 +191,9 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                             handleChangeMember(m.id, "role", e.target.value)
                           }
                         >
-                          <option value="owner">Chủ quỹ</option>
-                          <option value="use">Được sử dụng</option>
-                          <option value="view">Chỉ xem</option>
+                          <option value="owner">{t("funds.detail.role.owner")}</option>
+                          <option value="use">{t("funds.detail.role.use")}</option>
+                          <option value="view">{t("funds.detail.role.view")}</option>
                         </select>
                         <button
                           type="button"
@@ -215,7 +211,7 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                       onClick={handleAddMember}
                     >
                       <i className="bi bi-person-plus me-1" />
-                      Thêm thành viên
+                      {t("funds.form.add_member")}
                     </button>
                   </div>
 
@@ -225,14 +221,14 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
                       className="btn-secondary"
                       onClick={() => setSelectedFund(null)}
                     >
-                      Đóng chi tiết
+                      {t("funds.participate.close")}
                     </button>
                     <button
                       type="button"
                       className="btn-primary"
                       onClick={handleSaveMembers}
                     >
-                      Lưu thay đổi
+                      {t("funds.form.save")}
                     </button>
                   </div>
                 </>

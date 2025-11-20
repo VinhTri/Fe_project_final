@@ -5,6 +5,7 @@ import "../../styles/admin/AdminReviewsPage.css";
 import { useFeedbackData } from "../../home/store/FeedbackDataContext";
 import { useNotifications } from "../../home/store/NotificationContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 function RatingStars({ value }) {
   return (
@@ -20,6 +21,7 @@ function RatingStars({ value }) {
 }
 
 export default function AdminReviewsPage() {
+  const { t } = useLanguage();
   const { reviews, addAdminReply } = useFeedbackData();
   const { pushNotification } = useNotifications();
   const { showToast } = useToast();
@@ -130,13 +132,13 @@ export default function AdminReviewsPage() {
       role: "user",
       type: "admin_reply",
       reviewId: id,
-      title: "Admin đã phản hồi đánh giá của bạn",
+      title: t("admin.reviews.notification.title"),
       desc: review
         ? review.comment.length > 60
           ? review.comment.slice(0, 60) + "..."
           : review.comment
         : "",
-      timeLabel: "Vừa xong",
+      timeLabel: t("admin.reviews.notification.time"),
     });
 
     // 3) Xoá draft
@@ -150,7 +152,7 @@ export default function AdminReviewsPage() {
     setExpandedIds((prev) => prev.filter((x) => x !== id));
 
     // 5) Toast
-    showToast("Đã gửi phản hồi thành công!");
+    showToast(t("admin.reviews.toast.success"));
 
     // 6) Scroll tới review
     setTimeout(() => {
@@ -166,26 +168,25 @@ export default function AdminReviewsPage() {
         <div className="dashboard-page__header">
           <div>
             <h2 className="dashboard-page__title">
-              Đánh giá & bình luận người dùng
+              {t("admin.reviews.title")}
             </h2>
             <p className="feedback-summary-subtitle">
-              Quản lý đánh giá, phản hồi trực tiếp cho người dùng.
+              {t("admin.reviews.subtitle")}
             </p>
           </div>
 
           <div className="d-flex flex-column align-items-end">
             <div className="fw-semibold">
-              Trung bình:{" "}
+              {t("admin.reviews.average")}{" "}
               <span className="text-warning">
                 {summary.avgRating} / 5 <i className="bi bi-star-fill" />
               </span>
             </div>
             <div className="text-muted" style={{ fontSize: "0.9rem" }}>
-              Tổng đánh giá: {summary.total}
+              {t("admin.reviews.total")} {summary.total}
             </div>
             <div className="text-muted" style={{ fontSize: "0.8rem" }}>
-              Đã phản hồi: {summary.replied} • Chưa phản hồi:{" "}
-              {summary.unreplied}
+              {t("admin.reviews.replied")} {summary.replied} • {t("admin.reviews.unreplied")} {summary.unreplied}
             </div>
           </div>
         </div>
@@ -201,7 +202,7 @@ export default function AdminReviewsPage() {
             }
             onClick={() => setStatusFilter("all")}
           >
-            Tất cả
+            {t("admin.reviews.filter.all")}
           </button>
           <button
             className={
@@ -212,7 +213,7 @@ export default function AdminReviewsPage() {
             }
             onClick={() => setStatusFilter("unreplied")}
           >
-            Chưa phản hồi
+            {t("admin.reviews.filter.unreplied")}
           </button>
           <button
             className={
@@ -223,7 +224,7 @@ export default function AdminReviewsPage() {
             }
             onClick={() => setStatusFilter("replied")}
           >
-            Đã phản hồi
+            {t("admin.reviews.filter.replied")}
           </button>
         </div>
 
@@ -237,7 +238,7 @@ export default function AdminReviewsPage() {
             }
             onClick={() => setSortOrder("desc")}
           >
-            Mới nhất
+            {t("admin.reviews.sort.newest")}
           </button>
           <button
             className={
@@ -248,7 +249,7 @@ export default function AdminReviewsPage() {
             }
             onClick={() => setSortOrder("asc")}
           >
-            Cũ nhất
+            {t("admin.reviews.sort.oldest")}
           </button>
         </div>
 
@@ -260,7 +261,7 @@ export default function AdminReviewsPage() {
             <input
               type="text"
               className="form-control"
-              placeholder="Tìm theo tên, email, nội dung, nguồn..."
+              placeholder={t("admin.reviews.search_placeholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -273,7 +274,7 @@ export default function AdminReviewsPage() {
         <div className="card-body p-0">
           {groupedByDate.length === 0 ? (
             <div className="p-3 text-center text-muted">
-              Không có đánh giá phù hợp.
+              {t("admin.reviews.empty")}
             </div>
           ) : (
             groupedByDate.map((group) => (
@@ -286,7 +287,7 @@ export default function AdminReviewsPage() {
                       color: "#6b7280",
                     }}
                   >
-                    Ngày {group.day}
+                    {t("admin.reviews.date_prefix")} {group.day}
                   </span>
                 </div>
 
@@ -333,14 +334,14 @@ export default function AdminReviewsPage() {
                                 : "bg-success-subtle text-success")
                             }
                           >
-                            {unreplied ? "Chưa phản hồi" : "Đã phản hồi"}
+                            {unreplied ? t("admin.reviews.filter.unreplied") : t("admin.reviews.filter.replied")}
                           </span>
 
                           <button
                             className="btn btn-sm btn-outline-secondary"
                             onClick={() => toggleExpand(r.id)}
                           >
-                            {expanded ? "Thu gọn" : "Xem chi tiết"}
+                            {expanded ? t("admin.reviews.btn.collapse") : t("admin.reviews.btn.view_details")}
                           </button>
                         </div>
                       </div>
@@ -348,7 +349,7 @@ export default function AdminReviewsPage() {
                       {expanded && (
                         <div className="mt-2">
                           <div className="text-muted" style={{ fontSize: "0.8rem" }}>
-                            Thời gian: {r.createdAt} • Nguồn: {r.source}
+                            {t("admin.reviews.time")} {r.createdAt} • {t("admin.reviews.source")} {r.source}
                           </div>
 
                           {r.adminReply && (
@@ -360,7 +361,7 @@ export default function AdminReviewsPage() {
                                   color: "#2563eb",
                                 }}
                               >
-                                Phản hồi từ {r.adminReply.author}
+                                {t("admin.reviews.reply_from")} {r.adminReply.author}
                               </div>
                               <div style={{ fontSize: "0.85rem", marginTop: 2 }}>
                                 {r.adminReply.message}
@@ -369,7 +370,7 @@ export default function AdminReviewsPage() {
                                 className="text-muted mt-1"
                                 style={{ fontSize: "0.75rem" }}
                               >
-                                Thời gian phản hồi: {r.adminReply.date}
+                                {t("admin.reviews.reply_time")} {r.adminReply.date}
                               </div>
                             </div>
                           )}
@@ -380,7 +381,7 @@ export default function AdminReviewsPage() {
                                 className="form-label"
                                 style={{ fontSize: "0.85rem" }}
                               >
-                                Nội dung phản hồi gửi cho người dùng:
+                                {t("admin.reviews.reply_label")}
                               </label>
                               <textarea
                                 rows={3}
@@ -389,20 +390,20 @@ export default function AdminReviewsPage() {
                                 onChange={(e) =>
                                   handleChangeDraft(r.id, e.target.value)
                                 }
-                                placeholder="Ví dụ: Cảm ơn bạn đã góp ý!"
+                                placeholder={t("admin.reviews.reply_placeholder")}
                               />
                               <div className="d-flex justify-content-end gap-2 mt-2">
                                 <button
                                   className="btn btn-sm btn-outline-secondary"
                                   onClick={() => handleChangeDraft(r.id, "")}
                                 >
-                                  Xóa nội dung
+                                  {t("admin.reviews.btn.clear")}
                                 </button>
                                 <button
                                   className="btn btn-sm btn-primary"
                                   onClick={() => handleSubmitReply(r.id)}
                                 >
-                                  Gửi phản hồi
+                                  {t("admin.reviews.btn.send")}
                                 </button>
                               </div>
                             </div>

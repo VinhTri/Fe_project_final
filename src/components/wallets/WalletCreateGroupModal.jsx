@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function WalletCreateGroupModal({
   open,
@@ -10,6 +11,7 @@ export default function WalletCreateGroupModal({
   onCreated,
   existingNames = [],
 }) {
+  const { t } = useLanguage();
   const { createWallet } = useWalletData();
 
   const [form, setForm] = useState({
@@ -47,32 +49,32 @@ export default function WalletCreateGroupModal({
   const validate = (values = form) => {
     const e = {};
     const name = (values.name || "").trim();
-    if (!name) e.name = "Vui lòng nhập tên ví nhóm";
-    else if (name.length < 2) e.name = "Tên ví phải từ 2 ký tự";
-    else if (name.length > 40) e.name = "Tên ví tối đa 40 ký tự";
-    else if (existing.has(name.toLowerCase())) e.name = "Tên ví nhóm đã tồn tại";
+    if (!name) e.name = t("wallets.validation.group_name_required");
+    else if (name.length < 2) e.name = t("wallets.validation.name_min");
+    else if (name.length > 40) e.name = t("wallets.validation.name_max");
+    else if (existing.has(name.toLowerCase())) e.name = t("wallets.validation.group_name_exists");
 
-    if (!values.currency) e.currency = "Vui lòng chọn loại tiền tệ";
+    if (!values.currency) e.currency = t("wallets.validation.currency_required");
     else if (!currencies.includes(values.currency))
-      e.currency = "Loại tiền tệ không hợp lệ";
+      e.currency = t("wallets.validation.currency_invalid");
 
     if (values.openingBalance === "" || values.openingBalance === null)
-      e.openingBalance = "Vui lòng nhập số dư ban đầu";
+      e.openingBalance = t("wallets.validation.balance_required");
     else {
       const n = Number(values.openingBalance);
-      if (!isFinite(n)) e.openingBalance = "Số dư không hợp lệ";
-      else if (n < 0) e.openingBalance = "Số dư phải ≥ 0";
+      if (!isFinite(n)) e.openingBalance = t("wallets.validation.balance_invalid");
+      else if (n < 0) e.openingBalance = t("wallets.validation.balance_min");
       else if (String(values.openingBalance).includes("."))
-        e.openingBalance = "Chỉ nhận số nguyên";
+        e.openingBalance = t("wallets.validation.balance_integer");
       else if (n > 1_000_000_000_000)
-        e.openingBalance = "Số dư quá lớn (≤ 1,000,000,000,000)";
+        e.openingBalance = t("wallets.validation.balance_max");
     }
 
-    if ((values.note || "").length > 200) e.note = "Ghi chú tối đa 200 ký tự";
+    if ((values.note || "").length > 200) e.note = t("wallets.validation.note_max");
 
     if (values.approvalPolicy.enabled) {
-      const t = Number(values.approvalPolicy.threshold);
-      if (!t || t <= 0) e.threshold = "Ngưỡng duyệt phải > 0";
+      const tVal = Number(values.approvalPolicy.threshold);
+      if (!tVal || tVal <= 0) e.threshold = t("wallets.validation.threshold_invalid");
     }
 
     return e;
@@ -193,20 +195,20 @@ export default function WalletCreateGroupModal({
           onSubmit={submit}
         >
           <div className="wallet-modal__header">
-            <h5 className="wallet-modal__title">Tạo ví nhóm</h5>
+            <h5 className="wallet-modal__title">{t("wallets.modal.create_group_title")}</h5>
             <button type="button" className="wallet-modal__close" onClick={onClose}>×</button>
           </div>
 
           <div className="wallet-modal__body">
             {/* Tên ví nhóm */}
             <div className="fm-row">
-              <label className="fm-label">Tên ví nhóm<span className="req">*</span></label>
+              <label className="fm-label">{t("wallets.modal.group_name_label")}<span className="req">*</span></label>
               <input
                 className={`fm-input ${touched.name && errors.name ? "is-invalid" : ""}`}
                 value={form.name}
                 onBlur={() => setTouched((t) => ({ ...t, name: true }))}
                 onChange={(e) => setField("name", e.target.value)}
-                placeholder="Ví nhóm công ty, lớp, đội bóng…"
+                placeholder={t("wallets.modal.group_name_placeholder")}
                 maxLength={40}
               />
               {touched.name && errors.name && <div className="fm-feedback">{errors.name}</div>}
@@ -215,7 +217,7 @@ export default function WalletCreateGroupModal({
             {/* Tiền tệ & Số dư ban đầu */}
             <div className="grid-2">
               <div className="fm-row">
-                <label className="fm-label">Tiền tệ<span className="req">*</span></label>
+                <label className="fm-label">{t("wallets.modal.currency_label")}<span className="req">*</span></label>
                 <select
                   className={`fm-select ${touched.currency && errors.currency ? "is-invalid" : ""}`}
                   value={form.currency}
@@ -232,7 +234,7 @@ export default function WalletCreateGroupModal({
               </div>
 
               <div className="fm-row">
-                <label className="fm-label">Số dư ban đầu<span className="req">*</span></label>
+                <label className="fm-label">{t("wallets.modal.balance_label")}<span className="req">*</span></label>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -248,13 +250,13 @@ export default function WalletCreateGroupModal({
                 {touched.openingBalance && errors.openingBalance && (
                   <div className="fm-feedback">{errors.openingBalance}</div>
                 )}
-                <div className="fm-hint">Chỉ nhận số nguyên ≥ 0</div>
+                <div className="fm-hint">{t("wallets.modal.balance_hint")}</div>
               </div>
             </div>
 
             {/* Ghi chú */}
             <div className="fm-row">
-              <label className="fm-label">Ghi chú (tùy chọn)</label>
+              <label className="fm-label">{t("wallets.modal.note_label")}</label>
               <textarea
                 className={`fm-textarea ${touched.note && errors.note ? "is-invalid" : ""}`}
                 rows="2"
@@ -262,7 +264,7 @@ export default function WalletCreateGroupModal({
                 onBlur={() => setTouched((t) => ({ ...t, note: true }))}
                 onChange={(e) => setField("note", e.target.value)}
                 maxLength={200}
-                placeholder="Ghi chú cho ví nhóm (tối đa 200 ký tự)"
+                placeholder={t("wallets.modal.group_note_placeholder")}
               />
               {touched.note && errors.note && <div className="fm-feedback">{errors.note}</div>}
             </div>
@@ -281,12 +283,12 @@ export default function WalletCreateGroupModal({
                   })
                 }
               />
-              <label htmlFor="approval">Bật duyệt chi theo ngưỡng</label>
+              <label htmlFor="approval">{t("wallets.modal.approval_label")}</label>
             </div>
 
             {form.approvalPolicy.enabled && (
               <div className="fm-row">
-                <label className="fm-label">Ngưỡng duyệt<span className="req">*</span></label>
+                <label className="fm-label">{t("wallets.modal.threshold_label")}<span className="req">*</span></label>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -301,7 +303,7 @@ export default function WalletCreateGroupModal({
                     })
                   }
                   onKeyDown={blockSci}
-                  placeholder={`VD: 5000000 (${form.currency})`}
+                  placeholder={t("wallets.modal.threshold_placeholder", { currency: form.currency })}
                 />
                 {touched.threshold && errors.threshold && (
                   <div className="fm-feedback">{errors.threshold}</div>
@@ -311,8 +313,8 @@ export default function WalletCreateGroupModal({
           </div>
 
           <div className="wallet-modal__footer">
-            <button type="button" className="btn-cancel" onClick={onClose}>Hủy</button>
-            <button type="submit" className="btn-submit" disabled={!isValid}>Tạo ví nhóm</button>
+            <button type="button" className="btn-cancel" onClick={onClose}>{t("wallets.modal.cancel")}</button>
+            <button type="submit" className="btn-submit" disabled={!isValid}>{t("wallets.modal.create_group_btn")}</button>
           </div>
         </form>
       </div>

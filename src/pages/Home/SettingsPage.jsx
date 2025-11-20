@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
 import "../../styles/home/SettingsPage.css";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function SettingsPage() {
+  const { t, language, changeLanguage } = useLanguage();
 
   const [activeKey, setActiveKey] = useState(null);
   const [user, setUser] = useState(null);
@@ -13,6 +15,9 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState("");
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
+  
+  // State tạm thời cho ngôn ngữ (chưa lưu)
+  const [tempLanguage, setTempLanguage] = useState(language);
 
   // Refs cho các input fields
   const fullNameRef = useRef(null);
@@ -25,6 +30,11 @@ export default function SettingsPage() {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  // Cập nhật tempLanguage khi language thay đổi (ví dụ khi mới vào trang)
+  useEffect(() => {
+    setTempLanguage(language);
+  }, [language]);
 
   const loadProfile = async () => {
     try {
@@ -510,25 +520,29 @@ export default function SettingsPage() {
       case "language":
 
         return (
-<div className="settings-detail__body">
-<h4>Chọn ngôn ngữ hệ thống</h4>
-<p className="settings-detail__desc">
-
-              Ngôn ngữ hiển thị cho toàn bộ giao diện ứng dụng.
-</p>
-<div className="settings-form__group">
-<label>Ngôn ngữ</label>
-<select defaultValue="vi">
-<option value="vi">Tiếng Việt</option>
-<option value="en">English</option>
-</select>
-</div>
-<button className="settings-btn settings-btn--primary">
-
-              Lưu ngôn ngữ
-</button>
-</div>
-
+          <div className="settings-detail__body">
+            <h4>{t("settings.language.title")}</h4>
+            <p className="settings-detail__desc">
+              {t("settings.language.desc")}
+            </p>
+            <div className="settings-form__group">
+              <label>{t("settings.language.label")}</label>
+              <select 
+                value={tempLanguage} 
+                onChange={(e) => setTempLanguage(e.target.value)}
+              >
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <button 
+              className="settings-btn settings-btn--primary"
+              onClick={() => changeLanguage(tempLanguage)}
+              disabled={tempLanguage === language} // Disable nếu chưa thay đổi
+            >
+              {t("settings.language.save")}
+            </button>
+          </div>
         );
 
       case "theme":
@@ -598,41 +612,27 @@ export default function SettingsPage() {
   };
 
   const securityItems = [
-
-    { key: "profile", label: "Chỉnh hồ sơ cá nhân" },
-
-    { key: "password", label: "Đổi mật khẩu" },
-
-    { key: "2fa", label: "Xác thực 2 lớp (2FA)" },
-
-    { key: "login-log", label: "Nhật ký đăng nhập" },
-
-    { key: "logout-all", label: "Đăng xuất tất cả thiết bị" },
-
+    { key: "profile", label: t("settings.profile") },
+    { key: "password", label: t("settings.password") },
+    { key: "2fa", label: t("settings.2fa") },
+    { key: "login-log", label: t("settings.login_log") },
+    { key: "logout-all", label: t("settings.logout_all") },
   ];
 
   const systemItems = [
-
-    { key: "currency", label: "Chọn đơn vị tiền tệ" },
-
-    { key: "currency-format", label: "Định dạng tiền tệ" },
-
-    { key: "date-format", label: "Cài đặt định dạng ngày" },
-
-    { key: "language", label: "Chọn ngôn ngữ hệ thống" },
-
-    { key: "theme", label: "Chế độ nền" },
-
-    { key: "backup", label: "Sao lưu & đồng bộ" },
-
+    { key: "currency", label: t("settings.currency") },
+    { key: "currency-format", label: t("settings.currency_format") },
+    { key: "date-format", label: t("settings.date_format") },
+    { key: "language", label: t("settings.language") },
+    { key: "theme", label: t("settings.theme") },
+    { key: "backup", label: t("settings.backup") },
   ];
 
   return (
 <div className="settings-page">
-<h1 className="settings-title">Cài đặt</h1>
+<h1 className="settings-title">{t("settings.title")}</h1>
 <p className="settings-subtitle">
-
-        Quản lý bảo mật và cài đặt hệ thống cho tài khoản của bạn.
+        {t("settings.subtitle")}
 </p>
 
       {/* ===== PROFILE HEADER NẰM NGOÀI BẢO MẬT ===== */}
@@ -647,7 +647,7 @@ export default function SettingsPage() {
 
         />
 <div className="settings-profile-info">
-<h3 className="settings-profile-name">{user?.fullName || "Đang tải..."}</h3>
+          <h3 className="settings-profile-name">{user?.fullName || t("common.loading")}</h3>
 <p className="settings-profile-email">{user?.email || ""}</p>
 </div>
 </div>
@@ -655,7 +655,7 @@ export default function SettingsPage() {
 
         {/* NHÓM: BẢO MẬT */}
 <div className="settings-group">
-<div className="settings-group__header">Bảo mật</div>
+<div className="settings-group__header">{t("settings.security_group")}</div>
 
           {securityItems.map((item) => (
 <div key={item.key} className="settings-item">
@@ -687,7 +687,7 @@ export default function SettingsPage() {
 
         {/* NHÓM: CÀI ĐẶT HỆ THỐNG */}
 <div className="settings-group">
-<div className="settings-group__header">Cài đặt hệ thống</div>
+<div className="settings-group__header">{t("settings.system_group")}</div>
 
           {systemItems.map((item) => (
 <div key={item.key} className="settings-item">
@@ -722,4 +722,3 @@ export default function SettingsPage() {
   );
 
 }
- 

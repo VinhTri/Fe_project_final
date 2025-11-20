@@ -1,6 +1,7 @@
 // src/components/wallets/WalletCreateChooser.jsx
 import React, { useEffect, useRef } from "react";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function WalletCreateChooser({
   open,
@@ -9,6 +10,7 @@ export default function WalletCreateChooser({
   onChooseGroup,
   onClose,
 }) {
+  const { t } = useLanguage();
   const menuRef = useRef(null);
 
   // ====== Đóng khi click ra ngoài ======
@@ -100,12 +102,12 @@ export default function WalletCreateChooser({
       >
         <button className="dropdown-item" onClick={onChoosePersonal}>
           <i className="bi bi-person"></i>
-          <span>Tạo ví cá nhân</span>
+          <span>{t("wallets.chooser.personal")}</span>
         </button>
 
         <button className="dropdown-item" onClick={onChooseGroup}>
           <i className="bi bi-people"></i>
-          <span>Tạo ví nhóm (ngân sách nhóm)</span>
+          <span>{t("wallets.chooser.group")}</span>
         </button>
       </div>
     </>

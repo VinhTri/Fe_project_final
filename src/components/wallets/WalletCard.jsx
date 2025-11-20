@@ -1,8 +1,10 @@
 // src/components/wallets/WalletCard.jsx
 import React, { useEffect, useRef } from "react";
 import { Dropdown } from "bootstrap";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function WalletCard({ wallet, onToggleOverall, onToggleSection }) {
+  const { t } = useLanguage();
   const btnRef = useRef(null);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
   const sectionOn = wallet.isShared
     ? wallet.includeGroup !== false
     : wallet.includePersonal !== false;
-  const sectionLabel = wallet.isShared ? "Tính vào Tổng nhóm" : "Tính vào Tổng cá nhân";
+  const sectionLabel = wallet.isShared ? t("wallets.card.include_group") : t("wallets.card.include_personal");
 
   const stop = (e) => e.stopPropagation();
 
@@ -157,7 +159,7 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
                 onChange={(e)=>onToggleOverall?.(wallet, e.target.checked)}
               />
               <label className="form-check-label" htmlFor={`overall-${wallet.id}`}>
-                Tính vào Tổng số dư
+                {t("wallets.card.include_overall")}
               </label>
             </div>
 
@@ -183,17 +185,17 @@ export default function WalletCard({ wallet, onToggleOverall, onToggleSection })
         <div className="d-flex align-items-center justify-content-between mb-2">
           <h6 className="wallet-name mb-0">
             {wallet.name}
-            {wallet.isDefault && <span className="badge ms-2">Mặc định</span>}
+            {wallet.isDefault && <span className="badge ms-2">{t("wallets.card.default")}</span>}
           </h6>
         </div>
 
         <div className="wc-body">
           <div className="wc-row">
-            <span className="wc-label">Số dư</span>
+            <span className="wc-label">{t("wallets.card.balance")}</span>
             <span className="wc-value text-primary">{fmtMoney(wallet.balance, wallet.currency)}</span>
           </div>
           <div className="wc-row mt-1">
-            <span className="wc-label">Tạo ngày</span>
+            <span className="wc-label">{t("wallets.card.created_at")}</span>
             <span className="wc-value">{fmtDate(wallet.createdAt)}</span>
           </div>
         </div>

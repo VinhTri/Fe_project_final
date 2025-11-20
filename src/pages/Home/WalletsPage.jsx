@@ -1,6 +1,7 @@
 // src/pages/Home/WalletsPage.jsx
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 import WalletCard from "../../components/wallets/WalletCard";
 import WalletEditModal from "../../components/wallets/WalletEditModal";
@@ -99,6 +100,7 @@ const formatMoney = (amount = 0, currency = "VND") => {
 };
 
 export default function WalletsPage() {
+  const { t } = useLanguage();
   const { wallets, createWallet, updateWallet, deleteWallet } = useWalletData();
   const { showToast } = useToast(); // ✅ dùng toast context
 
@@ -252,7 +254,7 @@ export default function WalletsPage() {
   const doDelete = async (w) => {
     setConfirmDel(null);
     await deleteWallet(w.id);
-    showToast(`Đã xóa ví "${w.name}"`); // ✅ dùng toast chung
+    showToast(`${t("wallets.toast.deleted")} "${w.name}"`); // ✅ dùng toast chung
     if (selectedWallet?.id === w.id) setSelectedWallet(null);
   };
 
@@ -285,7 +287,7 @@ export default function WalletsPage() {
     } catch (_) {}
 
     setShowPersonal(false);
-    showToast(`Đã tạo ví cá nhân "${w.name}"`);
+    showToast(`${t("wallets.toast.created_personal")} "${w.name}"`);
   };
 
   /** Sau khi tạo ví nhóm: chêm include flags + color nếu thiếu */
@@ -302,9 +304,9 @@ export default function WalletsPage() {
     if (Object.keys(patch).length) {
       const updated = { ...w, ...patch };
       await updateWallet(updated);
-      showToast(`Đã tạo ví nhóm "${updated.name || ""}"`);
+      showToast(`${t("wallets.toast.created_group")} "${updated.name || ""}"`);
     } else {
-      showToast(`Đã tạo ví nhóm "${w.name || ""}"`);
+      showToast(`${t("wallets.toast.created_group")} "${w.name || ""}"`);
     }
   };
 
@@ -324,7 +326,7 @@ export default function WalletsPage() {
     } catch (_) {}
 
     setEditing(null);
-    showToast("Cập nhật ví thành công");
+    showToast(t("wallets.toast.updated"));
     if (selectedWallet?.id === data.id) setSelectedWallet(data);
   };
 
@@ -336,7 +338,7 @@ export default function WalletsPage() {
     };
     await updateWallet(next);
     setSelectedWallet(next);
-    showToast("Rút tiền thành công");
+    showToast(t("wallets.toast.withdraw_success"));
   };
 
   const handleMerge = async ({ mode, baseWallet, otherWallet }) => {
@@ -351,7 +353,7 @@ export default function WalletsPage() {
       await updateWallet(to);
       await deleteWallet(baseWallet.id);
       if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
-      showToast(`Đã gộp "${baseWallet.name}" vào "${otherWallet.name}"`);
+      showToast(`${t("wallets.toast.merged")} "${baseWallet.name}" -> "${otherWallet.name}"`);
     } else {
       const to = {
         ...baseWallet,
@@ -362,7 +364,7 @@ export default function WalletsPage() {
       await updateWallet(to);
       await deleteWallet(otherWallet.id);
       if (selectedWallet?.id === baseWallet.id) setSelectedWallet(to);
-      showToast(`Đã gộp "${otherWallet.name}" vào "${baseWallet.name}"`);
+      showToast(`${t("wallets.toast.merged")} "${otherWallet.name}" -> "${baseWallet.name}"`);
     }
   };
 
@@ -374,7 +376,7 @@ export default function WalletsPage() {
     };
     await updateWallet(next);
     setSelectedWallet(next);
-    showToast("Chuyển đổi loại ví thành công");
+    showToast(t("wallets.toast.converted"));
   };
 
   // ====== Toggle trong menu “...” ======
@@ -508,37 +510,37 @@ export default function WalletsPage() {
       <div className="wallet-header card border-0 shadow-sm p-3 p-lg-4 mb-2">
         <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
           <h3 className="wallet-header__title mb-0">
-            <i className="bi bi-wallet2 me-2"></i> Danh sách ví
+            <i className="bi bi-wallet2 me-2"></i> {t("wallets.title")}
           </h3>
 
           <div className="wallet-header__controls d-flex align-items-center gap-3 flex-wrap">
             {/* Phạm vi */}
             <div className="d-flex align-items-center gap-2">
               <i className="bi bi-layers-half text-light opacity-75"></i>
-              <label className="sort-label text-light">Phạm vi:</label>
+              <label className="sort-label text-light">{t("wallets.scope")}</label>
               <select
                 className="form-select form-select-sm sort-select"
                 value={sortScope}
                 onChange={(e) => setSortScope(e.target.value)}
               >
-                <option value="all">Tất cả ví</option>
-                <option value="personal">Chỉ ví cá nhân</option>
-                <option value="group">Chỉ ví nhóm</option>
+                <option value="all">{t("wallets.scope.all")}</option>
+                <option value="personal">{t("wallets.scope.personal")}</option>
+                <option value="group">{t("wallets.scope.group")}</option>
               </select>
             </div>
 
             {/* Sắp xếp */}
             <div className="sort-box d-flex align-items-center gap-2">
               <i className="bi bi-sort-alpha-down text-light opacity-75"></i>
-              <label className="sort-label text-light">Sắp xếp theo:</label>
+              <label className="sort-label text-light">{t("wallets.sort_by")}</label>
               <select
                 className="form-select form-select-sm sort-select"
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value)}
               >
-                <option value="createdAt">Ngày tạo</option>
-                <option value="balance">Số tiền</option>
-                <option value="name">Tên ví</option>
+                <option value="createdAt">{t("wallets.sort.created_at")}</option>
+                <option value="balance">{t("wallets.sort.balance")}</option>
+                <option value="name">{t("wallets.sort.name")}</option>
               </select>
 
               <button
@@ -547,11 +549,11 @@ export default function WalletsPage() {
               >
                 {sortDir === "asc" ? (
                   <>
-                    <i className="bi bi-sort-down-alt me-1" /> Tăng
+                    <i className="bi bi-sort-down-alt me-1" /> {t("wallets.sort.asc")}
                   </>
                 ) : (
                   <>
-                    <i className="bi bi-sort-up me-1" /> Giảm
+                    <i className="bi bi-sort-up me-1" /> {t("wallets.sort.desc")}
                   </>
                 )}
               </button>
@@ -565,7 +567,7 @@ export default function WalletsPage() {
                 onClick={handleAddWalletClick}
                 aria-expanded={showChooser}
               >
-                <i className="bi bi-plus-lg me-2"></i> Tạo ví mới
+                <i className="bi bi-plus-lg me-2"></i> {t("wallets.create_new")}
               </button>
               <WalletCreateChooser
                 open={showChooser}
@@ -589,7 +591,7 @@ export default function WalletsPage() {
       {expandedSection === null && (
         <section className="mt-2 mb-3">
           <div className="sum-card sum-card--overall">
-            <div className="sum-card__title">TỔNG SỐ DƯ</div>
+            <div className="sum-card__title">{t("wallets.total_balance")}</div>
             <div className="sum-card__value">
               {formatMoney(
                 showTotalAll ? totalAll : 0,
@@ -618,7 +620,7 @@ export default function WalletsPage() {
               />
             </div>
             <div className="sum-card__desc">
-              Tổng hợp tất cả số dư các ví (chỉ tính ví đang bật).
+              {t("wallets.total_balance_desc")}
             </div>
           </div>
         </section>
@@ -644,7 +646,7 @@ export default function WalletsPage() {
             <div className="card-header d-flex justify-content-between align-items-center">
               <div className="d-flex align-items-center gap-2">
                 <h5 className="mb-0">
-                  <i className="bi bi-person-fill me-2"></i>Ví cá nhân
+                  <i className="bi bi-person-fill me-2"></i>{t("wallets.personal_wallets")}
                 </h5>
                 <button
                   type="button"
@@ -654,7 +656,7 @@ export default function WalletsPage() {
                 />
               </div>
               <span className="badge bg-light text-dark">
-                {personalWallets.length} ví
+                {personalWallets.length} {t("wallets.count_unit")}
               </span>
             </div>
 
@@ -665,7 +667,7 @@ export default function WalletsPage() {
                   {/* Tổng cá nhân (mini) */}
                   <div className="col-12">
                     <div className="sum-card sum-card--mini sum-card--personal mb-3">
-                      <div className="sum-card__title">TỔNG SỐ DƯ (CÁ NHÂN)</div>
+                      <div className="sum-card__title">{t("wallets.total_balance_personal")}</div>
                       <div className="sum-card__value">
                         {formatMoney(
                           showTotalPersonal ? totalPersonal : 0,
@@ -694,7 +696,7 @@ export default function WalletsPage() {
                         />
                       </div>
                       <div className="sum-card__desc">
-                        Tổng hợp số dư của các ví cá nhân đang bật.
+                        {t("wallets.total_balance_personal_desc")}
                       </div>
                     </div>
                   </div>
@@ -702,10 +704,7 @@ export default function WalletsPage() {
                   {/* Bên trái: grid ví (cuộn nếu >6) */}
                   <div className="col-12 col-lg-8">
                     {personalWallets.length === 0 ? (
-                      <div className="alert alert-light border rounded-3 mb-0">
-                        Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để thêm
-                        ví đầu tiên.
-                      </div>
+                      <div className="alert alert-light border rounded-3 mb-0" dangerouslySetInnerHTML={{ __html: t("wallets.no_personal_wallets") }} />
                     ) : (
                       <div className="wallet-grid wallet-grid--expanded-two wallet-grid--limit-6">
                         {defaultFirst(personalWallets).map((w) => (
@@ -770,10 +769,7 @@ export default function WalletsPage() {
               {!isPersonalExpanded && (
                 <>
                   {personalWallets.length === 0 ? (
-                    <div className="alert alert-light border rounded-3 mb-0 mt-2">
-                      Chưa có ví nào. Nhấn <strong>Tạo ví mới</strong> để thêm
-                      ví đầu tiên.
-                    </div>
+                    <div className="alert alert-light border rounded-3 mb-0 mt-2" dangerouslySetInnerHTML={{ __html: t("wallets.no_personal_wallets") }} />
                   ) : (
                     <div className="wallet-grid wallet-grid--limit-6 mt-2">
                       {defaultFirst(personalWallets).map((w) => (
@@ -828,7 +824,7 @@ export default function WalletsPage() {
             <div className="card-header d-flex justify-content-between align-items-center">
               <div className="d-flex align-items-center gap-2">
                 <h5 className="mb-0">
-                  <i className="bi bi-people-fill me-2"></i>Ví nhóm
+                  <i className="bi bi-people-fill me-2"></i>{t("wallets.group_wallets")}
                 </h5>
                 <button
                   type="button"
@@ -838,7 +834,7 @@ export default function WalletsPage() {
                 />
               </div>
               <span className="badge bg-light text-dark">
-                {groupWallets.length} ví
+                {groupWallets.length} {t("wallets.count_unit")}
               </span>
             </div>
 
@@ -849,7 +845,7 @@ export default function WalletsPage() {
                   {/* Tổng nhóm (mini) */}
                   <div className="col-12">
                     <div className="sum-card sum-card--mini sum-card--group mb-3">
-                      <div className="sum-card__title">TỔNG SỐ DƯ (NHÓM)</div>
+                      <div className="sum-card__title">{t("wallets.total_balance_group")}</div>
                       <div className="sum-card__value">
                         {formatMoney(
                           showTotalGroup ? totalGroup : 0,
@@ -878,7 +874,7 @@ export default function WalletsPage() {
                         />
                       </div>
                       <div className="sum-card__desc">
-                        Tổng hợp số dư của các ví nhóm đang bật.
+                        {t("wallets.total_balance_group_desc")}
                       </div>
                     </div>
                   </div>
@@ -886,10 +882,7 @@ export default function WalletsPage() {
                   {/* Bên trái: grid ví (cuộn nếu >6) */}
                   <div className="col-12 col-lg-8">
                     {groupWallets.length === 0 ? (
-                      <div className="alert alert-light border rounded-3 mb-0">
-                        Chưa có ví nhóm nào. Chọn{" "}
-                        <strong>Tạo ví nhóm</strong> trong menu “Tạo ví mới”.
-                      </div>
+                      <div className="alert alert-light border rounded-3 mb-0" dangerouslySetInnerHTML={{ __html: t("wallets.no_group_wallets") }} />
                     ) : (
                       <div className="wallet-grid wallet-grid--expanded-two wallet-grid--limit-6">
                         {defaultFirst(groupWallets).map((w) => (
@@ -954,10 +947,7 @@ export default function WalletsPage() {
               {!isGroupExpanded && (
                 <>
                   {groupWallets.length === 0 ? (
-                    <div className="alert alert-light border rounded-3 mb-0 mt-2">
-                      Chưa có ví nhóm nào. Chọn{" "}
-                      <strong>Tạo ví nhóm</strong> trong menu “Tạo ví mới”.
-                    </div>
+                    <div className="alert alert-light border rounded-3 mb-0 mt-2" dangerouslySetInnerHTML={{ __html: t("wallets.no_group_wallets") }} />
                   ) : (
                     <div className="wallet-grid wallet-grid--limit-6 mt-2">
                       {defaultFirst(groupWallets).map((w) => (
@@ -1022,10 +1012,10 @@ export default function WalletsPage() {
 
       <ConfirmModal
         open={!!confirmDel}
-        title="Xóa ví"
-        message={confirmDel ? `Xóa ví "${confirmDel.name}"?` : ""}
-        okText="Xóa"
-        cancelText="Hủy"
+        title={t("wallets.modal.delete_title")}
+        message={confirmDel ? `${t("wallets.modal.delete_confirm")} "${confirmDel.name}"?` : ""}
+        okText={t("wallets.modal.delete_btn")}
+        cancelText={t("common.cancel")}
         onOk={() => doDelete(confirmDel)}
         onClose={() => setConfirmDel(null)}
       />

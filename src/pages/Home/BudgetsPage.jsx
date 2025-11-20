@@ -3,6 +3,7 @@ import "../../styles/home/BudgetsPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 import BudgetFormModal from "../../components/budgets/BudgetFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import SuccessToast from "../../components/common/Toast/SuccessToast";
@@ -10,6 +11,7 @@ import SuccessToast from "../../components/common/Toast/SuccessToast";
 // Use centralized categories from CategoryDataContext
 
 export default function BudgetsPage() {
+  const { t } = useLanguage();
   const {
     budgets,
     getSpentAmount,
@@ -56,10 +58,10 @@ export default function BudgetsPage() {
   const handleModalSubmit = (payload) => {
     if (modalMode === "create") {
       createBudget(payload);
-      setToast({ open: true, message: "Đã thêm hạn mức chi tiêu mới." });
+      setToast({ open: true, message: t("budgets.toast.add_success") });
     } else {
       updateBudget(editingId, payload);
-      setToast({ open: true, message: "Đã cập nhật hạn mức chi tiêu." });
+      setToast({ open: true, message: t("budgets.toast.update_success") });
     }
     setModalOpen(false);
   };
@@ -68,7 +70,7 @@ export default function BudgetsPage() {
     if (!confirmDel) return;
     deleteBudget(confirmDel.id);
     setConfirmDel(null);
-    setToast({ open: true, message: "Đã xóa hạn mức chi tiêu." });
+    setToast({ open: true, message: t("budgets.toast.delete_success") });
   };
 
   // Check if a category is already budgeted
@@ -112,10 +114,10 @@ export default function BudgetsPage() {
             </div>
             <div>
               <h2 className="budget-title mb-1">
-                Quản lý Hạn mức Chi tiêu
+                {t("budgets.page.title")}
               </h2>
               <p className="mb-0 budget-subtitle">
-                Thiết lập và theo dõi hạn mức chi tiêu cho từng danh mục.
+                {t("budgets.page.subtitle")}
               </p>
             </div>
           </div>
@@ -128,7 +130,7 @@ export default function BudgetsPage() {
               onClick={handleAddBudget}
             >
               <i className="bi bi-plus-lg me-2" />
-              Thêm Hạn mức
+              {t("budgets.btn.add")}
             </button>
           </div>
         </div>
@@ -139,29 +141,29 @@ export default function BudgetsPage() {
         <div className="card-body">
           <form className="row g-3 align-items-end" onSubmit={(e) => e.preventDefault()}>
             <div className="col-md-4">
-              <label className="form-label fw-semibold">Tên danh mục</label>
+              <label className="form-label fw-semibold">{t("budgets.filter.category")}</label>
               <input
                 className="form-control"
-                placeholder="VD: Ăn uống, Lương..."
+                placeholder={t("budgets.filter.category_placeholder")}
                 value={searchName}
                 onChange={(e) => setSearchName(e.target.value)}
               />
             </div>
             <div className="col-md-5">
-              <label className="form-label fw-semibold">Mô tả</label>
+              <label className="form-label fw-semibold">{t("budgets.filter.desc")}</label>
               <input
                 className="form-control"
-                placeholder="Mô tả ngắn cho danh mục (tùy chọn)"
+                placeholder={t("budgets.filter.desc_placeholder")}
                 value={searchDesc}
                 onChange={(e) => setSearchDesc(e.target.value)}
               />
             </div>
             <div className="col-md-3 d-flex gap-2">
               <button type="submit" className="btn btn-primary flex-grow-1">
-                Tìm kiếm
+                {t("budgets.btn.search")}
               </button>
               <button type="button" className="btn btn-outline-secondary" onClick={handleSearchReset}>
-                Xóa
+                {t("budgets.btn.clear")}
               </button>
             </div>
           </form>
@@ -194,13 +196,12 @@ export default function BudgetsPage() {
               strokeLinejoin="round"
             />
           </svg>
-          <h3>Bạn chưa thiết lập Hạn mức Chi tiêu</h3>
+          <h3>{t("budgets.empty.title")}</h3>
           <p>
-            Hãy bắt đầu bằng cách tạo hạn mức cho một danh mục để kiểm soát
-            chi tiêu của bạn.
+            {t("budgets.empty.desc")}
           </p>
           <button className="btn btn-primary" onClick={handleAddBudget}>
-            Thiết lập Hạn mức Chi tiêu đầu tiên
+            {t("budgets.empty.btn")}
           </button>
         </div>
       ) : (
@@ -231,13 +232,16 @@ export default function BudgetsPage() {
                       </h5>
                       {budget.walletName && (
                         <div className="text-muted small">
-                          Ví: {budget.walletName}
+                          {t("budgets.card.wallet")}: {budget.walletName}
                         </div>
                       )}
                     </div>
                     <span className="budget-card-month">
                       {budget.startDate && budget.endDate
-                        ? `Từ ${new Date(budget.startDate).toLocaleDateString("vi-VN")} đến ${new Date(budget.endDate).toLocaleDateString("vi-VN")}`
+                        ? t("budgets.card.from_to", {
+                            start: new Date(budget.startDate).toLocaleDateString("vi-VN"),
+                            end: new Date(budget.endDate).toLocaleDateString("vi-VN")
+                          })
                         : "N/A"}
                     </span>
                   </div>
@@ -261,13 +265,13 @@ export default function BudgetsPage() {
 
                   <div className="budget-stats">
                     <div className="budget-stat-item">
-                      <label className="budget-stat-label">Hạn mức</label>
+                      <label className="budget-stat-label">{t("budgets.card.limit")}</label>
                       <div className="budget-stat-value">
                         {budget.limitAmount.toLocaleString("vi-VN")}
                       </div>
                     </div>
                     <div className="budget-stat-item">
-                      <label className="budget-stat-label">Đã chi</label>
+                      <label className="budget-stat-label">{t("budgets.card.spent")}</label>
                       <div
                         className={`budget-stat-value ${
                           isOver ? "danger" : ""
@@ -277,7 +281,7 @@ export default function BudgetsPage() {
                       </div>
                     </div>
                     <div className="budget-stat-item">
-                      <label className="budget-stat-label">Còn lại</label>
+                      <label className="budget-stat-label">{t("budgets.card.remaining")}</label>
                       <div
                         className={`budget-stat-value ${
                           remaining < 0 ? "danger" : "success"
@@ -287,7 +291,7 @@ export default function BudgetsPage() {
                       </div>
                     </div>
                     <div className="budget-stat-item">
-                      <label className="budget-stat-label">Sử dụng</label>
+                      <label className="budget-stat-label">{t("budgets.card.usage")}</label>
                       <div
                         className={`budget-stat-value ${
                           isOver
@@ -306,16 +310,16 @@ export default function BudgetsPage() {
                     <button
                       className="btn-edit-budget"
                       onClick={() => handleEditBudget(budget)}
-                      title="Chỉnh sửa"
+                      title={t("budgets.action.edit")}
                     >
-                      <i className="bi bi-pencil me-1"></i>Chỉnh sửa
+                      <i className="bi bi-pencil me-1"></i>{t("budgets.action.edit")}
                     </button>
                     <button
                       className="btn-delete-budget"
                       onClick={() => setConfirmDel(budget)}
-                      title="Xóa"
+                      title={t("budgets.action.delete")}
                     >
-                      <i className="bi bi-trash me-1"></i>Xóa
+                      <i className="bi bi-trash me-1"></i>{t("budgets.action.delete")}
                     </button>
                   </div>
                 </div>
@@ -338,14 +342,14 @@ export default function BudgetsPage() {
 
       <ConfirmModal
         open={!!confirmDel}
-        title="Xóa Hạn mức Chi tiêu"
+        title={t("budgets.confirm.delete_title")}
         message={
           confirmDel
-            ? `Bạn chắc chắn muốn xóa hạn mức cho danh mục "${confirmDel.categoryName}"?`
+            ? t("budgets.confirm.delete_message", { category: confirmDel.categoryName })
             : ""
         }
-        okText="Xóa"
-        cancelText="Hủy"
+        okText={t("budgets.confirm.delete_ok")}
+        cancelText={t("budgets.confirm.delete_cancel")}
         onOk={handleDeleteBudget}
         onClose={() => setConfirmDel(null)}
       />

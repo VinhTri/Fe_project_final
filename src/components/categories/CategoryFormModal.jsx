@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Modal from "../common/Modal/Modal";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function CategoryFormModal({
   open,
@@ -9,6 +10,7 @@ export default function CategoryFormModal({
   onSubmit,
   onClose,
 }) {
+  const { t } = useLanguage();
   // initialValue can be a string (name) or object { name, description }
   const [name, setName] = useState(
     initialValue && typeof initialValue === "object"
@@ -42,11 +44,11 @@ export default function CategoryFormModal({
     e.preventDefault();
     const trimmed = (name || "").trim();
     if (!trimmed) {
-      setError("Vui lòng nhập tên danh mục");
+      setError(t("categories.error.name_required"));
       return;
     }
     if (trimmed.length > 40) {
-      setError("Tên danh mục tối đa 40 ký tự");
+      setError(t("categories.error.name_length"));
       return;
     }
     onSubmit && onSubmit({ name: trimmed, description: (description || "").trim() });
@@ -56,8 +58,8 @@ export default function CategoryFormModal({
 
   const title =
     mode === "edit"
-      ? `Sửa danh mục ${typeLabel}`
-      : `Thêm danh mục ${typeLabel}`;
+      ? t("categories.form.title_edit", { type: typeLabel })
+      : t("categories.form.title_create", { type: typeLabel });
 
   return (
     <Modal open={open} onClose={onClose} width={420}>
@@ -66,12 +68,12 @@ export default function CategoryFormModal({
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
             <label className="form-label">
-              Tên danh mục <span className="text-danger">*</span>
+              {t("categories.form.name_label")} <span className="text-danger">*</span>
             </label>
             <input
               type="text"
               className={`form-control ${error ? "is-invalid" : ""}`}
-              placeholder="Nhập tên danh mục..."
+              placeholder={t("categories.form.name_placeholder")}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -83,10 +85,10 @@ export default function CategoryFormModal({
           </div>
 
           <div className="mb-3">
-            <label className="form-label">Mô tả (tùy chọn)</label>
+            <label className="form-label">{t("categories.form.desc_label")}</label>
             <textarea
               className="form-control"
-              placeholder="Mô tả ngắn cho danh mục..."
+              placeholder={t("categories.form.desc_placeholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={120}
@@ -96,10 +98,10 @@ export default function CategoryFormModal({
 
           <div className="d-flex justify-content-end gap-2 mt-3">
             <button type="button" className="btn btn-light" onClick={onClose}>
-              Hủy
+              {t("categories.btn.cancel")}
             </button>
             <button type="submit" className="btn btn-primary">
-              {mode === "edit" ? "Lưu thay đổi" : "Thêm mới"}
+              {mode === "edit" ? t("categories.btn.save") : t("categories.btn.create")}
             </button>
           </div>
         </form>

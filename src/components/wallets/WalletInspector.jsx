@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function WalletInspector({
   wallet,
@@ -14,6 +15,7 @@ export default function WalletInspector({
   accent,
   heroBg,
 }) {
+  const { t } = useLanguage();
   const [tab, setTab] = useState("details");
   const [wAmount, setWAmount] = useState("");
   const [mergeMode, setMergeMode] = useState("this_to_other");
@@ -255,35 +257,35 @@ export default function WalletInspector({
           onClick={() => setTab("details")}
           disabled={!wallet}
         >
-          <i className="bi bi-card-text me-1" /> Chi tiết ví
+          <i className="bi bi-card-text me-1" /> {t("wallets.inspector.tab.details")}
         </button>
         <button
           className={`itab ${tab === "withdraw" ? "active" : ""}`}
           onClick={() => setTab("withdraw")}
           disabled={!wallet}
         >
-          <i className="bi bi-wallet2 me-1" /> Rút ví
+          <i className="bi bi-wallet2 me-1" /> {t("wallets.inspector.tab.withdraw")}
         </button>
         <button
           className={`itab ${tab === "transfer" ? "active" : ""}`}
           onClick={() => setTab("transfer")}
           disabled={!wallet}
         >
-          <i className="bi bi-arrow-left-right me-1" /> Chuyển tiền
+          <i className="bi bi-arrow-left-right me-1" /> {t("wallets.inspector.tab.transfer")}
         </button>
         <button
           className={`itab ${tab === "merge" ? "active" : ""}`}
           onClick={() => setTab("merge")}
           disabled={!wallet}
         >
-          <i className="bi bi-intersect me-1" /> Gộp ví
+          <i className="bi bi-intersect me-1" /> {t("wallets.inspector.tab.merge")}
         </button>
         <button
           className={`itab ${tab === "convert" ? "active" : ""}`}
           onClick={() => setTab("convert")}
           disabled={!wallet}
         >
-          <i className="bi bi-arrow-left-right me-1" /> Chuyển đổi ví
+          <i className="bi bi-arrow-left-right me-1" /> {t("wallets.inspector.tab.convert")}
         </button>
       </div>
 
@@ -291,9 +293,9 @@ export default function WalletInspector({
       <div className="card-body">
         {!wallet && (
           <>
-            <h6 className="mb-2">Chưa có ví được chọn</h6>
+            <h6 className="mb-2">{t("wallets.inspector.no_wallet_selected")}</h6>
             <p className="text-muted mb-0">
-              Nhấp vào một ví ở bên trái để xem thông tin.
+              {t("wallets.inspector.select_hint")}
             </p>
           </>
         )}
@@ -308,20 +310,20 @@ export default function WalletInspector({
               <div>
                 <div className="inspector__title">{wallet.name}</div>
                 <div className="inspector__desc">
-                  Quản lý giao dịch và số dư của ví này.
+                  {t("wallets.inspector.details_desc")}
                 </div>
               </div>
               <div className="d-flex gap-2">
                 <button
                   className="btn btn-sm btn-accent-soft"
-                  title="Chỉnh sửa"
+                  title={t("common.edit")}
                   onClick={() => onEdit?.(wallet)}
                 >
                   <i className="bi bi-pencil" />
                 </button>
                 <button
                   className="btn btn-sm btn-danger"
-                  title="Xóa ví"
+                  title={t("wallets.modal.delete_title")}
                   onClick={() => onDelete?.(wallet)}
                 >
                   <i className="bi bi-trash3" />
@@ -330,19 +332,19 @@ export default function WalletInspector({
             </div>
 
             <div className="info-row">
-              <div className="label">Số dư hiện tại</div>
+              <div className="label">{t("wallets.inspector.current_balance")}</div>
               <div className="value">
                 {formatMoney(wallet.balance, wallet.currency)}
               </div>
             </div>
             <div className="info-row">
-              <div className="label">Đã sử dụng</div>
+              <div className="label">{t("wallets.inspector.spent")}</div>
               <div className="value">
                 {formatMoney(+wallet.spent || 0, wallet.currency)}
               </div>
             </div>
             <div className="info-row">
-              <div className="label">Còn lại</div>
+              <div className="label">{t("wallets.inspector.remaining")}</div>
               <div className="value">
                 {formatMoney(
                   (+wallet.balance || 0) - (+wallet.spent || 0),
@@ -352,20 +354,19 @@ export default function WalletInspector({
             </div>
 
             <div className="mt-3 small text-muted">
-              Hiện tại ví này là{" "}
-              <strong>{wallet.isShared ? "ví nhóm" : "ví cá nhân"}</strong>, đơn
-              vị <strong>{wallet.currency}</strong>.{" "}
+              {t("wallets.inspector.type_info")}{" "}
+              <strong>{wallet.isShared ? t("wallets.group_wallet") : t("wallets.personal_wallet")}</strong>, {t("wallets.inspector.currency_unit")} <strong>{wallet.currency}</strong>.{" "}
               {wallet.includeOverall === false
-                ? "Không tính vào tổng số dư."
-                : "Đang được tính vào tổng số dư."}
+                ? t("wallets.inspector.exclude_overall")
+                : t("wallets.inspector.include_overall")}
             </div>
 
             <div className="info-row mt-3">
-              <div className="label">Ghi chú</div>
+              <div className="label">{t("wallets.inspector.note")}</div>
               <div className="value">{wallet.note || "-"}</div>
             </div>
             <div className="info-row">
-              <div className="label">Ngày tạo</div>
+              <div className="label">{t("wallets.inspector.created_at")}</div>
               <div className="value">
                 {wallet.createdAt
                   ? new Date(wallet.createdAt).toLocaleString("vi-VN")
@@ -379,17 +380,17 @@ export default function WalletInspector({
         {wallet && tab === "withdraw" && (
           <>
             <div className="mb-2">
-              <label className="form-label">Số tiền rút</label>
+              <label className="form-label">{t("wallets.inspector.withdraw_amount")}</label>
               <input
                 type="number"
                 className="form-control"
                 min={0}
                 value={wAmount}
                 onChange={(e) => setWAmount(e.target.value)}
-                placeholder="Nhập số tiền cần rút"
+                placeholder={t("wallets.inspector.withdraw_amount_placeholder")}
               />
               <div className="form-text">
-                Số dư hiện tại:{" "}
+                {t("wallets.inspector.current_balance")}:{" "}
                 <strong>
                   {formatMoney(wallet.balance, wallet.currency || "VND")}
                 </strong>
@@ -397,7 +398,7 @@ export default function WalletInspector({
             </div>
             {!canWithdraw && wAmount && (
               <div className="text-danger small mb-2">
-                Số tiền không hợp lệ hoặc vượt quá số dư.
+                {t("wallets.inspector.withdraw_invalid")}
               </div>
             )}
 
@@ -415,7 +416,7 @@ export default function WalletInspector({
               }}
             >
               <i className="bi bi-check2-circle me-1" />
-              Xác nhận rút
+              {t("wallets.inspector.withdraw_confirm")}
             </button>
           </>
         )}
@@ -435,7 +436,7 @@ export default function WalletInspector({
             {tStep === 1 && (
               <>
                 <div className="mb-3">
-                  <label className="form-label">Chiều chuyển</label>
+                  <label className="form-label">{t("wallets.inspector.transfer_direction")}</label>
                   <select
                     className="form-select"
                     value={transferMode}
@@ -447,10 +448,10 @@ export default function WalletInspector({
                     }}
                   >
                     <option value="this_to_other">
-                      Chuyển từ ví này sang ví khác
+                      {t("wallets.inspector.transfer_this_to_other")}
                     </option>
                     <option value="other_to_this">
-                      Chuyển từ ví khác sang ví này
+                      {t("wallets.inspector.transfer_other_to_this")}
                     </option>
                   </select>
                 </div>
@@ -458,15 +459,15 @@ export default function WalletInspector({
                 <div className="mb-3">
                   <label className="form-label">
                     {transferMode === "this_to_other"
-                      ? "Chọn ví nhận"
-                      : "Chọn ví gửi"}
+                      ? t("wallets.inspector.select_target_wallet")
+                      : t("wallets.inspector.select_source_wallet")}
                   </label>
                   <select
                     className="form-select"
                     value={tOtherId}
                     onChange={(e) => setTOtherId(e.target.value)}
                   >
-                    <option value="">-- Chọn ví --</option>
+                    <option value="">{t("wallets.inspector.select_wallet_placeholder")}</option>
                     {transferCandidates.map((w) => (
                       <option key={w.id} value={w.id}>
                         {w.name} ({w.currency})
@@ -476,7 +477,7 @@ export default function WalletInspector({
                   {!!tPickedWallet &&
                     tPickedWallet.currency !== wallet.currency && (
                       <div className="form-text text-warning">
-                        ⚠ Khác loại tiền tệ — sẽ quy đổi theo tiền của ví nhận.
+                        {t("wallets.inspector.currency_diff_warning")}
                       </div>
                     )}
                 </div>
@@ -486,14 +487,14 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setTab("details")}
                   >
-                    Huỷ
+                    {t("common.cancel")}
                   </button>
                   <button
                     className="btn btn-accent"
                     disabled={!tPickedWallet}
                     onClick={() => setTStep(2)}
                   >
-                    Tiếp theo →
+                    {t("common.next")} →
                   </button>
                 </div>
               </>
@@ -503,7 +504,7 @@ export default function WalletInspector({
               <>
                 <div className="mb-2">
                   <label className="form-label">
-                    Số tiền chuyển ({tSrc?.currency || "-"} →{" "}
+                    {t("wallets.inspector.transfer_amount")} ({tSrc?.currency || "-"} →{" "}
                     {tDst?.currency || "-"})
                   </label>
                   <input
@@ -512,10 +513,10 @@ export default function WalletInspector({
                     min={0}
                     value={tAmount}
                     onChange={(e) => setTAmount(e.target.value)}
-                    placeholder={`Nhập số tiền bằng ${tSrc?.currency || "nguồn"}`}
+                    placeholder={`${t("wallets.inspector.enter_amount_in")} ${tSrc?.currency || t("wallets.inspector.source")}`}
                   />
                   <div className="form-text">
-                    Số dư nguồn:{" "}
+                    {t("wallets.inspector.source_balance")}:{" "}
                     <strong>
                       {formatMoney(
                         tSrc?.balance || 0,
@@ -525,7 +526,7 @@ export default function WalletInspector({
                   </div>
                   {tCurrenciesDiffer && (
                     <div className="small text-muted mt-1">
-                      Tỷ giá: 1 {tSrc?.currency} ={" "}
+                      {t("wallets.inspector.exchange_rate")}: 1 {tSrc?.currency} ={" "}
                       {new Intl.NumberFormat("vi-VN", {
                         maximumFractionDigits: 6,
                       }).format(tRate)}{" "}
@@ -535,7 +536,7 @@ export default function WalletInspector({
                 </div>
                 {!tCanTransfer && tAmount && (
                   <div className="text-danger small mb-2">
-                    Số tiền không hợp lệ hoặc vượt quá số dư nguồn.
+                    {t("wallets.inspector.transfer_invalid")}
                   </div>
                 )}
 
@@ -544,14 +545,14 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setTStep(1)}
                   >
-                    ← Quay lại
+                    ← {t("common.back")}
                   </button>
                   <button
                     className="btn btn-accent"
                     onClick={() => setTStep(3)}
                     disabled={!tCanTransfer}
                   >
-                    Xem trước →
+                    {t("common.preview")} →
                   </button>
                 </div>
               </>
@@ -560,22 +561,22 @@ export default function WalletInspector({
             {tStep === 3 && (
               <>
                 <div className="mb-3 p-3 rounded border bg-light">
-                  <div className="fw-semibold mb-1">Ví gửi: {tSrc?.name}</div>
+                  <div className="fw-semibold mb-1">{t("wallets.inspector.source_wallet")}: {tSrc?.name}</div>
                   <div className="small">
-                    Trước:{" "}
+                    {t("wallets.inspector.before")}:{" "}
                     {formatMoney(tPreview?.src?.before || 0, tSrc?.currency)} ·{" "}
-                    Sau: {formatMoney(tPreview?.src?.after || 0, tSrc?.currency)}{" "}
-                    · Thay đổi:{" "}
+                    {t("wallets.inspector.after")}: {formatMoney(tPreview?.src?.after || 0, tSrc?.currency)}{" "}
+                    · {t("wallets.inspector.change")}:{" "}
                     {formatMoney(tPreview?.src?.change || 0, tSrc?.currency)}
                   </div>
                 </div>
                 <div className="mb-3 p-3 rounded border bg-light">
-                  <div className="fw-semibold mb-1">Ví nhận: {tDst?.name}</div>
+                  <div className="fw-semibold mb-1">{t("wallets.inspector.target_wallet")}: {tDst?.name}</div>
                   <div className="small">
-                    Trước:{" "}
+                    {t("wallets.inspector.before")}:{" "}
                     {formatMoney(tPreview?.dst?.before || 0, tDst?.currency)} ·{" "}
-                    Sau: {formatMoney(tPreview?.dst?.after || 0, tDst?.currency)}{" "}
-                    · Thay đổi:{" "}
+                    {t("wallets.inspector.after")}: {formatMoney(tPreview?.dst?.after || 0, tDst?.currency)}{" "}
+                    · {t("wallets.inspector.change")}:{" "}
                     {formatMoney(tPreview?.dst?.change || 0, tDst?.currency)}
                   </div>
                 </div>
@@ -583,12 +584,12 @@ export default function WalletInspector({
                   <div className="mb-3 p-3 rounded border">
                     {tPreview?.rateUsed && (
                       <div className="small text-muted mb-1">
-                        Tỷ giá: {tPreview.rateUsed}
+                        {t("wallets.inspector.exchange_rate")}: {tPreview.rateUsed}
                       </div>
                     )}
                     {tPreview?.convertedFrom && (
                       <div className="small text-muted">
-                        Quy đổi: {tPreview.convertedFrom}
+                        {t("wallets.inspector.conversion")}: {tPreview.convertedFrom}
                       </div>
                     )}
                   </div>
@@ -599,13 +600,13 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setTStep(2)}
                   >
-                    ← Quay lại
+                    ← {t("common.back")}
                   </button>
                   <button
                     className="btn btn-accent"
                     onClick={() => setTStep(4)}
                   >
-                    Tiếp tục →
+                    {t("common.continue")} →
                   </button>
                 </div>
               </>
@@ -615,13 +616,13 @@ export default function WalletInspector({
               <>
                 <div className="alert alert-warning">
                   <ul className="m-0 ps-3 small">
-                    <li>Sẽ trừ tiền ở ví nguồn và cộng vào ví nhận.</li>
+                    <li>{t("wallets.inspector.transfer_warning_1")}</li>
                     {tCurrenciesDiffer && (
                       <li>
-                        Có quy đổi tiền tệ theo tỷ giá tại thời điểm thực hiện.
+                        {t("wallets.inspector.transfer_warning_2")}
                       </li>
                     )}
-                    <li>Hành động này có thể tạo giao dịch điều chuyển.</li>
+                    <li>{t("wallets.inspector.transfer_warning_3")}</li>
                   </ul>
                 </div>
                 <label className="d-flex gap-2 align-items-start mb-3">
@@ -631,7 +632,7 @@ export default function WalletInspector({
                     checked={tAgree}
                     onChange={(e) => setTAgree(e.target.checked)}
                   />
-                  <span>Tôi đã hiểu và đồng ý</span>
+                  <span>{t("wallets.inspector.i_agree")}</span>
                 </label>
 
                 <div className="d-flex gap-2">
@@ -639,7 +640,7 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setTStep(3)}
                   >
-                    ← Quay lại
+                    ← {t("common.back")}
                   </button>
                   <button
                     className="btn btn-success"
@@ -689,7 +690,7 @@ export default function WalletInspector({
                       }
                     }}
                   >
-                    {tLoading ? "Đang xử lý..." : "Xác nhận chuyển"}
+                    {tLoading ? t("common.processing") : t("wallets.inspector.transfer_confirm")}
                   </button>
                 </div>
               </>
@@ -712,7 +713,7 @@ export default function WalletInspector({
             {mStep === 1 && (
               <>
                 <div className="mb-3">
-                  <label className="form-label">Chế độ gộp</label>
+                  <label className="form-label">{t("wallets.inspector.merge_mode")}</label>
                   <select
                     className="form-select"
                     value={mergeMode}
@@ -722,23 +723,23 @@ export default function WalletInspector({
                       setKeepCurrency(null);
                     }}
                   >
-                    <option value="this_to_other">Gộp ví này vào ví khác</option>
-                    <option value="other_to_this">Gộp ví khác vào ví này</option>
+                    <option value="this_to_other">{t("wallets.inspector.merge_this_to_other")}</option>
+                    <option value="other_to_this">{t("wallets.inspector.merge_other_to_this")}</option>
                   </select>
                 </div>
 
                 <div className="mb-3">
                   <label className="form-label">
                     {mergeMode === "this_to_other"
-                      ? "Chọn ví đích"
-                      : "Chọn ví nguồn"}
+                      ? t("wallets.inspector.select_target_wallet")
+                      : t("wallets.inspector.select_source_wallet")}
                   </label>
                   <select
                     className="form-select"
                     value={otherId}
                     onChange={(e) => setOtherId(e.target.value)}
                   >
-                    <option value="">-- Chọn ví --</option>
+                    <option value="">{t("wallets.inspector.select_wallet_placeholder")}</option>
                     {mergeCandidates.map((w) => (
                       <option key={w.id} value={w.id}>
                         {w.name} ({w.currency})
@@ -748,7 +749,7 @@ export default function WalletInspector({
                   {!!pickedWallet &&
                     pickedWallet.currency !== wallet.currency && (
                       <div className="form-text text-warning">
-                        ⚠ Khác loại tiền tệ
+                        {t("wallets.inspector.currency_diff_warning")}
                       </div>
                     )}
                 </div>
@@ -758,14 +759,14 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setTab("details")}
                   >
-                    Huỷ
+                    {t("common.cancel")}
                   </button>
                   <button
                     className="btn btn-accent"
                     disabled={!pickedWallet}
                     onClick={() => setMStep(2)}
                   >
-                    Tiếp theo →
+                    {t("common.next")} →
                   </button>
                 </div>
               </>
@@ -784,10 +785,10 @@ export default function WalletInspector({
                       />
                       <div>
                         <div className="fw-semibold">
-                          Giữ {dst?.currency} (theo ví đích)
+                          {t("wallets.inspector.keep_currency")} {dst?.currency} ({t("wallets.inspector.target_wallet")})
                         </div>
                         <div className="small text-muted">
-                          Chuyển {src?.currency} → {dst?.currency} · 1{" "}
+                          {t("wallets.inspector.convert")} {src?.currency} → {dst?.currency} · 1{" "}
                           {src?.currency} ={" "}
                           {new Intl.NumberFormat("vi-VN", {
                             maximumFractionDigits: 6,
@@ -806,10 +807,10 @@ export default function WalletInspector({
                       />
                       <div>
                         <div className="fw-semibold">
-                          Giữ {src?.currency} (theo ví nguồn)
+                          {t("wallets.inspector.keep_currency")} {src?.currency} ({t("wallets.inspector.source_wallet")})
                         </div>
                         <div className="small text-muted">
-                          Chuyển {dst?.currency} → {src?.currency} · 1{" "}
+                          {t("wallets.inspector.convert")} {dst?.currency} → {src?.currency} · 1{" "}
                           {dst?.currency} ≈{" "}
                           {new Intl.NumberFormat("vi-VN", {
                             maximumFractionDigits: 6,
@@ -821,8 +822,7 @@ export default function WalletInspector({
                   </div>
                 ) : (
                   <div className="alert alert-info">
-                    Hai ví cùng loại tiền: <b>{dst?.currency}</b>. Bỏ qua bước
-                    lựa chọn tiền tệ.
+                    <span dangerouslySetInnerHTML={{ __html: t("wallets.inspector.same_currency_info", { currency: dst?.currency }) }} />
                   </div>
                 )}
 
@@ -831,14 +831,14 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setMStep(1)}
                   >
-                    ← Quay lại
+                    ← {t("common.back")}
                   </button>
                   <button
                     className="btn btn-accent"
                     onClick={() => setMStep(3)}
                     disabled={currenciesDiffer && !keepCurrency}
                   >
-                    Xem trước →
+                    {t("common.preview")} →
                   </button>
                 </div>
               </>
@@ -847,36 +847,36 @@ export default function WalletInspector({
             {mStep === 3 && (
               <>
                 <div className="mb-3 p-3 rounded border bg-light">
-                  <div className="fw-semibold mb-1">Ví nguồn: {src?.name}</div>
+                  <div className="fw-semibold mb-1">{t("wallets.inspector.source_wallet")}: {src?.name}</div>
                   <div className="small">
-                    Số dư: {formatMoney(src?.balance, src?.currency)} · GD:{" "}
+                    {t("wallets.inspector.balance")}: {formatMoney(src?.balance, src?.currency)} · {t("wallets.inspector.transactions")}:{" "}
                     {src?.txCount || 0}
                   </div>
                 </div>
                 <div className="mb-3 p-3 rounded border bg-light">
-                  <div className="fw-semibold mb-1">Gộp vào: {dst?.name}</div>
+                  <div className="fw-semibold mb-1">{t("wallets.inspector.merge_into")}: {dst?.name}</div>
                   <div className="small">
-                    Số dư: {formatMoney(dst?.balance, dst?.currency)} · GD:{" "}
+                    {t("wallets.inspector.balance")}: {formatMoney(dst?.balance, dst?.currency)} · {t("wallets.inspector.transactions")}:{" "}
                     {dst?.txCount || 0}
                   </div>
                 </div>
                 <div className="mb-3 p-3 rounded border">
-                  <div className="fw-semibold mb-2">Sau khi gộp</div>
+                  <div className="fw-semibold mb-2">{t("wallets.inspector.after_merge")}</div>
                   {preview?.rateUsed && (
                     <div className="small text-muted mb-1">
-                      Tỷ giá: {preview.rateUsed}
+                      {t("wallets.inspector.exchange_rate")}: {preview.rateUsed}
                     </div>
                   )}
                   {preview?.convertedFrom && (
                     <div className="small text-muted mb-2">
-                      Chuyển đổi: {preview.convertedFrom}
+                      {t("wallets.inspector.conversion")}: {preview.convertedFrom}
                     </div>
                   )}
                   <div>
-                    Loại tiền: <b>{preview?.currency || dst?.currency}</b>
+                    {t("wallets.inspector.currency_type")}: <b>{preview?.currency || dst?.currency}</b>
                   </div>
                   <div>
-                    Số dư mới:{" "}
+                    {t("wallets.inspector.new_balance")}:{" "}
                     <b>
                       {formatMoney(
                         preview?.newBalance ?? 0,
@@ -885,7 +885,7 @@ export default function WalletInspector({
                     </b>
                   </div>
                   <div>
-                    Tổng giao dịch: <b>{preview?.totalTx ?? 0}</b>
+                    {t("wallets.inspector.total_transactions")}: <b>{preview?.totalTx ?? 0}</b>
                   </div>
                 </div>
 
@@ -894,13 +894,13 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setMStep(2)}
                   >
-                    ← Quay lại
+                    ← {t("common.back")}
                   </button>
                   <button
                     className="btn btn-accent"
                     onClick={() => setMStep(4)}
                   >
-                    Tiếp tục →
+                    {t("common.continue")} →
                   </button>
                 </div>
               </>
@@ -911,15 +911,15 @@ export default function WalletInspector({
                 <div className="alert alert-warning">
                   <ul className="m-0 ps-3 small">
                     <li>
-                      Ví nguồn sẽ bị <b>xóa vĩnh viễn</b> sau khi gộp.
+                      <span dangerouslySetInnerHTML={{ __html: t("wallets.inspector.merge_warning_1") }} />
                     </li>
-                    <li>Tất cả giao dịch sẽ chuyển sang ví đích.</li>
+                    <li>{t("wallets.inspector.merge_warning_2")}</li>
                     {currenciesDiffer && (
                       <li>
-                        Có chuyển đổi tiền tệ; tỷ giá tại thời điểm thực hiện.
+                        {t("wallets.inspector.merge_warning_3")}
                       </li>
                     )}
-                    <li>Hành động này không thể hoàn tác.</li>
+                    <li>{t("wallets.inspector.merge_warning_4")}</li>
                   </ul>
                 </div>
                 <label className="d-flex gap-2 align-items-start mb-3">
@@ -929,7 +929,7 @@ export default function WalletInspector({
                     checked={agree}
                     onChange={(e) => setAgree(e.target.checked)}
                   />
-                  <span>Tôi đã hiểu và đồng ý</span>
+                  <span>{t("wallets.inspector.i_agree")}</span>
                 </label>
 
                 <div className="d-flex gap-2">
@@ -937,7 +937,7 @@ export default function WalletInspector({
                     className="btn btn-outline-secondary"
                     onClick={() => setMStep(3)}
                   >
-                    ← Quay lại
+                    ← {t("common.back")}
                   </button>
                   <button
                     className="btn btn-success"
@@ -973,7 +973,7 @@ export default function WalletInspector({
                       }
                     }}
                   >
-                    {mergeLoading ? "Đang gộp..." : "Xác nhận gộp"}
+                    {mergeLoading ? t("wallets.inspector.merging") : t("wallets.inspector.merge_confirm")}
                   </button>
                 </div>
               </>
@@ -985,8 +985,8 @@ export default function WalletInspector({
         {wallet && tab === "convert" && (
           <>
             <div className="mb-3">
-              Trạng thái hiện tại:{" "}
-              <strong>{wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}</strong>
+              {t("wallets.inspector.current_status")}:{" "}
+              <strong>{wallet.isShared ? t("wallets.group_wallet") : t("wallets.personal_wallet")}</strong>
             </div>
             <button
               className="btn btn-accent"
@@ -998,7 +998,7 @@ export default function WalletInspector({
               }}
             >
               <i className="bi bi-arrow-left-right me-1" />
-              Chuyển sang {!wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+              {t("wallets.inspector.convert_to")} {!wallet.isShared ? t("wallets.group_wallet") : t("wallets.personal_wallet")}
             </button>
           </>
         )}

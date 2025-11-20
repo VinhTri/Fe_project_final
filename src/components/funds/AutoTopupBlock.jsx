@@ -1,5 +1,6 @@
 // src/components/funds/AutoTopupBlock.jsx
 import React, { useEffect, useState } from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function AutoTopupBlock({
   autoTopupOn,
@@ -7,6 +8,7 @@ export default function AutoTopupBlock({
   dependsOnReminder,
   reminderFreq = "day",
 }) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState(dependsOnReminder ? "follow" : "custom");
   const [customType, setCustomType] = useState("day");
 
@@ -19,20 +21,20 @@ export default function AutoTopupBlock({
 
   const freqLabel =
     {
-      day: "Theo ngày",
-      week: "Theo tuần",
-      month: "Theo tháng",
-      year: "Theo năm",
-    }[reminderFreq] || "Theo ngày";
+      day: t("funds.form.freq_day"),
+      week: t("funds.form.freq_week"),
+      month: t("funds.form.freq_month"),
+      year: t("funds.form.freq_year"),
+    }[reminderFreq] || t("funds.form.freq_day");
 
   const weekOptions = [
-    { value: "mon", label: "Thứ 2" },
-    { value: "tue", label: "Thứ 3" },
-    { value: "wed", label: "Thứ 4" },
-    { value: "thu", label: "Thứ 5" },
-    { value: "fri", label: "Thứ 6" },
-    { value: "sat", label: "Thứ 7" },
-    { value: "sun", label: "Chủ nhật" },
+    { value: "mon", label: t("funds.form.week_mon") },
+    { value: "tue", label: t("funds.form.week_tue") },
+    { value: "wed", label: t("funds.form.week_wed") },
+    { value: "thu", label: t("funds.form.week_thu") },
+    { value: "fri", label: t("funds.form.week_fri") },
+    { value: "sat", label: t("funds.form.week_sat") },
+    { value: "sun", label: t("funds.form.week_sun") },
   ];
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function AutoTopupBlock({
     if (customType === "day") {
       return (
         <div className="funds-field">
-          <label>Thời gian & số tiền nạp (hàng ngày)</label>
+          <label>{t("funds.form.auto_topup_time_day")}</label>
           <div className="funds-field--inline">
             <input
               type="time"
@@ -55,13 +57,13 @@ export default function AutoTopupBlock({
             <input
               type="number"
               min={0}
-              placeholder="Số tiền tự nạp mỗi ngày"
+              placeholder={t("funds.form.auto_topup_amount_day")}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
             />
           </div>
           <div className="funds-hint">
-            Ví dụ: 08:00 – 100.000 VND, hệ thống sẽ tự nạp mỗi ngày.
+            {t("funds.form.auto_topup_hint_day")}
           </div>
         </div>
       );
@@ -70,7 +72,7 @@ export default function AutoTopupBlock({
     if (customType === "week") {
       return (
         <div className="funds-field">
-          <label>Thời gian & số tiền nạp (hàng tuần)</label>
+          <label>{t("funds.form.auto_topup_time_week")}</label>
           <div className="funds-field--inline">
             <div>
               <select
@@ -96,13 +98,13 @@ export default function AutoTopupBlock({
             <input
               type="number"
               min={0}
-              placeholder="Số tiền tự nạp mỗi tuần"
+              placeholder={t("funds.form.auto_topup_amount_week")}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
             />
           </div>
           <div className="funds-hint">
-            Ví dụ: Thứ 6 lúc 21:00 – 200.000 VND, hệ thống sẽ tự nạp mỗi tuần.
+            {t("funds.form.auto_topup_hint_week")}
           </div>
         </div>
       );
@@ -110,7 +112,7 @@ export default function AutoTopupBlock({
 
     return (
       <div className="funds-field">
-        <label>Thời gian & số tiền nạp (hàng tháng)</label>
+        <label>{t("funds.form.auto_topup_time_month")}</label>
         <div className="funds-field--inline">
           <div>
             <input
@@ -137,13 +139,13 @@ export default function AutoTopupBlock({
           <input
             type="number"
             min={0}
-            placeholder="Số tiền tự nạp mỗi tháng"
+            placeholder={t("funds.form.auto_topup_amount_month")}
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
           />
         </div>
         <div className="funds-hint">
-          Ví dụ: ngày 10 hàng tháng lúc 09:00 – 500.000 VND, hệ thống sẽ tự nạp.
+          {t("funds.form.auto_topup_hint_month")}
         </div>
       </div>
     );
@@ -151,10 +153,10 @@ export default function AutoTopupBlock({
 
   return (
     <div className="funds-fieldset">
-      <div className="funds-fieldset__legend">Tự động nạp tiền</div>
+      <div className="funds-fieldset__legend">{t("funds.form.auto_topup_legend")}</div>
 
       <div className="funds-toggle-line">
-        <span>Bật tự động nạp tiền vào quỹ</span>
+        <span>{t("funds.form.auto_topup_toggle")}</span>
         <label className="switch">
           <input
             type="checkbox"
@@ -167,7 +169,7 @@ export default function AutoTopupBlock({
 
       {!autoTopupOn && (
         <div className="funds-hint">
-          Khi bật, hệ thống có thể tự nạp tiền vào quỹ theo lịch bạn cấu hình.
+          {t("funds.form.auto_topup_off_hint")}
         </div>
       )}
 
@@ -183,7 +185,7 @@ export default function AutoTopupBlock({
               onClick={() => canFollowReminder && setMode("follow")}
               disabled={!canFollowReminder}
             >
-              Nạp theo lịch nhắc nhở
+              {t("funds.form.auto_topup_mode_follow")}
             </button>
             <button
               type="button"
@@ -193,44 +195,34 @@ export default function AutoTopupBlock({
               }
               onClick={() => setMode("custom")}
             >
-              Tự thiết lập lịch nạp
+              {t("funds.form.auto_topup_mode_custom")}
             </button>
           </div>
 
           {!canFollowReminder && (
-            <div className="funds-hint">
-              Để dùng chế độ <strong>nạp theo lịch nhắc nhở</strong>, hãy bật và
-              cấu hình nhắc nhở ở phần trên.
-            </div>
+            <div className="funds-hint" dangerouslySetInnerHTML={{ __html: t("funds.form.auto_topup_no_reminder_hint") }} />
           )}
 
           {mode === "follow" && canFollowReminder && (
             <div className="funds-field">
-              <label>Chế độ nạp theo lịch nhắc nhở</label>
-              <div className="funds-hint">
-                Hệ thống sẽ tự nạp tiền theo <strong>cùng lịch</strong> với{" "}
-                <strong>tần suất gửi quỹ</strong> ({freqLabel}) và thời gian
-                bạn đã chọn trong phần <strong>Nhắc nhở</strong>.
-              </div>
+              <label>{t("funds.form.auto_topup_mode_follow_label")}</label>
+              <div className="funds-hint" dangerouslySetInnerHTML={{ __html: t("funds.form.auto_topup_mode_follow_hint").replace("{freq}", freqLabel) }} />
             </div>
           )}
 
           {mode === "custom" && (
             <>
               <div className="funds-field">
-                <label>Kiểu lịch tự nạp</label>
+                <label>{t("funds.form.auto_topup_type_label")}</label>
                 <select
                   value={customType}
                   onChange={(e) => setCustomType(e.target.value)}
                 >
-                  <option value="day">Tự nạp theo ngày</option>
-                  <option value="week">Tự nạp theo tuần</option>
-                  <option value="month">Tự nạp theo tháng</option>
+                  <option value="day">{t("funds.form.auto_topup_type_day")}</option>
+                  <option value="week">{t("funds.form.auto_topup_type_week")}</option>
+                  <option value="month">{t("funds.form.auto_topup_type_month")}</option>
                 </select>
-                <div className="funds-hint">
-                  Lịch tự nạp này <strong>không phụ thuộc</strong> vào tần suất
-                  gửi quỹ hay lịch nhắc nhở.
-                </div>
+                <div className="funds-hint" dangerouslySetInnerHTML={{ __html: t("funds.form.auto_topup_custom_hint") }} />
               </div>
 
               {renderCustomContent()}

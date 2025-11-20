@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../common/Modal/Modal";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function BudgetFormModal({
   open,
@@ -10,6 +11,7 @@ export default function BudgetFormModal({
   onSubmit,
   onClose,
 }) {
+  const { t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedWallet, setSelectedWallet] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
@@ -52,23 +54,23 @@ export default function BudgetFormModal({
     const newErrors = {};
 
     if (!selectedCategory) {
-      newErrors.category = "Vui lòng chọn danh mục";
+      newErrors.category = t("budgets.error.category");
     }
     // wallet optional but recommended
     if (!selectedWallet) {
-      newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
+      newErrors.wallet = t("budgets.error.wallet");
     }
     if (!limitAmount || limitAmount === "0") {
-      newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
+      newErrors.limit = t("budgets.error.limit");
     }
     if (!startDate) {
-      newErrors.startDate = "Vui lòng chọn ngày bắt đầu";
+      newErrors.startDate = t("budgets.error.start_date");
     }
     if (!endDate) {
-      newErrors.endDate = "Vui lòng chọn ngày kết thúc";
+      newErrors.endDate = t("budgets.error.end_date");
     }
     if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
-      newErrors.dateRange = "Ngày kết thúc phải sau ngày bắt đầu";
+      newErrors.dateRange = t("budgets.error.date_range");
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -88,7 +90,7 @@ export default function BudgetFormModal({
     };
 
     if (selectedWallet === "ALL") {
-      payload = { ...payload, walletId: null, walletName: "Tất cả ví" };
+      payload = { ...payload, walletId: null, walletName: t("wallets.scope.all") };
     } else {
       const walletObj = wallets.find((w) => String(w.id) === String(selectedWallet)) || wallets.find((w) => w.name === selectedWallet) || {};
       payload = { ...payload, walletId: walletObj.id || null, walletName: walletObj.name || selectedWallet || null };
@@ -105,19 +107,19 @@ export default function BudgetFormModal({
     <Modal open={open} onClose={onClose} width={500}>
       <div className="modal__content" style={{ padding: "2rem" }}>
         <h4 className="mb-4" style={{ fontWeight: 600, color: "#212529" }}>
-          {mode === "create" ? "Thêm Hạn mức Chi tiêu Mới" : "Chỉnh sửa Hạn mức Chi tiêu"}
+          {mode === "create" ? t("budgets.form.title_create") : t("budgets.form.title_edit")}
         </h4>
 
         <form onSubmit={handleSubmit}>
           {/* Category Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Chọn Danh mục</label>
+            <label className="form-label fw-semibold">{t("budgets.form.category_label")}</label>
             <select
               className={`form-select ${errors.category ? "is-invalid" : ""}`}
               value={selectedCategory}
               onChange={handleCategoryChange}
             >
-              <option value="">-- Chọn danh mục --</option>
+              <option value="">{t("budgets.form.category_placeholder")}</option>
               {categoryList.map((cat) => (
                 <option key={cat.id} value={cat.name}>
                   {cat.name}
@@ -131,14 +133,14 @@ export default function BudgetFormModal({
 
           {/* Wallet Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Áp dụng cho Ví</label>
+            <label className="form-label fw-semibold">{t("budgets.form.wallet_label")}</label>
             <select
               className={`form-select ${errors.wallet ? "is-invalid" : ""}`}
               value={selectedWallet}
               onChange={handleWalletChange}
             >
-              <option value="">-- Chọn ví --</option>
-              <option value="ALL">Áp dụng cho tất cả ví</option>
+              <option value="">{t("budgets.form.wallet_placeholder")}</option>
+              <option value="ALL">{t("budgets.form.wallet_all")}</option>
               {walletList.map((w) => (
                 <option key={w.id || w.name} value={w.id ?? w.name}>
                   {w.name}
@@ -152,7 +154,7 @@ export default function BudgetFormModal({
 
           {/* Limit Amount */}
           <div className="mb-4">
-            <label className="form-label fw-semibold">Hạn mức Chi tiêu (VND)</label>
+            <label className="form-label fw-semibold">{t("budgets.form.limit_label")}</label>
             <div className="input-group">
               <input
                 type="text"
@@ -170,10 +172,10 @@ export default function BudgetFormModal({
 
           {/* Date Range Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Khoảng thời gian áp dụng</label>
+            <label className="form-label fw-semibold">{t("budgets.form.date_range_label")}</label>
             <div className="row g-2">
               <div className="col-6">
-                <label className="form-text small mb-1 d-block">Từ ngày</label>
+                <label className="form-text small mb-1 d-block">{t("budgets.form.date_from")}</label>
                 <input
                   type="date"
                   className={`form-control ${errors.startDate ? "is-invalid" : ""}`}
@@ -185,7 +187,7 @@ export default function BudgetFormModal({
                 )}
               </div>
               <div className="col-6">
-                <label className="form-text small mb-1 d-block">Đến ngày</label>
+                <label className="form-text small mb-1 d-block">{t("budgets.form.date_to")}</label>
                 <input
                   type="date"
                   className={`form-control ${errors.endDate ? "is-invalid" : ""}`}
@@ -202,16 +204,16 @@ export default function BudgetFormModal({
                 {errors.dateRange}
               </div>
             )}
-            <div className="form-text mt-2">Hạn mức sẽ được theo dõi trong khoảng thời gian này.</div>
+            <div className="form-text mt-2">{t("budgets.form.date_hint")}</div>
           </div>
 
           {/* Buttons */}
           <div className="d-flex gap-2 justify-content-end">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Hủy
+              {t("budgets.form.btn_cancel")}
             </button>
             <button type="submit" className="btn btn-primary">
-              {mode === "create" ? "Thêm Hạn mức" : "Cập nhật"}
+              {mode === "create" ? t("budgets.form.btn_create") : t("budgets.form.btn_update")}
             </button>
           </div>
         </form>

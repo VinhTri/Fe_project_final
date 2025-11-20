@@ -14,6 +14,7 @@ import { AuthProvider } from "./home/store/AuthContext";
 
 // ✅ Toast
 import { ToastProvider } from "./components/common/Toast/ToastContext";
+import { LanguageProvider } from "./home/store/LanguageContext";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -22,7 +23,9 @@ createRoot(document.getElementById("root")).render(
         <WalletDataProvider>
           <BudgetDataProvider>
             <ToastProvider>
-              <App />
+              <LanguageProvider>
+                <App />
+              </LanguageProvider>
             </ToastProvider>
           </BudgetDataProvider>
         </WalletDataProvider>

@@ -1,7 +1,9 @@
 // src/components/funds/ReminderBlock.jsx
 import React, { useState } from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" }) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState("follow"); // follow | custom
   const [customType, setCustomType] = useState("day");
 
@@ -15,34 +17,34 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
 
   const freqLabel =
     {
-      day: "Theo ngày",
-      week: "Theo tuần",
-      month: "Theo tháng",
-      year: "Theo năm",
-    }[freq] || "Theo ngày";
+      day: t("funds.form.freq_day"),
+      week: t("funds.form.freq_week"),
+      month: t("funds.form.freq_month"),
+      year: t("funds.form.freq_year"),
+    }[freq] || t("funds.form.freq_day");
 
   const weekOptions = [
-    { value: "mon", label: "Thứ 2" },
-    { value: "tue", label: "Thứ 3" },
-    { value: "wed", label: "Thứ 4" },
-    { value: "thu", label: "Thứ 5" },
-    { value: "fri", label: "Thứ 6" },
-    { value: "sat", label: "Thứ 7" },
-    { value: "sun", label: "Chủ nhật" },
+    { value: "mon", label: t("funds.form.week_mon") },
+    { value: "tue", label: t("funds.form.week_tue") },
+    { value: "wed", label: t("funds.form.week_wed") },
+    { value: "thu", label: t("funds.form.week_thu") },
+    { value: "fri", label: t("funds.form.week_fri") },
+    { value: "sat", label: t("funds.form.week_sat") },
+    { value: "sun", label: t("funds.form.week_sun") },
   ];
 
   const renderFollowContent = () => {
     if (freq === "day") {
       return (
         <div className="funds-field">
-          <label>Giờ nhắc trong ngày</label>
+          <label>{t("funds.form.reminder_time_day")}</label>
           <input
             type="time"
             value={followTime}
             onChange={(e) => setFollowTime(e.target.value)}
           />
           <div className="funds-hint">
-            Ví dụ: 08:00 mỗi ngày sẽ nhắc bạn gửi tiền vào quỹ.
+            {t("funds.form.reminder_hint_day")}
           </div>
         </div>
       );
@@ -52,7 +54,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
       return (
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Ngày trong tuần</label>
+            <label>{t("funds.form.reminder_day_week")}</label>
             <select
               value={followWeekDay}
               onChange={(e) => setFollowWeekDay(e.target.value)}
@@ -65,7 +67,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
             </select>
           </div>
           <div>
-            <label>Giờ nhắc trong ngày</label>
+            <label>{t("funds.form.reminder_time_day")}</label>
             <input
               type="time"
               value={followTime}
@@ -73,7 +75,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
             />
           </div>
           <div className="funds-hint">
-            Ví dụ: Thứ 6 lúc 21:00 sẽ nhắc bạn gửi tiền mỗi tuần.
+            {t("funds.form.reminder_hint_week")}
           </div>
         </div>
       );
@@ -82,7 +84,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
     return (
       <div className="funds-field funds-field--inline">
         <div>
-          <label>Ngày nhắc trong tháng</label>
+          <label>{t("funds.form.reminder_day_month")}</label>
           <input
             type="number"
             min={1}
@@ -96,7 +98,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
           />
         </div>
         <div>
-          <label>Giờ nhắc trong ngày</label>
+          <label>{t("funds.form.reminder_time_day")}</label>
           <input
             type="time"
             value={followTime}
@@ -104,7 +106,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
           />
         </div>
         <div className="funds-hint">
-          Ví dụ: ngày 5 hàng tháng lúc 09:00 sẽ nhắc bạn gửi tiền vào quỹ.
+          {t("funds.form.reminder_hint_month")}
         </div>
       </div>
     );
@@ -114,14 +116,14 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
     if (customType === "day") {
       return (
         <div className="funds-field">
-          <label>Giờ nhắc (hàng ngày)</label>
+          <label>{t("funds.form.reminder_time_custom_day")}</label>
           <input
             type="time"
             value={customTime}
             onChange={(e) => setCustomTime(e.target.value)}
           />
           <div className="funds-hint">
-            Hệ thống sẽ nhắc bạn mỗi ngày vào giờ đã chọn.
+            {t("funds.form.reminder_hint_custom_day")}
           </div>
         </div>
       );
@@ -131,7 +133,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
       return (
         <div className="funds-field funds-field--inline">
           <div>
-            <label>Ngày trong tuần</label>
+            <label>{t("funds.form.reminder_day_week")}</label>
             <select
               value={customWeekDay}
               onChange={(e) => setCustomWeekDay(e.target.value)}
@@ -144,7 +146,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
             </select>
           </div>
           <div>
-            <label>Giờ nhắc trong ngày</label>
+            <label>{t("funds.form.reminder_time_day")}</label>
             <input
               type="time"
               value={customTime}
@@ -152,7 +154,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
             />
           </div>
           <div className="funds-hint">
-            Ví dụ: Thứ 7 lúc 20:30 sẽ nhắc bạn, dù tần suất gửi quỹ đang là gì.
+            {t("funds.form.reminder_hint_custom_week")}
           </div>
         </div>
       );
@@ -161,7 +163,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
     return (
       <div className="funds-field funds-field--inline">
         <div>
-          <label>Ngày trong tháng</label>
+          <label>{t("funds.form.reminder_day_month")}</label>
           <input
             type="number"
             min={1}
@@ -175,7 +177,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
           />
         </div>
         <div>
-          <label>Giờ nhắc trong ngày</label>
+          <label>{t("funds.form.reminder_time_day")}</label>
           <input
             type="time"
             value={customTime}
@@ -183,7 +185,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
           />
         </div>
         <div className="funds-hint">
-          Ví dụ: ngày 25 hàng tháng lúc 19:00 sẽ nhắc bạn.
+          {t("funds.form.reminder_hint_custom_month")}
         </div>
       </div>
     );
@@ -191,10 +193,10 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
 
   return (
     <div className="funds-fieldset">
-      <div className="funds-fieldset__legend">Nhắc nhở</div>
+      <div className="funds-fieldset__legend">{t("funds.form.reminder_legend")}</div>
 
       <div className="funds-toggle-line">
-        <span>Bật nhắc nhở cho quỹ này</span>
+        <span>{t("funds.form.reminder_toggle")}</span>
         <label className="switch">
           <input
             type="checkbox"
@@ -207,7 +209,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
 
       {!reminderOn && (
         <div className="funds-hint">
-          Khi cần, bạn có thể bật lại để hệ thống nhắc theo tần suất mong muốn.
+          {t("funds.form.reminder_off_hint")}
         </div>
       )}
 
@@ -222,7 +224,7 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
               }
               onClick={() => setMode("follow")}
             >
-              Theo tần suất gửi quỹ ({freqLabel})
+              {t("funds.form.reminder_mode_follow").replace("{freq}", freqLabel)}
             </button>
             <button
               type="button"
@@ -232,17 +234,13 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
               }
               onClick={() => setMode("custom")}
             >
-              Tự tạo lịch nhắc riêng
+              {t("funds.form.reminder_mode_custom")}
             </button>
           </div>
 
           {mode === "follow" && (
             <>
-              <div className="funds-hint">
-                Hệ thống sẽ dùng cùng tần suất với phần{" "}
-                <strong>Số tiền gửi mỗi kỳ</strong>. Bạn chỉ cần chọn giờ / ngày
-                cụ thể.
-              </div>
+              <div className="funds-hint" dangerouslySetInnerHTML={{ __html: t("funds.form.reminder_follow_hint") }} />
               {renderFollowContent()}
             </>
           )}
@@ -250,18 +248,17 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
           {mode === "custom" && (
             <>
               <div className="funds-field">
-                <label>Kiểu nhắc nhở</label>
+                <label>{t("funds.form.reminder_type_label")}</label>
                 <select
                   value={customType}
                   onChange={(e) => setCustomType(e.target.value)}
                 >
-                  <option value="day">Nhắc theo ngày</option>
-                  <option value="week">Nhắc theo tuần</option>
-                  <option value="month">Nhắc theo tháng</option>
+                  <option value="day">{t("funds.form.reminder_type_day")}</option>
+                  <option value="week">{t("funds.form.reminder_type_week")}</option>
+                  <option value="month">{t("funds.form.reminder_type_month")}</option>
                 </select>
                 <div className="funds-hint">
-                  Bạn có thể chọn nhắc hàng ngày / hàng tuần / hàng tháng,
-                  không phụ thuộc tần suất gửi quỹ.
+                  {t("funds.form.reminder_custom_hint")}
                 </div>
               </div>
 

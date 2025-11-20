@@ -1,7 +1,9 @@
 // src/components/funds/FundCard.jsx
 import React from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function FundCard({ fund, onClick }) {
+  const { t } = useLanguage();
   const {
     name,
     current,
@@ -41,7 +43,7 @@ export default function FundCard({ fund, onClick }) {
 
           {isGroup && (
             <span className="fund-card__badge">
-              {memberCount} người tham gia
+              {memberCount} {t("funds.card.members")}
             </span>
           )}
         </div>
@@ -64,7 +66,7 @@ export default function FundCard({ fund, onClick }) {
           <div className="fund-card__progress-bar">
             <span style={{ width: `${pct}%` }} />
           </div>
-          <div className="fund-card__progress-text">{pct}% hoàn thành</div>
+          <div className="fund-card__progress-text">{pct}% {t("funds.card.completed")}</div>
         </div>
       )}
     </div>

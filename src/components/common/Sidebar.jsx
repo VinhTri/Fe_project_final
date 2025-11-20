@@ -2,20 +2,22 @@ import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
 import { useAuth, ROLES } from "../../../home/store/AuthContext";
-
-const BASE_MENU = [
-  { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
-  { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
-  { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
-  { to: "/home/reports", label: "Báo cáo", icon: "bi-graph-up-arrow" },
-  { to: "/home/accounts", label: "Tài khoản", icon: "bi-credit-card-2-front" },
-];
+import { useLanguage } from "../../../home/store/LanguageContext";
 
 export default function HomeSidebar() {
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
   const { currentUser } = useAuth();
+  const { t } = useLanguage();
+
+  const BASE_MENU = [
+    { to: "/home", label: t("sidebar.overview"), icon: "bi-speedometer2", end: true },
+    { to: "/home/wallets", label: t("sidebar.wallets"), icon: "bi-wallet2" },
+    { to: "/home/budgets", label: t("sidebar.budgets"), icon: "bi-graph-up-arrow" },
+    { to: "/home/reports", label: t("sidebar.reports"), icon: "bi-graph-up-arrow" },
+    { to: "/home/accounts", label: t("sidebar.accounts"), icon: "bi-credit-card-2-front" },
+  ];
 
   const menuItems = [...BASE_MENU];
 
@@ -23,7 +25,7 @@ export default function HomeSidebar() {
   if (currentUser?.role === ROLES.ADMIN) {
     menuItems.push({
       to: "/admin/users",
-      label: "Quản lý người dùng",
+      label: t("sidebar.user_management"),
       icon: "bi-people-fill",
     });
   }
@@ -68,7 +70,7 @@ export default function HomeSidebar() {
         <div className="sb__leaf" />
         {currentUser && (
           <div className="sb__role">
-            <small>Vai trò: {currentUser.role}</small>
+            <small>{t("sidebar.role")}: {currentUser.role}</small>
           </div>
         )}
       </div>

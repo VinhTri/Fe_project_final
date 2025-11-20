@@ -4,9 +4,11 @@ import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
 import { useEffect, useState } from "react";
 import { useAuth, ROLES } from "../../../home/store/AuthContext";
+import { useLanguage } from "../../../home/store/LanguageContext";
 
 export default function HomeTopbar() {
-  const [userName, setUserName] = useState("Người dùng");
+  const { t } = useLanguage();
+  const [userName, setUserName] = useState(t("topbar.default_user"));
   const [userAvatar, setUserAvatar] = useState(
     "https://www.gravatar.com/avatar/?d=mp&s=40"
   );
@@ -23,10 +25,13 @@ export default function HomeTopbar() {
       console.log("HomeTopbar: Hàm loadUserFromStorage() ĐƯỢC GỌI.");
       try {
         const raw = localStorage.getItem("user");
-        if (!raw) return;
+        if (!raw) {
+          setUserName(t("topbar.default_user"));
+          return;
+        }
         
         const u = JSON.parse(raw) || {};
-        const newFullName = u.fullName || u.username || u.email || "Người dùng";
+        const newFullName = u.fullName || u.username || u.email || t("topbar.default_user");
         
         // 2. Đọc 'u.avatar' (đã bao gồm ảnh Google hoặc ảnh Base64)
         const newAvatar =
@@ -41,6 +46,7 @@ export default function HomeTopbar() {
       } catch (error) {
         console.error("HomeTopbar: Lỗi khi load user từ localStorage:", error);
         // Giữ fallback mặc định nếu parse JSON lỗi
+        setUserName(t("topbar.default_user"));
       }
     };
 
@@ -54,20 +60,20 @@ export default function HomeTopbar() {
     return () => {
       window.removeEventListener('storageUpdated', loadUserFromStorage);
     };
-  }, []); // useEffect này chỉ chạy 1 lần duy nhất khi component mount
+  }, [t]); // useEffect này chạy lại khi t thay đổi (đổi ngôn ngữ)
 
   return (
     <header className="tb__wrap" role="banner">
       {/* Trái: chào người dùng */}
       <div className="tb__left">
-        <div className="tb__welcome">Xin chào, {userName}!</div>
+        <div className="tb__welcome">{t("topbar.welcome").replace("{name}", userName)}</div>
       </div>
 
       {/* Phải: Global Search + actions */}
       <div className="tb__right">
         <GlobalSearch />
 
-        <div className="tb__actions" role="group" aria-label="Tác vụ topbar">
+        <div className="tb__actions" role="group" aria-label={t("topbar.actions")}>
           <div className="tb__divider" aria-hidden="true" />
           {/* 👇 Chuông dùng đúng role theo tài khoản hiện tại */}
           <NotificationBell role={bellRole} />

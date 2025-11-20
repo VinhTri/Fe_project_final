@@ -1,29 +1,31 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/GlobalSearch.css";
-
-const MENU_ITEMS = [
-  { id: "dashboard", label: "Tổng quan", path: "/home", icon: "bi-speedometer2" },
-  { id: "wallets", label: "Ví", path: "/home/wallets", icon: "bi-wallet2" },
-  { id: "budgets", label: "Ngân sách", path: "/home/budgets", icon: "bi-graph-up-arrow" },
-  { id: "transactions", label: "Giao dịch", path: "/home/transactions", icon: "bi-cash-stack" },
-  { id: "categories", label: "Danh mục", path: "/home/categories", icon: "bi-tag" },
-  { id: "reports", label: "Báo cáo", path: "/home/reports", icon: "bi-graph-up" },
-  { id: "budgets-edit", label: "Chỉnh sửa ngân sách", path: "/home/budgets", icon: "bi-pencil" },
-  { id: "add-transaction", label: "Thêm giao dịch", path: "/home/transactions", icon: "bi-plus-lg" },
-  { id: "add-category", label: "Thêm danh mục", path: "/home/categories", icon: "bi-plus-lg" },
-  { id: "add-wallet", label: "Thêm ví", path: "/home/wallets", icon: "bi-plus-lg" },
-  { id: "settings", label: "Cài đặt", path: "/home/settings", icon: "bi-gear" },
-  { id: "profile", label: "Hồ sơ", path: "/home/profile", icon: "bi-person-circle" },
-];
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function GlobalSearch() {
+  const { t } = useLanguage();
   const [searchText, setSearchText] = useState("");
   const [results, setResults] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const searchBoxRef = useRef(null);
   const resultsRef = useRef(null);
+
+  const MENU_ITEMS = [
+    { id: "dashboard", label: t("sidebar.overview"), path: "/home", icon: "bi-speedometer2" },
+    { id: "wallets", label: t("sidebar.wallets"), path: "/home/wallets", icon: "bi-wallet2" },
+    { id: "budgets", label: t("sidebar.budgets"), path: "/home/budgets", icon: "bi-graph-up-arrow" },
+    { id: "transactions", label: t("sidebar.transactions"), path: "/home/transactions", icon: "bi-cash-stack" },
+    { id: "categories", label: t("sidebar.categories"), path: "/home/categories", icon: "bi-tag" },
+    { id: "reports", label: t("sidebar.reports"), path: "/home/reports", icon: "bi-graph-up" },
+    { id: "budgets-edit", label: t("sidebar.budgets"), path: "/home/budgets", icon: "bi-pencil" }, // Reusing budget label or create new key if needed
+    { id: "add-transaction", label: t("transactions.btn.add"), path: "/home/transactions", icon: "bi-plus-lg" },
+    { id: "add-category", label: t("categories.btn.add"), path: "/home/categories", icon: "bi-plus-lg" },
+    { id: "add-wallet", label: t("wallets.create_new"), path: "/home/wallets", icon: "bi-plus-lg" },
+    { id: "settings", label: t("settings.title"), path: "/home/settings", icon: "bi-gear" },
+    { id: "profile", label: t("settings.profile"), path: "/home/profile", icon: "bi-person-circle" },
+  ];
 
   // Tìm kiếm khi gõ
   const handleSearch = (e) => {
@@ -92,7 +94,7 @@ export default function GlobalSearch() {
         <input
           type="text"
           className="global-search-input"
-          placeholder="Tìm kiếm chức năng..."
+          placeholder={t("topbar.search_placeholder")}
           value={searchText}
           onChange={handleSearch}
           onKeyDown={handleKeyDown}
@@ -119,7 +121,7 @@ export default function GlobalSearch() {
       {/* Thông báo không tìm thấy */}
       {isOpen && searchText.trim().length > 0 && results.length === 0 && (
         <div className="global-search-empty">
-          <p className="mb-0">Không tìm thấy chức năng "{searchText}"</p>
+          <p className="mb-0">{t("topbar.search_no_result").replace("{text}", searchText)}</p>
         </div>
       )}
     </div>

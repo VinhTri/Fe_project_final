@@ -1,8 +1,10 @@
 // src/components/transactions/TransactionViewModal.jsx
 import React from "react";
 import { createPortal } from "react-dom";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function TransactionViewModal({ open, tx, onClose }) {
+  const { t } = useLanguage();
   if (!open || !tx) return null;
 
   const d = tx.date ? new Date(tx.date) : null;
@@ -44,19 +46,19 @@ export default function TransactionViewModal({ open, tx, onClose }) {
       <div className="tx-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
         <div className="tx-modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header border-0 pb-0" style={{ padding: "16px 22px 8px" }}>
-            <h5 className="modal-title fw-semibold">Chi tiết Giao dịch</h5>
+            <h5 className="modal-title fw-semibold">{t("transactions.view.title")}</h5>
             <button type="button" className="btn-close" onClick={onClose} />
           </div>
 
           <div className="modal-body" style={{ padding: "12px 22px 18px" }}>
             <div className="mb-3">
-              <div className="text-muted small mb-1">Loại giao dịch</div>
+              <div className="text-muted small mb-1">{t("transactions.view.type")}</div>
               <div className="badge rounded-pill bg-light text-primary fw-semibold">
                 {isTransfer
-                  ? "Chuyển tiền giữa các ví"
+                  ? t("transactions.type.transfer")
                   : tx.type === "income"
-                  ? "Thu nhập"
-                  : "Chi tiêu"}
+                  ? t("transactions.type.income")
+                  : t("transactions.type.expense")}
               </div>
             </div>
 
@@ -64,22 +66,22 @@ export default function TransactionViewModal({ open, tx, onClose }) {
               {isTransfer ? (
                 <>
                   <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Ví gửi</label>
+                    <label className="form-label small text-muted mb-1">{t("transactions.view.source_wallet")}</label>
                     <div className="form-control-plaintext fw-semibold">{tx.sourceWallet}</div>
                   </div>
                   <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Ví nhận</label>
+                    <label className="form-label small text-muted mb-1">{t("transactions.view.target_wallet")}</label>
                     <div className="form-control-plaintext fw-semibold">{tx.targetWallet}</div>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Ví</label>
+                    <label className="form-label small text-muted mb-1">{t("transactions.view.wallet")}</label>
                     <div className="form-control-plaintext fw-semibold">{tx.walletName}</div>
                   </div>
                   <div className="col-6">
-                    <label className="form-label small text-muted mb-1">Số tiền</label>
+                    <label className="form-label small text-muted mb-1">{t("transactions.view.amount")}</label>
                     <div
                       className={`form-control-plaintext fw-semibold ${
                         tx.type === "expense" ? "text-danger" : "text-success"
@@ -93,42 +95,42 @@ export default function TransactionViewModal({ open, tx, onClose }) {
               )}
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Ngày</label>
+                <label className="form-label small text-muted mb-1">{t("transactions.view.date")}</label>
                 <div className="form-control-plaintext">{dateStr}</div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Giờ</label>
+                <label className="form-label small text-muted mb-1">{t("transactions.view.time")}</label>
                 <div className="form-control-plaintext">{timeStr}</div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Danh mục</label>
+                <label className="form-label small text-muted mb-1">{t("transactions.view.category")}</label>
                 <div className="form-control-plaintext">
-                  {tx.category || (isTransfer ? "Chuyển tiền giữa các ví" : "")}
+                  {tx.category || (isTransfer ? t("transactions.type.transfer") : "")}
                 </div>
               </div>
 
               <div className="col-12">
-                <label className="form-label small text-muted mb-1">Ghi chú</label>
+                <label className="form-label small text-muted mb-1">{t("transactions.view.note")}</label>
                 <div className="form-control-plaintext">
-                  {tx.note || <span className="text-muted fst-italic">Không có</span>}
+                  {tx.note || <span className="text-muted fst-italic">{t("transactions.view.no_note")}</span>}
                 </div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Mã giao dịch</label>
+                <label className="form-label small text-muted mb-1">{t("transactions.view.code")}</label>
                 <div className="form-control-plaintext">{tx.code || "—"}</div>
               </div>
 
               <div className="col-6">
-                <label className="form-label small text-muted mb-1">Mã người tạo</label>
+                <label className="form-label small text-muted mb-1">{t("transactions.view.creator_code")}</label>
                 <div className="form-control-plaintext">{tx.creatorCode || "—"}</div>
               </div>
 
               {tx.attachment && (
                 <div className="col-12">
-                  <label className="form-label small text-muted mb-1">Ảnh đính kèm</label>
+                  <label className="form-label small text-muted mb-1">{t("transactions.view.attachment")}</label>
                   <div className="d-flex gap-2 align-items-center">
                     <div
                       style={{
@@ -147,7 +149,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
                       />
                     </div>
                     <div className="small text-muted flex-grow-1">
-                      Ảnh minh họa (demo). Sau này sẽ lấy từ API file thật.
+                      {t("transactions.view.attachment_hint")}
                     </div>
                   </div>
                 </div>
@@ -157,7 +159,7 @@ export default function TransactionViewModal({ open, tx, onClose }) {
 
           <div className="modal-footer border-0 pt-0" style={{ padding: "8px 22px 16px" }}>
             <button className="btn btn-primary" onClick={onClose}>
-              Đóng
+              {t("transactions.btn.close")}
             </button>
           </div>
         </div>
