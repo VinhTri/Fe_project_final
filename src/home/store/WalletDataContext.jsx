@@ -66,6 +66,8 @@ export function WalletDataProvider({ children }) {
       includeOverall: apiWallet.includeOverall !== false,
       includePersonal: apiWallet.includePersonal !== false,
       includeGroup: apiWallet.includeGroup !== false,
+      txCount: apiWallet.transactionCount || apiWallet.txCount || 0,
+      transactionCount: apiWallet.transactionCount || apiWallet.txCount || 0,
     };
   };
 

@@ -211,13 +211,96 @@ export default function WalletsPage() {
     }
   }, [activeTab, wallets, selectedId]);
 
+  // Helper function để tính tỷ giá
+  const getRate = (from, to) => {
+    if (!from || !to || from === to) return 1;
+    const rates = {
+      VND: 1,
+      USD: 0.000041, // 1 VND = 0.000041 USD
+      EUR: 0.000038,
+      JPY: 0.0063,
+      GBP: 0.000032,
+      CNY: 0.00030,
+    };
+    if (!rates[from] || !rates[to]) return 1;
+    const fromToVND = 1 / rates[from];
+    const toToVND = 1 / rates[to];
+    return fromToVND / toToVND;
+  };
+
+  // Helper function để chuyển đổi số tiền về VND
+  const convertToVND = (amount, currency) => {
+    const numericAmount = Number(amount) || 0;
+    if (!currency || currency === "VND") return numericAmount;
+    const rate = getRate(currency, "VND");
+    return numericAmount * rate;
+  };
+
+  // Helper function để chuyển đổi từ VND sang currency khác
+  const convertFromVND = (amountVND, targetCurrency) => {
+    const base = Number(amountVND) || 0;
+    if (!targetCurrency || targetCurrency === "VND") return base;
+    const rate = getRate("VND", targetCurrency);
+    const converted = base * rate;
+    // Làm tròn theo số chữ số thập phân của currency đích
+    const decimals = targetCurrency === "VND" ? 0 : 8;
+    return Math.round(converted * Math.pow(10, decimals)) / Math.pow(10, decimals);
+  };
+
+  // Lấy đơn vị tiền tệ mặc định từ localStorage
+  const [displayCurrency, setDisplayCurrency] = useState(() => {
+    return localStorage.getItem("defaultCurrency") || "VND";
+  });
+
+  // Lắng nghe sự kiện thay đổi currency setting
+  useEffect(() => {
+    const handleCurrencyChange = (e) => {
+      setDisplayCurrency(e.detail.currency);
+    };
+    window.addEventListener('currencySettingChanged', handleCurrencyChange);
+    return () => {
+      window.removeEventListener('currencySettingChanged', handleCurrencyChange);
+    };
+  }, []);
+
+  // Format số tiền
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  };
+
+  // Tổng số dư: chuyển đổi tất cả về VND, sau đó quy đổi sang displayCurrency
   const totalBalance = useMemo(
-    () =>
-      wallets.reduce(
-        (sum, w) => sum + (Number(w.balance ?? w.current ?? 0) || 0),
-        0
-      ),
-    [wallets]
+    () => {
+      const totalInVND = wallets
+        .filter((w) => w.includeOverall !== false)
+        .reduce((sum, w) => {
+          const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
+          return sum + balanceInVND;
+        }, 0);
+      // Quy đổi từ VND sang đơn vị tiền tệ hiển thị
+      return convertFromVND(totalInVND, displayCurrency);
+    },
+    [wallets, displayCurrency]
   );
 
   const handleSelectWallet = (id) => {
@@ -263,7 +346,7 @@ export default function WalletsPage() {
         isShared: false,
       };
       const created = await createWallet(payload);
-      showToast("Tạo ví cá nhân thành công!");
+      showToast(`Đã tạo ví cá nhân "${created?.name || createForm.name}"`);
       if (created?.id) {
         setSelectedId(created.id);
         setActiveDetailTab("view");
@@ -311,7 +394,7 @@ export default function WalletsPage() {
         currency: editForm.currency,
         isDefault: !!editForm.isDefault,
       });
-      showToast("Cập nhật thông tin ví thành công!");
+      showToast("Cập nhật ví thành công");
     } catch (error) {
       showToast(error.message || "Không thể cập nhật ví", "error");
     }
@@ -320,14 +403,16 @@ export default function WalletsPage() {
   const handleDeleteWallet = async (walletId) => {
     if (!walletId || !deleteWallet) return;
     try {
+      const wallet = wallets.find((w) => Number(w.id) === Number(walletId));
+      const walletName = wallet?.name || "ví";
       await deleteWallet(walletId);
-      showToast("Xoá ví thành công!");
+      showToast(`Đã xóa ví "${walletName}"`);
       if (String(walletId) === String(selectedId)) {
         setSelectedId(null);
         setActiveDetailTab("view");
       }
     } catch (error) {
-      showToast(error.message || "Không thể xoá ví", "error");
+      showToast(error.message || "Lỗi kết nối máy chủ", "error");
     }
   };
 
@@ -349,7 +434,7 @@ export default function WalletsPage() {
       );
       if (response?.transaction) {
         await loadWallets();
-        showToast("Nạp ví thành công!");
+        showToast("Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử.");
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -380,7 +465,7 @@ export default function WalletsPage() {
       );
       if (response?.transaction) {
         await loadWallets();
-        showToast("Rút tiền thành công!");
+        showToast("Rút tiền thành công. Giao dịch đã được lưu vào lịch sử.");
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -408,7 +493,7 @@ export default function WalletsPage() {
         note: transferNote || "",
         mode: "this_to_other",
       });
-      showToast("Chuyển tiền giữa ví thành công!");
+      showToast("Chuyển tiền thành công");
     } catch (error) {
       showToast(error.message || "Không thể chuyển tiền", "error");
     } finally {
@@ -459,7 +544,7 @@ export default function WalletsPage() {
         await updateWallet({ id: targetId, isDefault: true });
       }
 
-      showToast("Gộp ví thành công!");
+      showToast("Đã gộp ví thành công");
       setSelectedId(targetId);
       setActiveDetailTab("view");
     } catch (error) {
@@ -485,12 +570,13 @@ export default function WalletsPage() {
       }
 
       await convertToGroup(selectedWallet.id);
-      showToast("Đã chuyển ví sang ví nhóm!");
+      showToast("Chuyển đổi ví thành nhóm thành công");
       setSelectedId(null);
       setActiveTab("group");
       setActiveDetailTab("view");
     } catch (error) {
-      showToast(error.message || "Không thể chuyển sang ví nhóm", "error");
+      const errorMessage = error.message || "Không thể chuyển ví nhóm về ví cá nhân. Vui lòng xóa các thành viên trước.";
+      showToast(errorMessage, "error");
     }
   };
 
@@ -521,7 +607,7 @@ export default function WalletsPage() {
         <div className="wallets-stat">
           <span className="wallets-stat__label">Tổng số dư</span>
           <span className="wallets-stat__value">
-            {totalBalance.toLocaleString("vi-VN")} đ
+            {formatMoney(totalBalance, displayCurrency || "VND")}
               </span>
             </div>
         <div className="wallets-stat">

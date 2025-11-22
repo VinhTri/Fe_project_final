@@ -79,6 +79,34 @@ export default function WalletList({
         {wallets.map((w) => {
           const isActive = selectedId && String(selectedId) === String(w.id);
           const balance = Number(w.balance ?? w.current ?? 0) || 0;
+          
+          // Format số tiền với độ chính xác cao (không làm tròn)
+          const formatBalance = (amount = 0, currency = "VND") => {
+            const numAmount = Number(amount) || 0;
+            if (currency === "USD") {
+              // USD: hiển thị tối đa 8 chữ số thập phân để chính xác
+              if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+                const formatted = numAmount.toLocaleString("en-US", { 
+                  minimumFractionDigits: 2, 
+                  maximumFractionDigits: 8 
+                });
+                return `$${formatted}`;
+              }
+              const formatted = numAmount % 1 === 0 
+                ? numAmount.toLocaleString("en-US")
+                : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+              return `$${formatted}`;
+            }
+            if (currency === "VND") {
+              return `${numAmount.toLocaleString("vi-VN")} VND`;
+            }
+            // Các currency khác: hiển thị tối đa 8 chữ số thập phân
+            if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+              return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+            }
+            return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+          };
+          
           return (
             <button
               key={w.id}
@@ -105,7 +133,7 @@ export default function WalletList({
                 </div>
               </div>
               <div className="wallets-list-item__balance">
-                {balance.toLocaleString("vi-VN")} {w.currency || "VND"}
+                {formatBalance(balance, w.currency || "VND")}
               </div>
               {w.note && (
                 <div className="wallets-list-item__desc">{w.note}</div>

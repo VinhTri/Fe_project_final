@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ConfirmModal from "../common/Modal/ConfirmModal";
+import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 
 export default function WalletDetail(props) {
   const {
@@ -461,6 +462,101 @@ export default function WalletDetail(props) {
   );
 }
 
+/* ====== HELPER FUNCTIONS ====== */
+
+// Helper function để tính tỷ giá (dùng chung cho tất cả components)
+function getRate(from, to) {
+  if (!from || !to || from === to) return 1;
+  
+  // Tỷ giá cố định (theo ExchangeRateServiceImpl)
+  // rates[currency] = tỷ giá 1 VND = ? currency
+  const ratesToVND = {
+    VND: 1,
+    USD: 0.000041, // 1 VND = 0.000041 USD
+    EUR: 0.000038,
+    JPY: 0.0063,
+    GBP: 0.000032,
+    CNY: 0.00030,
+  };
+  
+  // Tỷ giá ngược lại: 1 currency = ? VND (để tránh phép chia)
+  const ratesFromVND = {
+    VND: 1,
+    USD: 24390.243902439024, // 1 USD = 24390.243902439024 VND (1/0.000041)
+    EUR: 26315.78947368421, // 1 EUR = 26315.78947368421 VND (1/0.000038)
+    JPY: 158.73015873015873, // 1 JPY = 158.73015873015873 VND (1/0.0063)
+    GBP: 31250, // 1 GBP = 31250 VND (1/0.000032)
+    CNY: 3333.3333333333335, // 1 CNY = 3333.3333333333335 VND (1/0.00030)
+  };
+  
+  if (!ratesToVND[from] || !ratesToVND[to]) return 1;
+  
+  // Nếu from là VND, tỷ giá đơn giản là ratesToVND[to]
+  if (from === "VND") {
+    return ratesToVND[to];
+  }
+  // Nếu to là VND, tỷ giá là ratesFromVND[from] (tránh phép chia)
+  if (to === "VND") {
+    return ratesFromVND[from];
+  }
+  // Tính tỷ giá: from → VND → to
+  // 1 from = ratesFromVND[from] VND
+  // ratesFromVND[from] VND = ratesFromVND[from] * ratesToVND[to] to
+  // VD: USD → EUR: 1 USD = 24390.243902439024 VND = 24390.243902439024 * 0.000038 EUR
+  // Tỷ giá from → to = ratesFromVND[from] * ratesToVND[to]
+  const rate = ratesFromVND[from] * ratesToVND[to];
+  // Sử dụng toFixed(8) rồi parseFloat để giảm sai số tích lũy
+  return parseFloat(rate.toFixed(8));
+}
+
+// Format số dư sau khi chuyển đổi với độ chính xác cao (8 chữ số thập phân)
+function formatConvertedBalance(amount = 0, currency = "VND") {
+  const numAmount = Number(amount) || 0;
+  if (currency === "VND") {
+    // VND: hiển thị với 8 chữ số thập phân để khớp với tỷ giá (không làm tròn về số nguyên)
+    // Kiểm tra xem có phần thập phân không
+    const hasDecimal = numAmount % 1 !== 0;
+    if (hasDecimal) {
+      const formatted = numAmount.toLocaleString("vi-VN", { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 8 
+      });
+      return `${formatted} VND`;
+    }
+    // Nếu là số nguyên, hiển thị bình thường
+    return `${numAmount.toLocaleString("vi-VN")} VND`;
+  }
+  if (currency === "USD") {
+    // USD: hiển thị với 8 chữ số thập phân để khớp với tỷ giá
+    const formatted = numAmount.toLocaleString("en-US", { 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 8 
+    });
+    return `$${formatted}`;
+  }
+  // Các currency khác
+  const formatted = numAmount.toLocaleString("vi-VN", { 
+    minimumFractionDigits: 0, 
+    maximumFractionDigits: 8 
+  });
+  return `${formatted} ${currency}`;
+}
+
+// Format tỷ giá với độ chính xác cao
+function formatExchangeRate(rate = 0, toCurrency = "VND") {
+  const numRate = Number(rate) || 0;
+  if (toCurrency === "USD") {
+    return numRate.toLocaleString("en-US", { 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 8 
+    });
+  }
+  return numRate.toLocaleString("vi-VN", { 
+    minimumFractionDigits: 0, 
+    maximumFractionDigits: 8 
+  });
+}
+
 /* ====== SUB TABS COMPONENTS ====== */
 
 function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
@@ -603,6 +699,34 @@ function TopupTab({
   setTopupCategoryId,
   onSubmitTopup,
 }) {
+  // Format số tiền
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  };
+
+  const currentBalance = Number(wallet?.balance || 0);
+  const walletCurrency = wallet?.currency || "VND";
+
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
@@ -612,29 +736,42 @@ function TopupTab({
       <form className="wallet-form" onSubmit={onSubmitTopup} autoComplete="off">
         <div className="wallet-form__row">
           <label>
-            Số tiền nạp
-            <input
-              type="number"
-              min="0"
-              step="1000"
-              value={topupAmount}
-              onChange={(e) => setTopupAmount(e.target.value)}
-              placeholder="Nhập số tiền..."
-            />
-          </label>
-          <label>
-            Danh mục
+            Danh mục <span style={{ color: "#ef4444" }}>*</span>
             <select
               value={topupCategoryId}
               onChange={(e) => setTopupCategoryId(e.target.value)}
+              required
             >
-              <option value="">-- Chọn danh mục --</option>
+              <option value="">Chọn danh mục</option>
               {incomeCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            Số tiền nạp
+            <input
+              type="text"
+              value={formatMoneyInput(topupAmount)}
+              onChange={(e) => {
+                const parsed = getMoneyValue(e.target.value);
+                setTopupAmount(parsed ? String(parsed) : "");
+              }}
+              placeholder="Nhập số tiền..."
+              inputMode="numeric"
+            />
+            <div style={{ 
+              fontSize: "0.875rem", 
+              color: "#6b7280",
+              marginTop: "4px"
+            }}>
+              Số dư hiện tại:{" "}
+              <strong style={{ color: "#111827" }}>
+                {formatMoney(currentBalance, walletCurrency)}
+              </strong>
+            </div>
           </label>
         </div>
 
@@ -645,18 +782,35 @@ function TopupTab({
               rows={2}
               value={topupNote}
               onChange={(e) => setTopupNote(e.target.value)}
-              placeholder="Ghi chú cho lần nạp này..."
+              placeholder="Nhập ghi chú (tùy chọn)"
             />
           </label>
         </div>
+
+        {/* Hiển thị lỗi nếu số tiền hoặc danh mục không hợp lệ */}
+        {topupAmount && (
+          <div className="wallet-form__row">
+            {!topupCategoryId && (
+              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+                Vui lòng chọn danh mục.
+              </div>
+            )}
+            {topupCategoryId && (!topupAmount || Number(topupAmount) <= 0) && (
+              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+                Số tiền không hợp lệ.
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="wallet-form__footer wallet-form__footer--right">
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={!topupAmount || !topupCategoryId}
+            disabled={!topupAmount || !topupCategoryId || Number(topupAmount) <= 0}
           >
-            Xác nhận nạp ví
+            <span style={{ marginRight: "6px" }}>✔</span>
+            Xác nhận nạp
           </button>
         </div>
       </form>
@@ -675,6 +829,34 @@ function WithdrawTab({
   setWithdrawCategoryId,
   onSubmitWithdraw,
 }) {
+  // Format số tiền
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  };
+
+  const currentBalance = Number(wallet?.balance || 0);
+  const walletCurrency = wallet?.currency || "VND";
+
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
@@ -688,23 +870,13 @@ function WithdrawTab({
       >
         <div className="wallet-form__row">
           <label>
-            Số tiền rút
-            <input
-              type="number"
-              min="0"
-              step="1000"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              placeholder="Nhập số tiền..."
-            />
-          </label>
-          <label>
-            Danh mục
+            Danh mục <span style={{ color: "#ef4444" }}>*</span>
             <select
               value={withdrawCategoryId}
               onChange={(e) => setWithdrawCategoryId(e.target.value)}
+              required
             >
-              <option value="">-- Chọn danh mục --</option>
+              <option value="">Chọn danh mục</option>
               {expenseCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -712,7 +884,31 @@ function WithdrawTab({
               ))}
             </select>
           </label>
+          <label>
+            Số tiền rút
+            <input
+              type="text"
+              value={formatMoneyInput(withdrawAmount)}
+              onChange={(e) => {
+                const parsed = getMoneyValue(e.target.value);
+                setWithdrawAmount(parsed ? String(parsed) : "");
+              }}
+              placeholder="Nhập số tiền..."
+              inputMode="numeric"
+            />
+            <div style={{ 
+              fontSize: "0.875rem", 
+              color: "#6b7280",
+              marginTop: "4px"
+            }}>
+              Số dư hiện tại:{" "}
+              <strong style={{ color: "#111827" }}>
+                {formatMoney(currentBalance, walletCurrency)}
+              </strong>
+            </div>
+          </label>
         </div>
+
         <div className="wallet-form__row">
           <label className="wallet-form__full">
             Ghi chú
@@ -720,17 +916,35 @@ function WithdrawTab({
               rows={2}
               value={withdrawNote}
               onChange={(e) => setWithdrawNote(e.target.value)}
-              placeholder="Ghi chú cho lần rút này..."
+              placeholder="Nhập ghi chú (tùy chọn)"
             />
           </label>
         </div>
+
+        {/* Hiển thị lỗi nếu số tiền không hợp lệ */}
+        {withdrawAmount && (
+          <div className="wallet-form__row">
+            {!withdrawCategoryId && (
+              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+                Vui lòng chọn danh mục.
+              </div>
+            )}
+            {withdrawCategoryId && Number(withdrawAmount) > currentBalance && (
+              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+                Số tiền không hợp lệ hoặc vượt quá số dư.
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="wallet-form__footer wallet-form__footer--right">
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={!withdrawAmount || !withdrawCategoryId}
+            disabled={!withdrawAmount || !withdrawCategoryId || Number(withdrawAmount) > currentBalance}
           >
-            Xác nhận rút ví
+            <span style={{ marginRight: "6px" }}>✔</span>
+            Xác nhận rút
           </button>
         </div>
       </form>
@@ -750,7 +964,61 @@ function TransferTab({
   setTransferNote,
   onSubmitTransfer,
 }) {
+  // Sử dụng hàm getRate đã được định nghĩa ở top level
+
+  // Format số tiền (cho hiển thị thông thường)
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  };
+
+  // Format số tiền chuyển đổi với độ chính xác cao (giống tỷ giá - 6 chữ số thập phân)
+  const formatConvertedAmount = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "VND") {
+      // VND: hiển thị với 6 chữ số thập phân để khớp với tỷ giá
+      const formatted = numAmount.toLocaleString("vi-VN", { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 6 
+      });
+      return `${formatted} VND`;
+    }
+    if (currency === "USD") {
+      const formatted = numAmount.toLocaleString("en-US", { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 8 
+      });
+      return `$${formatted}`;
+    }
+    // Các currency khác
+    const formatted = numAmount.toLocaleString("vi-VN", { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 6 
+    });
+    return `${formatted} ${currency}`;
+  };
+
   const sourceCurrency = wallet.currency || "VND";
+  const sourceBalance = Number(wallet?.balance || 0);
   const targetWallet =
     allWallets.find((w) => String(w.id) === String(transferTargetId)) || null;
   const targetCurrency = targetWallet?.currency || null;
@@ -758,13 +1026,27 @@ function TransferTab({
   const currencyMismatch =
     !!targetWallet && !!targetCurrency && targetCurrency !== sourceCurrency;
 
+  // Tính tỷ giá và số tiền chuyển đổi
+  const exchangeRate = useMemo(() => {
+    if (!currencyMismatch || !targetCurrency) return 1;
+    return getRate(sourceCurrency, targetCurrency);
+  }, [currencyMismatch, sourceCurrency, targetCurrency]);
+
+  const transferAmountNum = Number(transferAmount || 0);
+  const convertedAmount = useMemo(() => {
+    if (!currencyMismatch || !transferAmountNum) return 0;
+    // Không làm tròn để giữ đúng giá như tỷ giá (giữ 6 chữ số thập phân)
+    const converted = transferAmountNum * exchangeRate;
+    return converted;
+  }, [transferAmountNum, exchangeRate, currencyMismatch, targetCurrency]);
+
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
         <h3>Chuyển tiền giữa các ví</h3>
         <span>
           Chuyển tiền từ ví hiện tại sang ví khác. Nếu khác loại tiền tệ, hệ
-          thống sẽ cần quy đổi khi triển khai thật.
+          thống sẽ tự động quy đổi theo tỷ giá.
         </span>
       </div>
       <form
@@ -780,6 +1062,16 @@ function TransferTab({
               value={`${wallet.name || "Ví hiện tại"} (${sourceCurrency})`}
               disabled
             />
+            <div style={{ 
+              fontSize: "0.875rem", 
+              color: "#6b7280",
+              marginTop: "4px"
+            }}>
+              Số dư ví nguồn:{" "}
+              <strong style={{ color: "#111827" }}>
+                {formatMoney(sourceBalance, sourceCurrency)}
+              </strong>
+            </div>
           </label>
           <label>
             Ví đích
@@ -798,21 +1090,57 @@ function TransferTab({
                   </option>
                 ))}
             </select>
+            {targetWallet && (
+              <div style={{ 
+                fontSize: "0.875rem", 
+                color: "#6b7280",
+                marginTop: "4px"
+              }}>
+                Số dư ví đích:{" "}
+                <strong style={{ color: "#111827" }}>
+                  {formatMoney(Number(targetWallet?.balance || 0), targetCurrency || "VND")}
+                </strong>
+              </div>
+            )}
           </label>
         </div>
         <div className="wallet-form__row">
           <label>
-            Số tiền chuyển
+            Số tiền chuyển (theo {sourceCurrency})
             <input
-              type="number"
-              min="0"
-              step="1000"
-              value={transferAmount}
-              onChange={(e) => setTransferAmount(e.target.value)}
-              placeholder="Nhập số tiền..."
+              type="text"
+              value={formatMoneyInput(transferAmount)}
+              onChange={(e) => {
+                const parsed = getMoneyValue(e.target.value);
+                setTransferAmount(parsed ? String(parsed) : "");
+              }}
+              placeholder={`Nhập số tiền bằng ${sourceCurrency}`}
+              inputMode="numeric"
             />
+            {currencyMismatch && transferAmountNum > 0 && (
+              <>
+                <div style={{ 
+                  fontSize: "0.875rem", 
+                  color: "#6b7280",
+                  marginTop: "4px"
+                }}>
+                  Tiền chuyển đổi:{" "}
+                  <strong style={{ color: "#059669" }}>
+                    {formatConvertedAmount(convertedAmount, targetCurrency)}
+                  </strong>
+                </div>
+                <div style={{ 
+                  fontSize: "0.875rem", 
+                  color: "#6b7280",
+                  marginTop: "4px"
+                }}>
+                  Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { maximumFractionDigits: 6 })} {targetCurrency}
+                </div>
+              </>
+            )}
           </label>
         </div>
+
         <div className="wallet-form__row">
           <label className="wallet-form__full">
             Ghi chú
@@ -825,24 +1153,12 @@ function TransferTab({
           </label>
         </div>
 
-        {currencyMismatch && (
-          <div className="wallet-transfer__fx-warning">
-            <div className="wallet-transfer__fx-title">
-              Hai ví đang có loại tiền tệ khác nhau
+        {/* Hiển thị lỗi nếu số tiền không hợp lệ */}
+        {transferAmount && transferAmountNum > sourceBalance && (
+          <div className="wallet-form__row">
+            <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+              Số tiền không hợp lệ hoặc vượt quá số dư.
             </div>
-            <div className="wallet-transfer__fx-row">
-              <span>Ví nguồn:</span>
-              <strong>{sourceCurrency}</strong>
-            </div>
-            <div className="wallet-transfer__fx-row">
-              <span>Ví đích:</span>
-              <strong>{targetCurrency}</strong>
-            </div>
-            <p className="wallet-transfer__fx-note">
-              Đây là bản demo nên việc chuyển tiền chỉ cập nhật giao diện. Khi
-              triển khai thực tế, backend cần thực hiện quy đổi tỷ giá và trừ /
-              cộng số dư chính xác cho từng ví theo đơn vị tiền tệ tương ứng.
-            </p>
           </div>
         )}
 
@@ -850,9 +1166,10 @@ function TransferTab({
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={!transferTargetId || !transferAmount}
+            disabled={!transferTargetId || !transferAmount || transferAmountNum > sourceBalance || transferAmountNum <= 0}
           >
-            Xác nhận chuyển tiền
+            <span style={{ marginRight: "6px" }}>✔</span>
+            Xác nhận chuyển
           </button>
         </div>
       </form>
@@ -888,6 +1205,72 @@ function EditTab({
     onDeleteWallet?.(wallet.id);
   };
 
+  // Sử dụng hàm getRate đã được định nghĩa ở top level
+
+  // Format số tiền (cho hiển thị thông thường)
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
+    if (currency === "USD") {
+      // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      // VND: hiển thị số thập phân nếu có (khi chuyển đổi từ currency khác)
+      const hasDecimal = numAmount % 1 !== 0;
+      if (hasDecimal) {
+        const formatted = numAmount.toLocaleString("vi-VN", { 
+          minimumFractionDigits: 0, 
+          maximumFractionDigits: 8 
+        });
+        return `${formatted} VND`;
+      }
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  };
+
+  // Sử dụng các hàm formatConvertedBalance và formatExchangeRate đã được định nghĩa ở top level
+
+  // Tính số dư mới khi currency thay đổi
+  const oldCurrency = wallet?.currency || "VND";
+  const newCurrency = editForm.currency;
+  const currentBalance = Number(wallet?.balance || 0);
+  const currencyChanged = oldCurrency !== newCurrency;
+  
+  const exchangeRate = useMemo(() => {
+    if (!currencyChanged) return 1;
+    return getRate(oldCurrency, newCurrency);
+  }, [oldCurrency, newCurrency, currencyChanged]);
+
+  const convertedBalance = useMemo(() => {
+    if (!currencyChanged) return currentBalance;
+    // Không làm tròn để giữ đúng giá như tỷ giá (giữ nhiều chữ số thập phân)
+    const converted = currentBalance * exchangeRate;
+    return converted;
+  }, [currentBalance, exchangeRate, currencyChanged, newCurrency]);
+
+  // Format thời gian tạo
+  const createdAt = wallet?.createdAt
+    ? new Date(wallet.createdAt).toLocaleString("vi-VN", {
+        hour12: false,
+      })
+    : null;
+
   return (
     <div className="wallets-section">
       <div className="wallets-section__header">
@@ -905,6 +1288,16 @@ function EditTab({
               value={editForm.name}
               onChange={(e) => onEditFieldChange("name", e.target.value)}
             />
+            <div style={{ 
+              fontSize: "0.875rem", 
+              color: "#6b7280",
+              marginTop: "4px"
+            }}>
+              Số dư hiện tại:{" "}
+              <strong style={{ color: "#111827" }}>
+                {formatMoney(currentBalance, oldCurrency)}
+              </strong>
+            </div>
           </label>
           <label>
             Tiền tệ
@@ -920,6 +1313,38 @@ function EditTab({
                 </option>
               ))}
             </select>
+            {/* Hiển thị tỷ giá và số dư sau khi chuyển đổi chỉ khi currency thay đổi */}
+            {currencyChanged && wallet && (
+              <>
+                <div style={{ 
+                  fontSize: "0.875rem", 
+                  color: "#6b7280",
+                  marginTop: "4px"
+                }}>
+                  Tỷ giá: 1 {oldCurrency} = {newCurrency === "USD" 
+                    ? exchangeRate.toLocaleString("en-US", { 
+                        minimumFractionDigits: 0, 
+                        maximumFractionDigits: 8 
+                      })
+                    : exchangeRate.toLocaleString("vi-VN", { 
+                        minimumFractionDigits: 0, 
+                        maximumFractionDigits: 8 
+                      })
+                  } {newCurrency}
+                </div>
+                <div style={{ 
+                  fontSize: "0.875rem", 
+                  color: "#059669",
+                  marginTop: "4px",
+                  fontWeight: 600
+                }}>
+                  Số dư sau khi chuyển đổi:{" "}
+                  <strong>
+                    {formatConvertedBalance(convertedBalance, newCurrency)}
+                  </strong>
+                </div>
+              </>
+            )}
           </label>
         </div>
 
@@ -970,6 +1395,22 @@ function EditTab({
             </div>
           )}
         </div>
+
+        {/* Hiển thị thời gian tạo */}
+        {createdAt && (
+          <div className="wallet-form__row" style={{ 
+            padding: "10px 12px", 
+            border: "1px dashed #d1d5db",
+            borderRadius: "10px", 
+            display: "flex", 
+            justifyContent: "space-between",
+            color: "#6b7280",
+            marginBottom: "14px"
+          }}>
+            <span>Thời gian tạo</span>
+            <strong style={{ color: "#111827" }}>{createdAt}</strong>
+          </div>
+        )}
 
         <div className="wallet-form__footer">
           {!isGroupWallet && (
@@ -1067,6 +1508,122 @@ function MergeTab({
     setMakeTargetDefault(false);
   }, [targetId, direction]);
 
+  // Tính toán tất cả các giá trị trước khi có early return (để hooks được gọi đúng thứ tự)
+  const currentWallet = wallet;
+  const thisName = currentWallet?.name || "Ví hiện tại";
+
+  const selectableWallets = useMemo(() => {
+    if (!currentWallet) return [];
+    return (allWallets || []).filter((w) => w.id !== currentWallet.id);
+  }, [allWallets, currentWallet]);
+
+  const filteredWallets = useMemo(() => {
+    return selectableWallets.filter((w) => {
+      if (!searchTerm.trim()) return true;
+      const name = (w.name || "").toLowerCase();
+      return name.includes(searchTerm.trim().toLowerCase());
+    });
+  }, [selectableWallets, searchTerm]);
+
+  const selectedWallet = useMemo(() => {
+    return selectableWallets.find((w) => String(w.id) === String(targetId));
+  }, [selectableWallets, targetId]);
+
+  const isThisIntoOther = direction === "this_into_other";
+
+  const sourceWallet = useMemo(() => {
+    if (!currentWallet) return null;
+    return direction === "this_into_other" ? currentWallet : selectedWallet || null;
+  }, [currentWallet, direction, selectedWallet]);
+
+  const targetWallet = useMemo(() => {
+    if (!currentWallet) return null;
+    return direction === "this_into_other" ? selectedWallet || null : currentWallet;
+  }, [currentWallet, direction, selectedWallet]);
+
+  const srcCurrency = sourceWallet?.currency || "VND";
+  const srcName = sourceWallet?.name || "Ví nguồn";
+  const srcBalance = useMemo(() => {
+    return Number(sourceWallet?.balance ?? sourceWallet?.current ?? 0) || 0;
+  }, [sourceWallet]);
+  const srcTxCount = useMemo(() => {
+    return sourceWallet?.txCount ?? sourceWallet?.transactionCount ?? 0;
+  }, [sourceWallet]);
+
+  const tgtCurrency = targetWallet?.currency || srcCurrency;
+  const tgtName = targetWallet?.name || "Ví đích";
+  const tgtBalance = useMemo(() => {
+    return Number(targetWallet?.balance ?? targetWallet?.current ?? 0) || 0;
+  }, [targetWallet]);
+  const tgtTxCount = useMemo(() => {
+    return targetWallet?.txCount ?? targetWallet?.transactionCount ?? 0;
+  }, [targetWallet]);
+
+  const currentIsDefault = !!currentWallet?.isDefault;
+  const selectedIsDefault = !!selectedWallet?.isDefault;
+
+  const sourceIsDefault = useMemo(() => {
+    return (direction === "this_into_other" && currentIsDefault) ||
+      (direction === "other_into_this" && selectedIsDefault);
+  }, [direction, currentIsDefault, selectedIsDefault]);
+
+  const targetIsDefault = useMemo(() => {
+    return (direction === "this_into_other" && selectedIsDefault) ||
+      (direction === "other_into_this" && currentIsDefault);
+  }, [direction, selectedIsDefault, currentIsDefault]);
+
+  const differentCurrency = useMemo(() => {
+    return !!targetWallet && srcCurrency !== tgtCurrency;
+  }, [targetWallet, srcCurrency, tgtCurrency]);
+  
+  // Tính tỷ giá thực tế (giống EditTab)
+  const exchangeRate = useMemo(() => {
+    if (!differentCurrency || !sourceWallet || !targetWallet) return 1;
+    if (currencyMode === "keepTarget") {
+      // Chuyển đổi từ srcCurrency sang tgtCurrency
+      return getRate(srcCurrency, tgtCurrency);
+    }
+    // Chuyển đổi từ tgtCurrency sang srcCurrency
+    return getRate(tgtCurrency, srcCurrency);
+  }, [differentCurrency, srcCurrency, tgtCurrency, currencyMode, sourceWallet, targetWallet]);
+
+  const convertedSourceAmount = useMemo(() => {
+    if (!differentCurrency || !sourceWallet) return srcBalance;
+    if (currencyMode === "keepTarget") {
+      // Chuyển đổi số dư ví nguồn sang currency của ví đích
+      const converted = srcBalance * getRate(srcCurrency, tgtCurrency);
+      return converted; // Không làm tròn để giữ độ chính xác
+    }
+    return srcBalance;
+  }, [differentCurrency, srcBalance, srcCurrency, tgtCurrency, currencyMode, sourceWallet]);
+
+  const convertedTargetAmount = useMemo(() => {
+    if (!differentCurrency || !targetWallet) return tgtBalance;
+    if (currencyMode === "keepSource") {
+      // Chuyển đổi số dư ví đích sang currency của ví nguồn
+      const converted = tgtBalance * getRate(tgtCurrency, srcCurrency);
+      return converted; // Không làm tròn để giữ độ chính xác
+    }
+    return tgtBalance;
+  }, [differentCurrency, tgtBalance, srcCurrency, tgtCurrency, currencyMode, targetWallet]);
+
+  const finalCurrency = useMemo(() => {
+    if (!differentCurrency) return tgtCurrency;
+    return currencyMode === "keepTarget" ? tgtCurrency : srcCurrency;
+  }, [differentCurrency, tgtCurrency, currencyMode, srcCurrency]);
+
+  const finalBalance = useMemo(() => {
+    if (!targetWallet || !sourceWallet) return srcBalance;
+    if (!differentCurrency) {
+      return srcBalance + tgtBalance;
+    }
+    if (currencyMode === "keepSource") {
+      return srcBalance + convertedTargetAmount;
+    }
+    return tgtBalance + convertedSourceAmount;
+  }, [targetWallet, sourceWallet, srcBalance, tgtBalance, differentCurrency, currencyMode, convertedSourceAmount, convertedTargetAmount]);
+
+  // Early return sau khi tất cả hooks đã được gọi
   if (!wallet) {
     return (
       <div className="wallets-section">
@@ -1074,83 +1631,6 @@ function MergeTab({
       </div>
     );
   }
-
-  const currentWallet = wallet;
-  const thisName = currentWallet.name || "Ví hiện tại";
-
-  const selectableWallets = (allWallets || []).filter(
-    (w) => w.id !== currentWallet.id
-  );
-
-  const filteredWallets = selectableWallets.filter((w) => {
-    if (!searchTerm.trim()) return true;
-    const name = (w.name || "").toLowerCase();
-    return name.includes(searchTerm.trim().toLowerCase());
-  });
-
-  const selectedWallet = selectableWallets.find(
-    (w) => String(w.id) === String(targetId)
-  );
-
-  const isThisIntoOther = direction === "this_into_other";
-
-  const sourceWallet =
-    direction === "this_into_other" ? currentWallet : selectedWallet || null;
-
-  const targetWallet =
-    direction === "this_into_other" ? selectedWallet || null : currentWallet;
-
-  const srcCurrency = sourceWallet?.currency || "VND";
-  const srcName = sourceWallet?.name || "Ví nguồn";
-  const srcBalance =
-    Number(sourceWallet?.balance ?? sourceWallet?.current ?? 0) || 0;
-  const srcTxCount = sourceWallet?.txCount ?? 15;
-
-  const tgtCurrency = targetWallet?.currency || srcCurrency;
-  const tgtName = targetWallet?.name || "Ví đích";
-  const tgtBalance =
-    Number(targetWallet?.balance ?? targetWallet?.current ?? 0) || 0;
-  const tgtTxCount = targetWallet?.txCount ?? 30;
-
-  const currentIsDefault = !!currentWallet.isDefault;
-  const selectedIsDefault = !!selectedWallet?.isDefault;
-
-  const sourceIsDefault =
-    (direction === "this_into_other" && currentIsDefault) ||
-    (direction === "other_into_this" && selectedIsDefault);
-
-  const targetIsDefault =
-    (direction === "this_into_other" && selectedIsDefault) ||
-    (direction === "other_into_this" && currentIsDefault);
-
-  const differentCurrency = !!targetWallet && srcCurrency !== tgtCurrency;
-  const RATE_USD_VND = 24350;
-
-  const convertedSourceAmount = (() => {
-    if (!differentCurrency || !sourceWallet) return srcBalance;
-    if (currencyMode === "keepTarget") {
-      if (srcCurrency === "USD" && tgtCurrency === "VND") {
-        return srcBalance * RATE_USD_VND;
-      }
-      if (srcCurrency === "VND" && tgtCurrency === "USD") {
-        return srcBalance / RATE_USD_VND;
-      }
-    }
-    return srcBalance;
-  })();
-
-  const finalCurrency = (() => {
-    if (!differentCurrency) return tgtCurrency;
-    return currencyMode === "keepTarget" ? tgtCurrency : srcCurrency;
-  })();
-
-  const finalBalance = (() => {
-    if (!targetWallet || !sourceWallet) return srcBalance;
-    if (!differentCurrency || currencyMode === "keepSource") {
-      return srcBalance + tgtBalance;
-    }
-    return tgtBalance + convertedSourceAmount;
-  })();
 
   const needDefaultConfirmation = (() => {
     if (!selectedWallet) return false;
@@ -1212,7 +1692,7 @@ function MergeTab({
     const currentBal =
       Number(currentWallet.balance ?? currentWallet.current ?? 0) || 0;
     const currentCur = currentWallet.currency || "VND";
-    const currentTx = currentWallet.txCount ?? 15;
+    const currentTx = currentWallet?.txCount ?? currentWallet?.transactionCount ?? 0;
 
     const selectedBal =
       selectedWallet &&
@@ -1263,11 +1743,11 @@ function MergeTab({
                   <div className="wallet-merge__summary-row">
                     <span>Số dư</span>
                     <span>
-                      {currentBal.toLocaleString("vi-VN")} {currentCur}
+                      {formatConvertedBalance(currentBal, currentCur)}
                     </span>
                   </div>
                   <div className="wallet-merge__summary-row">
-                    <span>Số giao dịch (demo)</span>
+                    <span>Số giao dịch</span>
                     <span>{currentTx}</span>
                   </div>
                   {currentIsDefault && (
@@ -1295,7 +1775,7 @@ function MergeTab({
                     <span>Số dư</span>
                     <span>
                       {selectedWallet
-                        ? `${selectedBal.toLocaleString("vi-VN")} ${selectedCur}`
+                        ? formatConvertedBalance(selectedBal, selectedCur)
                         : "—"}
                     </span>
                   </div>
@@ -1427,7 +1907,7 @@ function MergeTab({
                           <div className="wallet-merge__target-row">
                             <span>Số dư</span>
                             <span>
-                              {bal} {w.currency || "VND"}
+                              {formatConvertedBalance(Number(w.balance ?? w.current ?? 0), w.currency || "VND")}
                             </span>
                           </div>
                           {w.isDefault && (
@@ -1735,7 +2215,7 @@ function MergeTab({
               <div className="wallet-merge__summary-row">
                 <span>Số dư</span>
                 <span>
-                  {srcBalance.toLocaleString("vi-VN")} {srcCurrency}
+                  {formatConvertedBalance(srcBalance, srcCurrency)}
                 </span>
               </div>
             </div>
@@ -1749,7 +2229,7 @@ function MergeTab({
               <div className="wallet-merge__summary-row">
                 <span>Số dư</span>
                 <span>
-                  {tgtBalance.toLocaleString("vi-VN")} {tgtCurrency}
+                  {formatConvertedBalance(tgtBalance, tgtCurrency)}
                 </span>
               </div>
             </div>
@@ -1759,8 +2239,7 @@ function MergeTab({
             Cách xử lý khác loại tiền
           </div>
           <p className="wallet-merge__hint">
-            Chọn loại tiền sẽ được giữ lại sau khi gộp. Tỷ giá dưới đây chỉ
-            mang tính demo.
+            Chọn loại tiền sẽ được giữ lại sau khi gộp. Hệ thống sẽ tự động quy đổi theo tỷ giá hiện tại.
           </p>
 
           <div className="wallet-merge__options">
@@ -1780,13 +2259,14 @@ function MergeTab({
                   Số dư ví nguồn sẽ được quy đổi:
                 </div>
                 <div className="wallet-merge__option-desc">
-                  {srcBalance.toLocaleString("vi-VN")} {srcCurrency} →{" "}
-                  {convertedSourceAmount.toLocaleString("vi-VN")} {tgtCurrency}
+                  {formatConvertedBalance(srcBalance, srcCurrency)} →{" "}
+                  {formatConvertedBalance(convertedSourceAmount, tgtCurrency)}
                 </div>
-                <div className="wallet-merge__option-foot">
-                  Tỷ giá demo: 1 USD ={" "}
-                  {RATE_USD_VND.toLocaleString("vi-VN")} VND
-                </div>
+                {differentCurrency && (
+                  <div className="wallet-merge__option-foot">
+                    Tỷ giá: 1 {srcCurrency} = {formatExchangeRate(getRate(srcCurrency, tgtCurrency), tgtCurrency)} {tgtCurrency}
+                  </div>
+                )}
               </div>
             </label>
 
@@ -1803,12 +2283,17 @@ function MergeTab({
                   Giữ {srcCurrency} (loại tiền của ví nguồn)
                 </div>
                 <div className="wallet-merge__option-desc">
-                  Số dư ví đích sẽ được quy đổi sang {srcCurrency} (demo).
+                  Số dư ví đích sẽ được quy đổi:
                 </div>
-                <div className="wallet-merge__option-foot">
-                  Tỷ giá demo: 1 USD ={" "}
-                  {RATE_USD_VND.toLocaleString("vi-VN")} VND
+                <div className="wallet-merge__option-desc">
+                  {formatConvertedBalance(tgtBalance, tgtCurrency)} →{" "}
+                  {formatConvertedBalance(convertedTargetAmount, srcCurrency)}
                 </div>
+                {differentCurrency && (
+                  <div className="wallet-merge__option-foot">
+                    Tỷ giá: 1 {tgtCurrency} = {formatExchangeRate(getRate(tgtCurrency, srcCurrency), srcCurrency)} {srcCurrency}
+                  </div>
+                )}
               </div>
             </label>
           </div>
@@ -1858,11 +2343,11 @@ function MergeTab({
               <div className="wallet-merge__summary-row">
                 <span>Số dư</span>
                 <span>
-                  {srcBalance.toLocaleString("vi-VN")} {srcCurrency}
+                  {formatConvertedBalance(srcBalance, srcCurrency)}
                 </span>
               </div>
               <div className="wallet-merge__summary-row">
-                <span>Giao dịch (demo)</span>
+                <span>Giao dịch</span>
                 <span>{srcTxCount}</span>
               </div>
             </div>
@@ -1877,7 +2362,7 @@ function MergeTab({
               <div className="wallet-merge__summary-row">
                 <span>Số dư hiện tại</span>
                 <span>
-                  {tgtBalance.toLocaleString("vi-VN")} {tgtCurrency}
+                  {formatConvertedBalance(tgtBalance, tgtCurrency)}
                 </span>
               </div>
               <div className="wallet-merge__summary-row">
@@ -1905,7 +2390,7 @@ function MergeTab({
               <div className="wallet-merge__result-row">
                 <span>Số dư dự kiến</span>
                 <span>
-                  {finalBalance.toLocaleString("vi-VN")} {finalCurrency}
+                  {formatConvertedBalance(finalBalance, finalCurrency)}
                 </span>
               </div>
               <div className="wallet-merge__result-row">
@@ -1987,7 +2472,7 @@ function MergeTab({
         ) : (
           <div className="wallet-merge__success">
             <div className="wallet-merge__section-title">
-              Gộp ví thành công
+              Đã gộp ví thành công
             </div>
             <p className="wallet-merge__hint">
               Hệ thống đã cập nhật lại số dư & giao dịch theo thiết lập của
@@ -2215,4 +2700,3 @@ function ConvertTab({
     </div>
   );
 }
-
