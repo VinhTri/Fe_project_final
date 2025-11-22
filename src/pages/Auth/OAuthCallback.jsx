@@ -1,19 +1,19 @@
+// src/pages/Auth/OAuthCallback.jsx
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-// 1. ✅ IMPORT HÀM getProfile TỪ SERVICE CỦA BẠN
-// (Hãy đảm bảo đường dẫn này chính xác, ví dụ: ../../services/profile.service)
-import { getProfile } from "../../services/profile.service";
+// ✅ DÙNG API MỚI: userApi
+import { getMyProfile } from "../../services/userApi";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
-  const location = useLocation(); // Dùng hook của React-Router
+  const location = useLocation();
   const [message, setMessage] = useState("Đang xác thực...");
 
   useEffect(() => {
     const processLogin = async () => {
       try {
-        // 2. Lấy token từ URL
+        // 1. Lấy token (và error nếu có) từ URL
         const params = new URLSearchParams(location.search);
         const token = params.get("token");
         const error = params.get("error");
@@ -26,33 +26,30 @@ export default function OAuthCallback() {
           throw new Error("Không tìm thấy token xác thực.");
         }
 
-        // 3. Lưu token vào localStorage
-        // (Interceptor trong profile.service.js sẽ tự động đọc token này)
+        // 2. Lưu token vào localStorage
         localStorage.setItem("accessToken", token);
 
-        // 4. ✅ SỬA LỖI: Dùng getProfile() (axios) để gọi /profile
-        // Thay vì gọi /auth/me
-        const { response, data } = await getProfile();
+        // 3. Gọi API lấy profile mới: /api/users/me qua getMyProfile()
+        const res = await getMyProfile();
+        const user = res.data;
 
-        if (!response.ok || !data.user) {
-          // Xóa token hỏng nếu không lấy được profile
+        if (!user) {
+          // Không lấy được user → xoá token
           localStorage.removeItem("accessToken");
-          throw new Error(data.error || "Không thể lấy thông tin profile.");
+          throw new Error("Không thể lấy thông tin tài khoản.");
         }
 
-        // 5. ✅ SỬA LỖI: Lưu user object MỚI vào localStorage
-        // (HomeTopbar sẽ đọc được cái này)
-        localStorage.setItem("user", JSON.stringify(data.user));
+        // 4. Lưu user vào localStorage cho topbar/sidebar đọc
+        localStorage.setItem("user", JSON.stringify(user));
 
-        // 6. Bắn tín hiệu cho HomeTopbar cập nhật ngay lập tức
-        window.dispatchEvent(new CustomEvent('storageUpdated'));
+        // 5. Bắn event cho các component khác (nếu bạn có lắng nghe)
+        window.dispatchEvent(new CustomEvent("storageUpdated"));
 
-        // 7. Chuyển hướng
+        // 6. Chuyển hướng
         setMessage("Đăng nhập Google thành công! Đang chuyển hướng...");
         setTimeout(() => navigate("/home", { replace: true }), 800);
-
       } catch (e) {
-        // Xử lý mọi lỗi
+        console.error(e);
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
         setMessage(e.message || "Có lỗi khi xác thực. Vui lòng thử lại.");
@@ -61,7 +58,7 @@ export default function OAuthCallback() {
     };
 
     processLogin();
-  }, [navigate, location]); // Thêm 'location' vào dependency
+  }, [navigate, location]);
 
   return (
     <div className="container py-5 text-center">

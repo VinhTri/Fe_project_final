@@ -37,9 +37,8 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/oauth/callback" element={<OAuthCallback />} />
 
-        {/* HOME + ADMIN: yêu cầu đăng nhập */}
+        {/* ================= HOME: chỉ cần đăng nhập ================= */}
         <Route element={<ProtectedRoute />}>
-          {/* HOME layout */}
           <Route path="/home/*" element={<HomeLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="wallets" element={<WalletsPage />} />
@@ -50,7 +49,10 @@ export default function App() {
             <Route path="feedback" element={<FeedbackPage />} />
             <Route path="funds" element={<FundsPage />} />
           </Route>
+        </Route>
 
+        {/* ================= ADMIN: yêu cầu role ADMIN ================= */}
+        <Route element={<ProtectedRoute requiredRoles={["ADMIN"]} />}>
           {/* ADMIN dùng lại HomeLayout để giữ sidebar/topbar */}
           <Route path="/admin/*" element={<HomeLayout />}>
             <Route path="users" element={<AdminUsersPage />} />
