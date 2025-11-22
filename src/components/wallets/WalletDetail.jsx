@@ -14,6 +14,7 @@ export default function WalletDetail(props) {
     activeDetailTab,
     setActiveDetailTab,
     demoTransactions,
+    loadingTransactions = false,
     allWallets,
     topupCategoryId,
     setTopupCategoryId,
@@ -76,8 +77,38 @@ export default function WalletDetail(props) {
     onDeleteWallet,
   } = props;
 
+  // Extract loadingTransactions với default value
+  const isLoadingTransactions = loadingTransactions || false;
+
   const sharedEmails = wallet?.sharedEmails || [];
   const balance = Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
+
+  // Format số dư để hiển thị (giống với WalletList.jsx)
+  const formatBalance = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      // USD: hiển thị tối đa 8 chữ số thập phân để chính xác
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 8 
+        });
+        return `$${formatted}`;
+      }
+      const formatted = numAmount % 1 === 0 
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    // Các currency khác: hiển thị tối đa 8 chữ số thập phân
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+  };
 
   // Nếu ví đã là ví nhóm mà tab đang là "convert" -> tự về "view"
   useEffect(() => {
@@ -290,7 +321,7 @@ export default function WalletDetail(props) {
         <div className="wallets-detail__balance">
           <div className="wallets-detail__balance-label">Số dư</div>
           <div className="wallets-detail__balance-value">
-            {balance.toLocaleString("vi-VN")} {wallet.currency || "VND"}
+            {formatBalance(balance, wallet.currency || "VND")}
           </div>
         </div>
       </div>
@@ -379,6 +410,7 @@ export default function WalletDetail(props) {
           wallet={wallet}
           sharedEmails={sharedEmails}
           demoTransactions={demoTransactions}
+          isLoadingTransactions={isLoadingTransactions}
         />
       )}
 
@@ -559,7 +591,7 @@ function formatExchangeRate(rate = 0, toCurrency = "VND") {
 
 /* ====== SUB TABS COMPONENTS ====== */
 
-function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
+function DetailViewTab({ wallet, sharedEmails, demoTransactions, isLoadingTransactions = false }) {
   return (
     <div className="wallets-section wallets-section--view">
       <div className="wallets-section__header">
@@ -630,54 +662,74 @@ function DetailViewTab({ wallet, sharedEmails, demoTransactions }) {
             <div className="wallets-detail-view__card-header">
               <span>Lịch sử giao dịch</span>
               <span className="wallets-detail-view__counter">
-                {demoTransactions.length} giao dịch (demo)
+                {isLoadingTransactions ? "Đang tải..." : `${demoTransactions.length} giao dịch`}
               </span>
             </div>
 
             <div className="wallets-detail__history-summary">
               <div className="wallet-detail-item wallet-detail-item--inline">
                 <span className="wallet-detail-item__label">
-                  Số giao dịch (demo)
+                  Số giao dịch
                 </span>
                 <span className="wallet-detail-item__value">
-                  {demoTransactions.length}
+                  {isLoadingTransactions ? "..." : demoTransactions.length}
                 </span>
               </div>
             </div>
 
             <div className="wallets-detail__history">
-              {demoTransactions.length === 0 ? (
+              {isLoadingTransactions ? (
+                <p className="wallets-detail__history-empty">
+                  Đang tải lịch sử giao dịch...
+                </p>
+              ) : demoTransactions.length === 0 ? (
                 <p className="wallets-detail__history-empty">
                   Chưa có giao dịch cho ví này.
                 </p>
               ) : (
                 <ul className="wallets-detail__history-list">
-                  {demoTransactions.map((tx) => (
-                    <li key={tx.id} className="wallets-detail__history-item">
-                      <div className="wallets-detail__history-main">
-                        <span className="wallets-detail__history-title">
-                          {tx.title}
-                        </span>
-                        <span
-                          className={
-                            tx.amount >= 0
-                              ? "wallets-detail__history-amount wallets-detail__history-amount--pos"
-                              : "wallets-detail__history-amount wallets-detail__history-amount--neg"
-                          }
-                        >
-                          {tx.amount >= 0 ? "+" : "-"}
-                          {Math.abs(tx.amount).toLocaleString("vi-VN")} VND
-                        </span>
-                      </div>
+                  {demoTransactions.map((tx) => {
+                    const txCurrency = tx.currency || wallet?.currency || "VND";
+                    const absAmount = Math.abs(tx.amount);
+                    
+                    // Format số tiền theo currency
+                    let formattedAmount = "";
+                    if (txCurrency === "USD") {
+                      formattedAmount = absAmount.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 8
+                      });
+                    } else {
+                      formattedAmount = absAmount.toLocaleString("vi-VN");
+                    }
+                    
+                    return (
+                      <li key={tx.id} className="wallets-detail__history-item">
+                        <div className="wallets-detail__history-main">
+                          <span className="wallets-detail__history-title">
+                            {tx.title}
+                          </span>
+                          <span
+                            className={
+                              tx.amount >= 0
+                                ? "wallets-detail__history-amount wallets-detail__history-amount--pos"
+                                : "wallets-detail__history-amount wallets-detail__history-amount--neg"
+                            }
+                          >
+                            {tx.amount >= 0 ? "+" : "-"}
+                            {txCurrency === "USD" ? `$${formattedAmount}` : `${formattedAmount} ${txCurrency}`}
+                          </span>
+                        </div>
 
-                      <div className="wallets-detail__history-meta">
-                        <span className="wallets-detail__history-category">
-                          {tx.categoryName || "Danh mục khác"}
-                        </span>
-                        <span>{tx.timeLabel}</span>
-                      </div>
-                    </li>
-                  ))}
+                        <div className="wallets-detail__history-meta">
+                          <span className="wallets-detail__history-category">
+                            {tx.categoryName || "Danh mục khác"}
+                          </span>
+                          <span>{tx.timeLabel}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -2700,3 +2752,4 @@ function ConvertTab({
     </div>
   );
 }
+

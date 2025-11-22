@@ -1,10 +1,10 @@
 // src/pages/Home/WalletsPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
-import { transactionAPI } from "../../services/api-client";
+import { transactionAPI, walletAPI } from "../../services/api-client";
 import Toast from "../../components/common/Toast/Toast";
 
 import "../../styles/home/WalletsPage.css";
@@ -26,32 +26,74 @@ const buildWalletForm = (wallet) => ({
   sharedEmails: wallet?.sharedEmails || [],
 });
 
-const buildDemoTransactions = (wallet) => {
-  if (!wallet) return [];
-  return [
-    {
-      id: `${wallet.id}-1`,
-      title: `Chi tiêu demo tại siêu thị`,
-      amount: -150000,
-      timeLabel: "Hôm nay",
-      categoryName: "Ăn uống",
-    },
-    {
-      id: `${wallet.id}-2`,
-      title: `Nạp tiền demo`,
-      amount: 300000,
-      timeLabel: "Hôm qua",
-      categoryName: "Nạp ví",
-    },
-    {
-      id: `${wallet.id}-3`,
-      title: `Chi cafe demo`,
-      amount: -45000,
-      timeLabel: "2 ngày trước",
-      categoryName: "Giải trí",
-    },
-  ];
-};
+/**
+ * Format ngày theo múi giờ Việt Nam (UTC+7)
+ * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
+ * @returns {string} - Format: "DD/MM/YYYY"
+ */
+function formatVietnamDate(date) {
+  if (!date) return "";
+  
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string') {
+    d = new Date(date);
+  } else {
+    return "";
+  }
+  
+  if (Number.isNaN(d.getTime())) return "";
+  
+  return d.toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/**
+ * Format giờ theo múi giờ Việt Nam (UTC+7)
+ * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
+ * @returns {string} - Format: "HH:mm"
+ */
+function formatVietnamTime(date) {
+  if (!date) return "";
+  
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string') {
+    d = new Date(date);
+  } else {
+    return "";
+  }
+  
+  if (Number.isNaN(d.getTime())) return "";
+  
+  return d.toLocaleTimeString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+/**
+ * Format time label cho giao dịch (ngày giờ chính xác)
+ */
+function formatTimeLabel(dateString) {
+  if (!dateString) return "";
+  
+  const transactionDate = new Date(dateString);
+  if (Number.isNaN(transactionDate.getTime())) return "";
+  
+  const dateStr = formatVietnamDate(transactionDate);
+  const timeStr = formatVietnamTime(transactionDate);
+  
+  return `${dateStr} ${timeStr}`;
+}
 
 const getVietnamDateTime = () => {
   const now = new Date();
@@ -135,6 +177,10 @@ export default function WalletsPage() {
     message: "",
     type: "success",
   });
+
+  const [walletTransactions, setWalletTransactions] = useState([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
 
   const showToast = (message, type = "success") =>
     setToast({ open: true, message, type });
@@ -434,6 +480,7 @@ export default function WalletsPage() {
       );
       if (response?.transaction) {
         await loadWallets();
+        refreshTransactions(); // Refresh transactions list
         showToast("Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử.");
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
@@ -465,6 +512,7 @@ export default function WalletsPage() {
       );
       if (response?.transaction) {
         await loadWallets();
+        refreshTransactions(); // Refresh transactions list
         showToast("Rút tiền thành công. Giao dịch đã được lưu vào lịch sử.");
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
@@ -493,6 +541,8 @@ export default function WalletsPage() {
         note: transferNote || "",
         mode: "this_to_other",
       });
+      await loadWallets();
+      refreshTransactions(); // Refresh transactions list
       showToast("Chuyển tiền thành công");
     } catch (error) {
       showToast(error.message || "Không thể chuyển tiền", "error");
@@ -544,6 +594,12 @@ export default function WalletsPage() {
         await updateWallet({ id: targetId, isDefault: true });
       }
 
+      // Reload wallets để cập nhật dữ liệu mới nhất
+      await loadWallets();
+      
+      // Refresh transactions list để hiển thị lịch sử giao dịch mới
+      refreshTransactions();
+
       showToast("Đã gộp ví thành công");
       setSelectedId(targetId);
       setActiveDetailTab("view");
@@ -580,10 +636,118 @@ export default function WalletsPage() {
     }
   };
 
-  const demoTransactions = useMemo(
-    () => buildDemoTransactions(selectedWallet),
-    [selectedWallet]
-  );
+  // Map transaction từ API sang format cho WalletDetail
+  const mapTransactionForWallet = useCallback((tx, walletId) => {
+    const typeName = tx.transactionType?.typeName || "";
+    const isExpense = typeName === "Chi tiêu";
+    const amount = parseFloat(tx.amount || 0);
+    
+    // Tạo title từ category và note
+    const categoryName = tx.category?.categoryName || "Khác";
+    const note = tx.note || "";
+    let title = categoryName;
+    if (note) {
+      title = `${categoryName}${note ? ` - ${note}` : ""}`;
+    }
+    
+    // Format amount: âm cho chi tiêu, dương cho thu nhập
+    const displayAmount = isExpense ? -Math.abs(amount) : Math.abs(amount);
+    
+    // Format time label
+    const dateValue = tx.createdAt || tx.transactionDate || new Date().toISOString();
+    const timeLabel = formatTimeLabel(dateValue);
+    
+    return {
+      id: tx.transactionId,
+      title: title,
+      amount: displayAmount,
+      timeLabel: timeLabel,
+      categoryName: categoryName,
+      currency: tx.wallet?.currencyCode || "VND",
+      date: dateValue,
+    };
+  }, []);
+
+  // Map transfer từ API sang format cho WalletDetail
+  const mapTransferForWallet = useCallback((transfer, walletId) => {
+    const isFromWallet = transfer.fromWallet?.walletId === walletId;
+    const amount = parseFloat(transfer.amount || 0);
+    
+    // Tạo title
+    const sourceName = transfer.fromWallet?.walletName || "Ví nguồn";
+    const targetName = transfer.toWallet?.walletName || "Ví đích";
+    const title = isFromWallet 
+      ? `Chuyển đến ${targetName}`
+      : `Nhận từ ${sourceName}`;
+    
+    // Format amount: âm nếu chuyển đi, dương nếu nhận về
+    const displayAmount = isFromWallet ? -Math.abs(amount) : Math.abs(amount);
+    
+    // Format time label
+    const dateValue = transfer.createdAt || transfer.transferDate || new Date().toISOString();
+    const timeLabel = formatTimeLabel(dateValue);
+    
+    return {
+      id: `transfer-${transfer.transferId}`,
+      title: title,
+      amount: displayAmount,
+      timeLabel: timeLabel,
+      categoryName: "Chuyển tiền giữa các ví",
+      currency: transfer.currencyCode || "VND",
+      date: dateValue,
+    };
+  }, []);
+
+  // Fetch transactions cho wallet đang chọn
+  useEffect(() => {
+    const loadWalletTransactions = async () => {
+      if (!selectedWallet?.id) {
+        setWalletTransactions([]);
+        return;
+      }
+
+      setLoadingTransactions(true);
+      try {
+        const walletId = selectedWallet.id;
+        
+        // Fetch external transactions
+        const txResponse = await transactionAPI.getAllTransactions();
+        const externalTxs = (txResponse.transactions || [])
+          .filter(tx => tx.wallet?.walletId === walletId)
+          .map(tx => mapTransactionForWallet(tx, walletId));
+        
+        // Fetch internal transfers
+        const transferResponse = await walletAPI.getAllTransfers();
+        const transfers = (transferResponse.transfers || [])
+          .filter(transfer => 
+            transfer.fromWallet?.walletId === walletId || 
+            transfer.toWallet?.walletId === walletId
+          )
+          .map(transfer => mapTransferForWallet(transfer, walletId));
+        
+        // Gộp và sắp xếp theo ngày (mới nhất trước)
+        const allTransactions = [...externalTxs, ...transfers].sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB - dateA;
+        });
+        
+        setWalletTransactions(allTransactions);
+      } catch (error) {
+        console.error("Error loading wallet transactions:", error);
+        setWalletTransactions([]);
+      } finally {
+        setLoadingTransactions(false);
+      }
+    };
+
+    loadWalletTransactions();
+  }, [selectedWallet?.id, transactionsRefreshKey, mapTransactionForWallet, mapTransferForWallet]);
+
+  // Helper function để refresh transactions
+  const refreshTransactions = () => {
+    setTransactionsRefreshKey(prev => prev + 1);
+  };
 
   return (
     <div className="wallets-page">
@@ -645,7 +809,8 @@ export default function WalletsPage() {
           setShowCreate={setShowCreate}
           activeDetailTab={activeDetailTab}
           setActiveDetailTab={setActiveDetailTab}
-          demoTransactions={demoTransactions}
+          demoTransactions={walletTransactions}
+          loadingTransactions={loadingTransactions}
           allWallets={wallets}
           createForm={createForm}
           onCreateFieldChange={handleCreateFieldChange}
