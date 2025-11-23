@@ -3,76 +3,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import "../../styles/admin/AdminUsersPage.css";
 import { ROLES, useAuth } from "../../home/store/AuthContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
-
-// Mock data demo
-const MOCK_USERS = [
-  {
-    id: 1,
-    fullName: "Nguyễn Văn A",
-    email: "a@example.com",
-    role: ROLES.ADMIN,
-    status: "ACTIVE",
-    lastLogin: "2025-11-10 09:23",
-    createdAt: "2023-05-12 10:20",
-  },
-  {
-    id: 2,
-    fullName: "Trần Thị B",
-    email: "b@example.com",
-    role: ROLES.USER,
-    status: "ACTIVE",
-    lastLogin: "2025-11-11 21:03",
-    createdAt: "2024-01-03 14:55",
-  },
-  {
-    id: 3,
-    fullName: "Phạm Văn C",
-    email: "c@example.com",
-    role: ROLES.VIEWER,
-    status: "LOCKED",
-    lastLogin: "2025-11-09 14:47",
-    createdAt: "2024-08-22 09:12",
-  },
-];
-
-const MOCK_LOGS = {
-  1: [
-    {
-      id: 101,
-      time: "2025-11-12 08:10",
-      action: "LOGIN",
-      detail: "Đăng nhập thành công",
-    },
-    {
-      id: 102,
-      time: "2025-11-12 08:15",
-      action: "CREATE",
-      detail: "Tạo ví 'Ví tiền mặt'",
-    },
-  ],
-  2: [
-    {
-      id: 201,
-      time: "2025-11-11 20:00",
-      action: "LOGIN",
-      detail: "Đăng nhập thành công",
-    },
-    {
-      id: 202,
-      time: "2025-11-11 20:05",
-      action: "UPDATE",
-      detail: "Sửa ngân sách 'Chi tiêu tháng 11'",
-    },
-  ],
-  3: [
-    {
-      id: 301,
-      time: "2025-11-09 14:00",
-      action: "LOGIN_FAIL",
-      detail: "Sai mật khẩu 3 lần",
-    },
-  ],
-};
+import {
+  getAdminUsers,
+  getUserLoginLogs,
+  changeUserRole,
+  lockUser,
+  unlockUser,
+  deleteUserApi,
+} from "../../services/adminUserApi";
 
 // format thời gian dạng "YYYY-MM-DD HH:mm"
 function formatNow() {
@@ -86,6 +24,23 @@ function formatNow() {
   return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
 }
 
+// helper: format ISO từ BE -> "YYYY-MM-DD HH:mm"
+function formatFromIso(isoString) {
+  if (!isoString) return "";
+  try {
+    const d = new Date(isoString);
+    const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+    const yyyy = d.getFullYear();
+    const MM = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mm = pad(d.getMinutes());
+    return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
+  } catch {
+    return isoString;
+  }
+}
+
 export default function AdminUsersPage() {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
@@ -93,7 +48,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
 
-  const [logs, setLogs] = useState([]); // nhật ký đăng nhập (mock)
+  const [logs, setLogs] = useState([]); // nhật ký đăng nhập
   const [editHistory, setEditHistory] = useState({}); // lịch sử chỉnh sửa tài khoản
 
   const [filterRole, setFilterRole] = useState("ALL");
@@ -104,7 +59,7 @@ export default function AdminUsersPage() {
   // panel bên phải: "info" | "logs" | "manage" | "history"
   const [activePanel, setActivePanel] = useState("info");
 
-  // helper thêm lịch sử chỉnh sửa
+  // helper thêm lịch sử chỉnh sửa (chỉ lưu trong phiên FE hiện tại)
   const addHistoryEntry = (userId, action, detail) => {
     setEditHistory((prev) => {
       const list = prev[userId] || [];
@@ -121,95 +76,147 @@ export default function AdminUsersPage() {
     });
   };
 
-  // =============== Fake API ===============
+  // =============== API calls ===============
+
+  // 1) Lấy danh sách user từ BE
   const fetchUsers = async () => {
     setLoadingUsers(true);
-    await new Promise((res) => setTimeout(res, 300)); // giả delay
-    setUsers(MOCK_USERS);
-    setLoadingUsers(false);
-  };
-
-  const fetchUserLogs = async (userId) => {
-    setLoadingLogs(true);
-    await new Promise((res) => setTimeout(res, 200));
-    setLogs(MOCK_LOGS[userId] || []);
-    setLoadingLogs(false);
-  };
-
-  const updateUserRole = async (userId, newRole) => {
-    // Lấy user hiện tại để lưu lịch sử
-    const target = users.find((u) => u.id === userId);
-    const oldRole = target?.role;
-
-    // TODO: gọi API PUT /admin/users/:id/role
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-    );
-
-    if (target) {
-      addHistoryEntry(
-        userId,
-        "Đổi vai trò",
-        `Đổi vai trò từ "${oldRole}" sang "${newRole}".`
-      );
-      showToast(
-        `Đã cập nhật vai trò cho ${target.fullName} thành "${newRole}".`
-      );
-    } else {
-      showToast(`Đã cập nhật vai trò tài khoản.`);
+    try {
+      const res = await getAdminUsers(); // GET /api/admin/users
+      const mapped = res.data.map((u) => ({
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        role: u.role, // "USER" | "ADMIN"
+        status: u.locked ? "LOCKED" : "ACTIVE",
+        createdAt: formatFromIso(u.createdAt),
+        lastLogin: null, // tạm, sau này BE có trường lastLogin thì map thêm
+      }));
+      setUsers(mapped);
+    } catch (e) {
+      console.error(e);
+      showToast("Không tải được danh sách người dùng");
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
+  // 2) Lấy login logs theo user
+  const fetchUserLogs = async (userId) => {
+    setLoadingLogs(true);
+    try {
+      const res = await getUserLoginLogs(userId); // GET /api/admin/users/{id}/login-logs
+      const mapped = res.data.map((log) => ({
+        id: log.id,
+        time: formatFromIso(log.loginTime),
+        action: "LOGIN",
+        detail: `IP: ${log.ipAddress} • ${log.userAgent}`,
+      }));
+      setLogs(mapped);
+    } catch (e) {
+      console.error(e);
+      showToast("Không tải được nhật ký đăng nhập");
+      setLogs([]);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  // 3) Đổi role USER <-> ADMIN
+  const updateUserRole = async (userId, newRole) => {
+    const target = users.find((u) => u.id === userId);
+    const oldRole = target?.role;
+
+    try {
+      await changeUserRole(userId, newRole); // POST /api/admin/users/{id}/role
+
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+      );
+
+      if (target) {
+        addHistoryEntry(
+          userId,
+          "Đổi vai trò",
+          `Đổi vai trò từ "${oldRole}" sang "${newRole}".`
+        );
+        showToast(
+          `Đã cập nhật vai trò cho ${target.fullName} thành "${newRole}".`
+        );
+      } else {
+        showToast(`Đã cập nhật vai trò tài khoản.`);
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Đổi vai trò thất bại");
+    }
+  };
+
+  // 4) Khóa / mở khóa user
   const toggleUserStatus = async (userId) => {
     const target = users.find((u) => u.id === userId);
-    const oldStatus = target?.status;
+    if (!target) return;
 
-    // TODO: gọi API PATCH /admin/users/:id/status
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId
-          ? { ...u, status: u.status === "ACTIVE" ? "LOCKED" : "ACTIVE" }
-          : u
-      )
-    );
+    const oldStatus = target.status;
+    const isActive = oldStatus === "ACTIVE";
 
-    if (target) {
-      const newStatus = oldStatus === "ACTIVE" ? "LOCKED" : "ACTIVE";
+    try {
+      if (isActive) {
+        await lockUser(userId); // POST /api/admin/users/{id}/lock
+      } else {
+        await unlockUser(userId); // POST /api/admin/users/{id}/unlock
+      }
+
+      const newStatus = isActive ? "LOCKED" : "ACTIVE";
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, status: newStatus } : u
+        )
+      );
+
       addHistoryEntry(
         userId,
         "Cập nhật trạng thái",
         `Thay đổi trạng thái từ "${oldStatus}" sang "${newStatus}".`
       );
       showToast(
-        `${oldStatus === "ACTIVE" ? "Đã khóa" : "Đã mở khóa"} tài khoản ${
-          target.fullName
-        }.`
+        isActive
+          ? `Đã khóa tài khoản ${target.fullName}.`
+          : `Đã mở khóa tài khoản ${target.fullName}.`
       );
-    } else {
-      showToast("Đã cập nhật trạng thái tài khoản.");
+    } catch (e) {
+      console.error(e);
+      showToast("Cập nhật trạng thái thất bại");
     }
   };
 
+  // 5) Xoá user
   const deleteUser = async (userId) => {
     const target = users.find((u) => u.id === userId);
 
-    if (target) {
-      // lưu lịch sử trước khi xóa
-      addHistoryEntry(
-        userId,
-        "Xóa tài khoản",
-        `Tài khoản "${target.fullName}" đã bị xóa khỏi hệ thống (demo).`
-      );
-    }
+    try {
+      await deleteUserApi(userId); // DELETE /api/admin/users/{id}
 
-    if (selectedUserId === userId) {
-      setSelectedUserId(null);
-      setLogs([]);
-    }
+      if (target) {
+        addHistoryEntry(
+          userId,
+          "Xóa tài khoản",
+          `Tài khoản "${target.fullName}" đã bị xóa khỏi hệ thống.`
+        );
+      }
 
-    // TODO: gọi API DELETE /admin/users/:id
-    setUsers((prev) => prev.filter((u) => u.id !== userId));
-    showToast(`Đã xóa tài khoản ${target?.fullName || ""}.`);
+      if (selectedUserId === userId) {
+        setSelectedUserId(null);
+        setLogs([]);
+      }
+
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      showToast(`Đã xóa tài khoản ${target?.fullName || ""}.`);
+    } catch (e) {
+      console.error(e);
+      showToast("Xóa tài khoản thất bại");
+    }
   };
 
   // =============== Effects ===============
@@ -292,13 +299,15 @@ export default function AdminUsersPage() {
                   <option value="ALL">Tất cả vai trò</option>
                   <option value={ROLES.ADMIN}>Admin</option>
                   <option value={ROLES.USER}>User</option>
-                  <option value={ROLES.VIEWER}>Viewer</option>
+                  {/* Không cho filter Viewer vì Viewer là quyền trên ví, không phải role hệ thống */}
                 </select>
               </div>
             </div>
 
             {loadingUsers ? (
-              <div className="admin-empty">Đang tải danh sách người dùng...</div>
+              <div className="admin-empty">
+                Đang tải danh sách người dùng...
+              </div>
             ) : filteredUsers.length === 0 ? (
               <div className="admin-empty">Không có người dùng phù hợp.</div>
             ) : (
@@ -328,6 +337,7 @@ export default function AdminUsersPage() {
                       <td>
                         <select
                           value={u.role}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => {
                             e.stopPropagation();
                             updateUserRole(u.id, e.target.value);
@@ -335,7 +345,6 @@ export default function AdminUsersPage() {
                         >
                           <option value={ROLES.ADMIN}>Admin</option>
                           <option value={ROLES.USER}>User</option>
-                          <option value={ROLES.VIEWER}>Viewer</option>
                         </select>
                       </td>
                       <td>
@@ -349,8 +358,8 @@ export default function AdminUsersPage() {
                           {getStatusLabel(u.status)}
                         </span>
                       </td>
-                      <td>{u.createdAt}</td>
-                      <td>{u.lastLogin}</td>
+                      <td>{u.createdAt || "Không có dữ liệu"}</td>
+                      <td>{u.lastLogin || "Chưa có dữ liệu"}</td>
                       <td className="admin-actions-cell">
                         <button
                           className="btn-chip btn-chip--ghost"
@@ -555,7 +564,6 @@ export default function AdminUsersPage() {
                       >
                         <option value={ROLES.ADMIN}>Admin</option>
                         <option value={ROLES.USER}>User</option>
-                        <option value={ROLES.VIEWER}>Viewer</option>
                       </select>
                     </div>
 
@@ -575,8 +583,8 @@ export default function AdminUsersPage() {
                     <div className="admin-manage-block">
                       <h3>Xóa tài khoản</h3>
                       <p>
-                        Xóa vĩnh viễn tài khoản khỏi hệ thống (demo mock). Hành
-                        động này không thể hoàn tác.
+                        Xóa vĩnh viễn tài khoản khỏi hệ thống. Hành động này
+                        không thể hoàn tác.
                       </p>
                       <button
                         className="btn-primary btn-primary--outline"

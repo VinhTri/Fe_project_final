@@ -131,17 +131,46 @@ export default function LoginPage() {
       const msg =
         err.response?.data?.message ||
         err.response?.data?.error ||
-        err.response?.data?.msg;
+        err.response?.data?.msg ||
+        "";
+      const normMsg = msg.toLowerCase();
 
-      // TH: user chưa tồn tại
-      if (status === 404 || (msg && msg.includes("không tồn tại"))) {
+      // 1️⃣ TÀI KHOẢN BỊ KHÓA (ACCOUNT_LOCKED 403)
+      if (
+        status === 403 ||
+        normMsg.includes("bị khóa") ||
+        normMsg.includes("locked")
+      ) {
         return setError(
-          "Tài khoản chưa được tạo. Vui lòng tạo tài khoản hoặc đăng nhập bằng Google để sử dụng hệ thống."
+          "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để mở khóa."
         );
       }
 
-      if (status === 400 || status === 401) {
-        return setShowInvalid(true);
+      // 2️⃣ TÀI KHOẢN BỊ XÓA / KHÔNG HOẠT ĐỘNG 30 NGÀY (USER_DELETED 410)
+      if (
+        status === 410 ||
+        normMsg.includes("bị xóa") ||
+        normMsg.includes("không hoạt động 30 ngày")
+      ) {
+        return setError(
+          "Tài khoản của bạn đã bị xóa hoặc không hoạt động trong 30 ngày. Vui lòng đăng ký lại."
+        );
+      }
+
+      // 3️⃣ USER CHƯA TỒN TẠI (phòng trường hợp backend trả 404)
+      if (
+        status === 404 ||
+        normMsg.includes("không tồn tại") ||
+        normMsg.includes("chưa được tạo")
+      ) {
+        return setError(
+          "Tài khoản chưa được tạo. Vui lòng đăng ký hoặc đăng nhập bằng Google."
+        );
+      }
+
+      // 4️⃣ Sai / hết hạn Google token
+      if (normMsg.includes("google token không hợp lệ")) {
+        return setError("Phiên đăng nhập Google không hợp lệ. Vui lòng thử lại.");
       }
 
       setError(msg || "Lỗi đăng nhập Google. Vui lòng thử lại sau.");
@@ -218,28 +247,56 @@ export default function LoginPage() {
       const msg =
         err.response?.data?.message ||
         err.response?.data?.error ||
-        err.response?.data?.msg;
+        err.response?.data?.msg ||
+        "";
+      const normMsg = msg.toLowerCase();
 
-      // ⭐ NEW: tài khoản Google đã tồn tại nhưng chưa đặt mật khẩu lần đầu
-      // BE đang trả message kiểu: "Tài khoản Google – hãy đăng nhập Google"
-      if (msg && msg.includes("Tài khoản Google")) {
+      // 1️⃣ TÀI KHOẢN BỊ KHÓA (ACCOUNT_LOCKED 403)
+      if (
+        status === 403 ||
+        normMsg.includes("bị khóa") ||
+        normMsg.includes("locked")
+      ) {
         return setError(
-          "Tài khoản đã tồn tại dưới dạng Google nhưng chưa đặt mật khẩu mới. Vui lòng đăng nhập bằng Google để đặt mật khẩu."
+          "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để mở khóa."
         );
       }
 
-      // NEW: user chưa tồn tại
-      if (status === 404 || (msg && msg.includes("không tồn tại"))) {
+      // 2️⃣ TÀI KHOẢN BỊ XÓA / KHÔNG HOẠT ĐỘNG (USER_DELETED 410)
+      if (
+        status === 410 ||
+        normMsg.includes("bị xóa") ||
+        normMsg.includes("không hoạt động 30 ngày")
+      ) {
+        return setError(
+          "Tài khoản của bạn đã bị xóa hoặc không hoạt động trong 30 ngày. Vui lòng đăng ký lại."
+        );
+      }
+
+      // 3️⃣ USER CHƯA TỒN TẠI
+      if (
+        status === 404 ||
+        normMsg.includes("không tồn tại") ||
+        normMsg.includes("chưa được tạo")
+      ) {
         return setError(
           "Tài khoản chưa được tạo. Vui lòng đăng ký hoặc đăng nhập bằng Google."
         );
       }
 
-      // Sai email hoặc mật khẩu
+      // 4️⃣ TÀI KHOẢN GOOGLE CHƯA ĐẶT PASSWORD (GOOGLE_ACCOUNT_ONLY)
+      if (normMsg.includes("tài khoản google")) {
+        return setError(
+          "Tài khoản Google chưa đặt mật khẩu. Vui lòng đăng nhập Google để đặt mật khẩu mới."
+        );
+      }
+
+      // 5️⃣ SAI EMAIL / PASSWORD
       if (status === 400 || status === 401) {
         return setShowInvalid(true);
       }
 
+      // Fallback
       setError(msg || "Không kết nối được máy chủ (cổng 8080).");
     } finally {
       setLoading(false);
@@ -266,28 +323,27 @@ export default function LoginPage() {
           />
         </div>
 
-       <div className="mb-2 input-group">
-  <span className="input-group-text">
-    <i className="bi bi-lock-fill"></i>
-  </span>
-  <input
-    type={showPassword ? "text" : "password"}
-    name="password"
-    className="form-control"
-    placeholder="Nhập mật khẩu"
-    value={form.password}
-    onChange={onChange}
-    required
-  />
-  <button
-    type="button"
-    className="btn btn-outline-secondary"
-    onClick={() => setShowPassword((v) => !v)}
-  >
-    <i className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}></i>
-  </button>
-</div>
-
+        <div className="mb-2 input-group">
+          <span className="input-group-text">
+            <i className="bi bi-lock-fill"></i>
+          </span>
+          <input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            className="form-control"
+            placeholder="Nhập mật khẩu"
+            value={form.password}
+            onChange={onChange}
+            required
+          />
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() => setShowPassword((v) => !v)}
+          >
+            <i className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}></i>
+          </button>
+        </div>
 
         {error && <div className="auth-error">{error}</div>}
 
