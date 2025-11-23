@@ -15,6 +15,8 @@ export default function BudgetFormModal({
   const [limitAmount, setLimitAmount] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [alertThreshold, setAlertThreshold] = useState(90);
+  const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -26,12 +28,16 @@ export default function BudgetFormModal({
       // Set dates from initialData if available
       setStartDate(initialData.startDate || "");
       setEndDate(initialData.endDate || "");
+      setAlertThreshold(initialData.alertPercentage ?? 90);
+      setNote(initialData.note || "");
     } else {
       setSelectedCategory("");
       setSelectedWallet("");
       setLimitAmount("");
       setStartDate("");
       setEndDate("");
+      setAlertThreshold(90);
+      setNote("");
     }
     setErrors({});
   }, [open, mode, initialData]);
@@ -70,6 +76,9 @@ export default function BudgetFormModal({
     if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
       newErrors.dateRange = "Ngày kết thúc phải sau ngày bắt đầu";
     }
+    if (alertThreshold < 50 || alertThreshold > 100) {
+      newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 50% - 100%";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -85,6 +94,8 @@ export default function BudgetFormModal({
       limitAmount: parseInt(limitAmount, 10),
       startDate,
       endDate,
+      alertPercentage: Number(alertThreshold),
+      note: note.trim(),
     };
 
     if (selectedWallet === "ALL") {
@@ -103,10 +114,28 @@ export default function BudgetFormModal({
 
   return (
     <Modal open={open} onClose={onClose} width={500}>
-      <div className="modal__content" style={{ padding: "2rem" }}>
-        <h4 className="mb-4" style={{ fontWeight: 600, color: "#212529" }}>
+      <div className="modal__content budget-form-modal" style={{ padding: "2rem" }}>
+        <button
+          type="button"
+          className="btn-close budget-form-close"
+          aria-label="Đóng"
+          onClick={onClose}
+        />
+        <div className="budget-form-breadcrumbs">
+          <span>Ngân sách</span>
+          <i className="bi bi-chevron-right" />
+          <strong>{mode === "create" ? "Tạo hạn mức" : "Chỉnh sửa hạn mức"}</strong>
+        </div>
+        <h4 className="mb-3" style={{ fontWeight: 600, color: "#212529" }}>
           {mode === "create" ? "Thêm Hạn mức Chi tiêu Mới" : "Chỉnh sửa Hạn mức Chi tiêu"}
         </h4>
+        <div className="budget-form-info mb-4">
+          <i className="bi bi-info-circle" />
+          <div>
+            <p>Thiết lập hạn mức theo danh mục và ví cụ thể để dễ dàng theo dõi tiến độ chi tiêu.</p>
+            <span>Bạn có thể bật cảnh báo khi mức sử dụng đạt ngưỡng mong muốn.</span>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit}>
           {/* Category Selector */}
@@ -203,6 +232,42 @@ export default function BudgetFormModal({
               </div>
             )}
             <div className="form-text mt-2">Hạn mức sẽ được theo dõi trong khoảng thời gian này.</div>
+          </div>
+
+          {/* Alert threshold */}
+          <div className="mb-4">
+            <label className="form-label fw-semibold">Ngưỡng cảnh báo (%)</label>
+            <input
+              type="range"
+              className="form-range"
+              min="50"
+              max="100"
+              step="5"
+              value={alertThreshold}
+              onChange={(e) => setAlertThreshold(Number(e.target.value))}
+            />
+            <div className="d-flex justify-content-between small text-muted">
+              <span>50%</span>
+              <span>{alertThreshold}%</span>
+              <span>100%</span>
+            </div>
+            {errors.alertThreshold && (
+              <div className="invalid-feedback d-block">{errors.alertThreshold}</div>
+            )}
+            <div className="form-text">Gửi cảnh báo khi mức sử dụng đạt ngưỡng này.</div>
+          </div>
+
+          {/* Notes */}
+          <div className="mb-4">
+            <label className="form-label fw-semibold">Ghi chú (tùy chọn)</label>
+            <textarea
+              className="form-control"
+              rows={3}
+              placeholder="Nhập lưu ý nội bộ cho hạn mức này"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <div className="form-text">Ghi chú sẽ hiển thị trong thẻ hạn mức để cả nhóm dễ theo dõi.</div>
           </div>
 
           {/* Buttons */}

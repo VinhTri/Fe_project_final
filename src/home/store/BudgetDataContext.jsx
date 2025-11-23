@@ -16,6 +16,8 @@ export function BudgetDataProvider({ children }) {
       month: "11/2025", // track which month the budget is for
       startDate: "2025-11-01",
       endDate: "2025-11-30",
+      alertPercentage: 90,
+      note: "Ưu tiên thanh toán từ ví tiền mặt.",
     },
     {
       id: 2,
@@ -29,6 +31,8 @@ export function BudgetDataProvider({ children }) {
       month: "11/2025",
       startDate: "2025-11-01",
       endDate: "2025-11-30",
+      alertPercentage: 85,
+      note: "Chỉ áp dụng cho các đơn online lớn.",
     },
   ]);
 
@@ -57,6 +61,8 @@ export function BudgetDataProvider({ children }) {
       // include wallet fields if provided
       walletId: payload.walletId || null,
       walletName: payload.walletName || null,
+      alertPercentage: payload.alertPercentage ?? 90,
+      note: payload.note || "",
       ...payload,
     };
     setBudgets((prev) => [newBudget, ...prev]);

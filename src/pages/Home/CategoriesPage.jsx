@@ -1,17 +1,18 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import "../../styles/home/CategoriesPage.css";
 import Toast from "../../components/common/Toast/Toast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
+import useOnClickOutside from "../../hooks/useOnClickOutside";
 
 export default function CategoriesPage() {
   const { expenseCategories, incomeCategories, createExpenseCategory, createIncomeCategory, updateExpenseCategory, updateIncomeCategory, deleteExpenseCategory, deleteIncomeCategory } = useCategoryData();
 
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
-  // search inputs (the inline form will be used for search)
-  const [searchName, setSearchName] = useState("");
-  const [searchDesc, setSearchDesc] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectMenuOpen, setSelectMenuOpen] = useState(false);
 
   // modal for create/edit
   const [modalOpen, setModalOpen] = useState(false);
@@ -26,13 +27,42 @@ export default function CategoriesPage() {
 
   const currentList =
     activeTab === "expense" ? expenseCategories : incomeCategories;
+  const selectRef = useRef(null);
+  useOnClickOutside(selectRef, () => setSelectMenuOpen(false));
+
+  const filteredOptions = React.useMemo(() => {
+    const keyword = (searchQuery || "").trim().toLowerCase();
+    if (!keyword) return currentList;
+    return currentList.filter((c) => (c.name || "").toLowerCase().includes(keyword));
+  }, [currentList, searchQuery]);
   const displayedList = currentList.filter((c) => {
-    const nameMatch = (c.name || "").toLowerCase().includes((searchName || "").toLowerCase());
-    const descMatch = (c.description || "").toLowerCase().includes((searchDesc || "").toLowerCase());
-    return nameMatch && descMatch;
+    if (!selectedCategoryId) return true;
+    return String(c.id) === selectedCategoryId;
   });
   const totalPages = Math.max(1, Math.ceil(displayedList.length / pageSize));
   const paginatedList = displayedList.slice((page - 1) * pageSize, page * pageSize);
+
+  const paginationRange = React.useMemo(() => {
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    }
+
+    const pages = [];
+    const startPage = Math.max(2, page - 1);
+    const endPage = Math.min(totalPages - 1, page + 1);
+
+    pages.push(1);
+    if (startPage > 2) pages.push("start-ellipsis");
+
+    for (let p = startPage; p <= endPage; p += 1) {
+      pages.push(p);
+    }
+
+    if (endPage < totalPages - 1) pages.push("end-ellipsis");
+    pages.push(totalPages);
+    return pages;
+  }, [page, totalPages]);
 
   // adjust page if current page is out of bounds after filters/changes
   React.useEffect(() => {
@@ -41,15 +71,16 @@ export default function CategoriesPage() {
   }, [page, totalPages, displayedList.length]);
 
   const resetSearch = () => {
-    setSearchName("");
-    setSearchDesc("");
+    setSelectedCategoryId("");
+    setSearchQuery("");
+    setSelectMenuOpen(false);
     setPage(1);
   };
 
   // inline form becomes search; add/edit handled by modal
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    // search is reactive via searchName/searchDesc
+    setPage(1);
   };
 
   const openAddModal = () => {
@@ -228,48 +259,79 @@ export default function CategoriesPage() {
       {/* FORM THÊM / SỬA */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
-          <form className="row g-3 align-items-end" onSubmit={handleSearchSubmit}>
-            <div className="col-md-4">
-              <label className="form-label fw-semibold">Tên danh mục</label>
-              <input
-                className="form-control"
-                placeholder="VD: Ăn uống, Lương..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                maxLength={40}
-              />
-            </div>
-            <div className="col-md-5">
-              <label className="form-label fw-semibold">Mô tả</label>
-              <input
-                className="form-control"
-                placeholder="Mô tả ngắn cho danh mục (tùy chọn)"
-                value={searchDesc}
-                onChange={(e) => setSearchDesc(e.target.value)}
-                maxLength={80}
-              />
-            </div>
-            <div className="col-md-3 d-flex gap-2">
-              <button type="submit" className="btn btn-primary flex-grow-1">
-                Tìm kiếm
-              </button>
-              <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
-                Xóa
-              </button>
+          <form className="g-3" onSubmit={handleSearchSubmit}>
+            <label className="form-label fw-semibold">Tìm danh mục</label>
+            <div className="category-search-inline">
+              <div
+                className={`searchable-select category-search-select flex-grow-1 ${selectMenuOpen ? "is-open" : ""}`}
+                ref={selectRef}
+              >
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Chọn hoặc nhập tên danh mục"
+                  value={searchQuery}
+                  onFocus={() => setSelectMenuOpen(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSelectedCategoryId("");
+                    setSelectMenuOpen(true);
+                  }}
+                />
+                {selectMenuOpen && (
+                  <div className="searchable-select-menu">
+                    <button
+                      type="button"
+                      className={`searchable-option ${selectedCategoryId === "" ? "active" : ""}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSelectedCategoryId("");
+                        setSearchQuery("");
+                        setSelectMenuOpen(false);
+                      }}
+                    >
+                      Tất cả danh mục
+                    </button>
+                    {filteredOptions.length === 0 ? (
+                      <div className="px-3 py-2 text-muted small">Không tìm thấy danh mục</div>
+                    ) : (
+                      filteredOptions.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          className={`searchable-option ${selectedCategoryId === String(cat.id) ? "active" : ""}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setSelectedCategoryId(String(cat.id));
+                            setSearchQuery(cat.name || "");
+                            setSelectMenuOpen(false);
+                            setPage(1);
+                          }}
+                        >
+                          {cat.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="category-search-actions">
+                <button type="submit" className="btn btn-primary">
+                  Tìm kiếm
+                </button>
+                <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
+                  Xóa lọc
+                </button>
+              </div>
             </div>
           </form>
         </div>
       </div>
 
       {/* BẢNG DANH MỤC */}
-      <div className="card border-0 shadow-sm">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">Danh sách danh mục</h5>
-            <span className="text-muted small">Tổng: {displayedList.length} danh mục</span>
-          </div>
-
-          <div className="table-responsive">
+      <div className="card border-0 shadow-sm cat-table-card">
+        <div className="card-body p-0">
+          <div className="table-responsive category-table-scroll">
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
@@ -299,7 +361,7 @@ export default function CategoriesPage() {
                       <tr key={c.id}>
                         <td>{(page - 1) * pageSize + idx + 1}</td>
                         <td className="fw-semibold">{c.name}</td>
-                        <td>{c.description || "-"}</td>
+                        <td className="category-note-cell" title={c.description || "-"}>{c.description || "-"}</td>
                         <td className="text-center">
                           {!isSystemCategory ? (
                             <>
@@ -326,19 +388,57 @@ export default function CategoriesPage() {
               </tbody>
             </table>
           </div>
-          {/* PAGINATION (bottom-right) */}
-          <div className="d-flex justify-content-end align-items-center mt-3">
-            <div className="text-muted small me-3">Trang {page} / {totalPages}</div>
-            <nav aria-label="Page navigation">
-              <ul className="pagination mb-0">
-                <li className={`page-item ${page <= 1 ? "disabled" : ""}`}>
-                  <button className="page-link" onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="Previous">« Trước</button>
-                </li>
-                <li className={`page-item ${page >= totalPages ? "disabled" : ""}`}>
-                  <button className="page-link" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} aria-label="Next">Sau »</button>
-                </li>
-              </ul>
-            </nav>
+        </div>
+        {/* PAGINATION */}
+        <div className="card-footer category-pagination-bar">
+          <span className="text-muted small">Trang {page} / {totalPages}</span>
+          <div className="category-pagination">
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === 1}
+              onClick={() => setPage(1)}
+            >
+              «
+            </button>
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              ‹
+            </button>
+            {paginationRange.map((item, idx) =>
+              typeof item === "string" && item.includes("ellipsis") ? (
+                <span key={item + idx} className="page-ellipsis">…</span>
+              ) : (
+                <button
+                  key={`page-${item}`}
+                  type="button"
+                  className={`page-number ${page === item ? "active" : ""}`}
+                  onClick={() => setPage(item)}
+                >
+                  {item}
+                </button>
+              )
+            )}
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === totalPages}
+              onClick={() => setPage(totalPages)}
+            >
+              »
+            </button>
           </div>
         </div>
       </div>

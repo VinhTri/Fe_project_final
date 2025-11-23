@@ -1,7 +1,10 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import "../../styles/home/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
+import ScheduledTransactionModal from "../../components/transactions/ScheduledTransactionModal";
+import ScheduledTransactionDrawer from "../../components/transactions/ScheduledTransactionDrawer";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
 import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
@@ -15,6 +18,7 @@ import { transactionAPI, walletAPI } from "../../services/api-client";
 const TABS = {
   EXTERNAL: "external",
   INTERNAL: "internal",
+  SCHEDULE: "schedule",
 };
 
 const PAGE_SIZE = 10;
@@ -146,10 +150,17 @@ export default function TransactionsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
 
+  const [scheduledTransactions, setScheduledTransactions] = useState(MOCK_SCHEDULES);
+  const [scheduleFilter, setScheduleFilter] = useState("all");
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+
   // Get shared data from contexts
   const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
   const { expenseCategories, incomeCategories } = useCategoryData();
   const { wallets, loadWallets } = useWalletData();
+  const location = useLocation();
+  const [appliedFocusParam, setAppliedFocusParam] = useState("");
   
   // Budget warning state
   const [budgetWarning, setBudgetWarning] = useState(null);
@@ -244,6 +255,51 @@ export default function TransactionsPage() {
       setLoading(false);
     }
   }, [hasWallets, mapTransactionToFrontend, mapTransferToFrontend]);
+
+  // Apply wallet filter when navigated with ?focus=<walletId|walletName>
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const focusParam = params.get("focus");
+
+    if (!focusParam) {
+      if (appliedFocusParam) {
+        setAppliedFocusParam("");
+      }
+      return;
+    }
+
+    if (!wallets || wallets.length === 0 || focusParam === appliedFocusParam) {
+      return;
+    }
+
+    const normalizedFocus = focusParam.trim();
+    const focusLower = normalizedFocus.toLowerCase();
+
+    let walletNameToApply = normalizedFocus;
+
+    const walletById = wallets.find(
+      (wallet) => String(wallet.id) === normalizedFocus || String(wallet.walletId) === normalizedFocus
+    );
+
+    if (walletById) {
+      walletNameToApply = walletById.name || walletById.walletName || walletNameToApply;
+    } else {
+      const walletByName = wallets.find(
+        (wallet) => (wallet.name || wallet.walletName || "").toLowerCase() === focusLower
+      );
+      if (walletByName) {
+        walletNameToApply = walletByName.name || walletByName.walletName || walletNameToApply;
+      }
+    }
+
+    if (activeTab !== TABS.EXTERNAL) {
+      setActiveTab(TABS.EXTERNAL);
+    }
+
+    setFilterWallet(walletNameToApply);
+    setCurrentPage(1);
+    setAppliedFocusParam(normalizedFocus);
+  }, [location.search, wallets, activeTab, appliedFocusParam]);
 
   const handleTabChange = (e) => {
     const value = e.target.value;
@@ -657,6 +713,29 @@ export default function TransactionsPage() {
     return Array.from(s);
   }, [activeTab, externalTransactions, internalTransactions]);
 
+  const scheduleCounts = useMemo(() => {
+    const counts = { all: scheduledTransactions.length, pending: 0, recurring: 0 };
+    scheduledTransactions.forEach((item) => {
+      if (item.status === "PENDING" || item.status === "RUNNING") counts.pending += 1;
+      if (item.scheduleType !== "ONE_TIME") counts.recurring += 1;
+    });
+    return counts;
+  }, [scheduledTransactions]);
+
+  const filteredSchedules = useMemo(() => {
+    return scheduledTransactions.filter((item) => {
+      if (scheduleFilter === "pending") {
+        return item.status === "PENDING" || item.status === "RUNNING";
+      }
+      if (scheduleFilter === "recurring") {
+        return item.scheduleType !== "ONE_TIME";
+      }
+      return true;
+    });
+  }, [scheduledTransactions, scheduleFilter]);
+
+  const isScheduleView = activeTab === TABS.SCHEDULE;
+
   const filteredSorted = useMemo(() => {
     let list = currentTransactions.slice();
 
@@ -740,6 +819,28 @@ export default function TransactionsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE));
 
+  const paginationRange = useMemo(() => {
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    }
+
+    const pages = [];
+    const startPage = Math.max(2, currentPage - 1);
+    const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+    pages.push(1);
+    if (startPage > 2) pages.push("left-ellipsis");
+
+    for (let p = startPage; p <= endPage; p += 1) {
+      pages.push(p);
+    }
+
+    if (endPage < totalPages - 1) pages.push("right-ellipsis");
+    pages.push(totalPages);
+    return pages;
+  }, [currentPage, totalPages]);
+
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredSorted.slice(start, start + PAGE_SIZE);
@@ -768,6 +869,59 @@ export default function TransactionsPage() {
     setFromDateTime("");
     setToDateTime("");
     setCurrentPage(1);
+  };
+
+  const handleScheduleSubmit = (payload) => {
+    const scheduleId = Date.now();
+    const totalRuns = estimateScheduleRuns(payload.firstRun, payload.endDate, payload.scheduleType);
+    const newSchedule = {
+      id: scheduleId,
+      walletId: payload.walletId,
+      walletName: payload.walletName,
+      categoryName: payload.categoryName,
+      transactionType: payload.transactionType,
+      amount: payload.amount,
+      currency: "VND",
+      scheduleType: payload.scheduleType,
+      scheduleTypeLabel: SCHEDULE_TYPE_LABELS[payload.scheduleType] || payload.scheduleType,
+      status: "PENDING",
+      firstRun: payload.firstRun,
+      nextRun: payload.firstRun,
+      endDate: payload.endDate,
+      successRuns: 0,
+      totalRuns,
+      warning: null,
+      logs: [],
+    };
+
+    setScheduledTransactions((prev) => [newSchedule, ...prev]);
+    setScheduleModalOpen(false);
+    setToast({ open: true, message: "Đã tạo lịch giao dịch mới.", type: "success" });
+  };
+
+  const handleScheduleCancel = (scheduleId) => {
+    setScheduledTransactions((prev) =>
+      prev.map((item) => {
+        if (item.id !== scheduleId) return item;
+        return {
+          ...item,
+          status: "CANCELLED",
+          warning: null,
+          logs: [
+            {
+              id: Date.now(),
+              time: new Date().toISOString(),
+              status: "FAILED",
+              message: "Người dùng đã hủy lịch.",
+            },
+            ...item.logs,
+          ],
+        };
+      })
+    );
+
+    setSelectedSchedule((prev) => (prev?.id === scheduleId ? null : prev));
+    setToast({ open: true, message: "Đã hủy lịch giao dịch.", type: "success" });
   };
 
   return (
@@ -809,6 +963,7 @@ export default function TransactionsPage() {
             >
               <option value={TABS.EXTERNAL}>Giao dịch ngoài</option>
               <option value={TABS.INTERNAL}>Giao dịch giữa các ví</option>
+              <option value={TABS.SCHEDULE}>Lịch giao dịch định kỳ</option>
             </select>
 
             <button
@@ -824,293 +979,430 @@ export default function TransactionsPage() {
       </div>
 
 
-      {/* Filters */}
-      <div className="tx-filters card border-0 mb-3">
-        <div className="card-body d-flex flex-column gap-2">
-          <div className="d-flex flex-wrap gap-2">
-            <div className="tx-filter-item flex-grow-1">
-              <div className="input-group">
-                <span className="input-group-text bg-white border-end-0">
-                  <i className="bi bi-search text-muted" />
-                </span>
-                <input
-                  className="form-control border-start-0"
-                  placeholder="Tìm kiếm giao dịch..."
-                  value={searchText}
-                  onChange={(e) => {
-                    setSearchText(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
+      {!isScheduleView && (
+        <div className="tx-filters card border-0 mb-3">
+          <div className="card-body d-flex flex-column gap-2">
+            <div className="d-flex flex-wrap gap-2">
+              <div className="tx-filter-item flex-grow-1">
+                <div className="input-group">
+                  <span className="input-group-text bg-white border-end-0">
+                    <i className="bi bi-search text-muted" />
+                  </span>
+                  <input
+                    className="form-control border-start-0"
+                    placeholder="Tìm kiếm giao dịch..."
+                    value={searchText}
+                    onChange={(e) => {
+                      setSearchText(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
               </div>
-            </div>
 
-            {activeTab === TABS.EXTERNAL && (
+              {activeTab === TABS.EXTERNAL && (
+                <div className="tx-filter-item">
+                  <select
+                    className="form-select"
+                    value={filterType}
+                    onChange={handleFilterChange(setFilterType)}
+                  >
+                    <option value="all">Loại giao dịch</option>
+                    <option value="income">Thu nhập</option>
+                    <option value="expense">Chi tiêu</option>
+                  </select>
+                </div>
+              )}
+
               <div className="tx-filter-item">
                 <select
                   className="form-select"
-                  value={filterType}
-                  onChange={handleFilterChange(setFilterType)}
+                  value={filterCategory}
+                  onChange={handleFilterChange(setFilterCategory)}
                 >
-                  <option value="all">Loại giao dịch</option>
-                  <option value="income">Thu nhập</option>
-                  <option value="expense">Chi tiêu</option>
+                  <option value="all">Danh mục</option>
+                  {allCategories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
-            )}
+            </div>
 
-            <div className="tx-filter-item">
-              <select
-                className="form-select"
-                value={filterCategory}
-                onChange={handleFilterChange(setFilterCategory)}
-              >
-                <option value="all">Danh mục</option>
-                {allCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+            <div className="d-flex flex-wrap gap-2 align-items-center">
+              <div className="tx-filter-item">
+                <select
+                  className="form-select"
+                  value={filterWallet}
+                  onChange={handleFilterChange(setFilterWallet)}
+                >
+                  <option value="all">Ví</option>
+                  {allWallets.map((w) => (
+                    <option key={w} value={w}>
+                      {w}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="tx-filter-item d-flex align-items-center gap-1">
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={fromDateTime}
+                  onChange={handleDateChange(setFromDateTime)}
+                />
+                <span className="text-muted small px-1">đến</span>
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={toDateTime}
+                  onChange={handleDateChange(setToDateTime)}
+                />
+              </div>
+
+              <div className="ms-auto">
+                <button
+                  className="btn btn-outline-secondary btn-sm"
+                  type="button"
+                  onClick={clearFilters}
+                >
+                  <i className="bi bi-x-circle me-1" />
+                  Xóa lọc
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="d-flex flex-wrap gap-2 align-items-center">
-            <div className="tx-filter-item">
-              <select
-                className="form-select"
-                value={filterWallet}
-                onChange={handleFilterChange(setFilterWallet)}
-              >
-                <option value="all">Ví</option>
-                {allWallets.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
+      {isScheduleView ? (
+        <div className="scheduled-section card border-0 shadow-sm mb-4">
+          <div className="card-body">
+            <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+              <div>
+                <h5 className="mb-1">Lịch giao dịch định kỳ</h5>
+                <p className="text-muted mb-0">Quản lý các khoản thu chi được lập lịch tự động.</p>
+              </div>
+              <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
+                <i className="bi bi-plus-lg me-2" />Tạo lịch giao dịch
+              </button>
             </div>
 
-            <div className="tx-filter-item d-flex align-items-center gap-1">
-              <input
-                type="datetime-local"
-                className="form-control"
-                value={fromDateTime}
-                onChange={handleDateChange(setFromDateTime)}
-              />
-              <span className="text-muted small px-1">đến</span>
-              <input
-                type="datetime-local"
-                className="form-control"
-                value={toDateTime}
-                onChange={handleDateChange(setToDateTime)}
-              />
+            <div className="schedule-tabs mb-3">
+              {SCHEDULE_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`schedule-tab ${scheduleFilter === tab.value ? "active" : ""}`}
+                  onClick={() => setScheduleFilter(tab.value)}
+                >
+                  {tab.label}
+                  <span className="badge rounded-pill bg-light text-dark ms-2">
+                    {scheduleCounts[tab.value] ?? 0}
+                  </span>
+                </button>
+              ))}
             </div>
 
-            <div className="ms-auto">
+            {filteredSchedules.length === 0 ? (
+              <div className="text-center text-muted py-4">
+                Chưa có lịch nào phù hợp.
+              </div>
+            ) : (
+              <div className="schedule-list">
+                {filteredSchedules.map((schedule) => {
+                  const meta = SCHEDULE_STATUS_META[schedule.status] || SCHEDULE_STATUS_META.PENDING;
+                  const progress = schedule.totalRuns > 0 ? Math.min(100, Math.round((schedule.successRuns / schedule.totalRuns) * 100)) : 0;
+                  return (
+                    <div className="scheduled-card" key={schedule.id}>
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <h6 className="mb-1">
+                            {schedule.walletName} • {schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"}
+                          </h6>
+                          <p className="mb-1 text-muted">
+                            {schedule.categoryName} · {schedule.scheduleTypeLabel}
+                          </p>
+                        </div>
+                        <span className={meta.className}>{meta.label}</span>
+                      </div>
+                      <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
+                        <span>Số tiền: {formatMoney(schedule.amount, schedule.currency)}</span>
+                        <span>Tiếp theo: {formatVietnamDateTime(schedule.nextRun)}</span>
+                        <span>
+                          Lần hoàn thành: {schedule.successRuns}/{schedule.totalRuns || "∞"}
+                        </span>
+                      </div>
+                      <div className="progress schedule-progress">
+                        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                      </div>
+                      {schedule.warning && (
+                        <div className="schedule-warning">
+                          <i className="bi bi-exclamation-triangle-fill me-1" />
+                          {schedule.warning}
+                        </div>
+                      )}
+                      <div className="scheduled-card-actions">
+                        <button type="button" className="btn btn-link px-0" onClick={() => setSelectedSchedule(schedule)}>
+                          Xem lịch sử
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-link px-0 text-danger"
+                          disabled={schedule.status === "CANCELLED"}
+                          onClick={() => handleScheduleCancel(schedule.id)}
+                        >
+                          Hủy lịch
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="card border-0 shadow-sm tx-table-card">
+          {loading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Đang tải...</span>
+              </div>
+              <p className="mt-2 text-muted">Đang tải danh sách giao dịch...</p>
+            </div>
+          ) : (
+          <div className="table-responsive">
+            {activeTab === TABS.EXTERNAL ? (
+              <table className="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>STT</th>
+                    <th>Ngày</th>
+                    <th>Thời gian</th>
+                    <th>Loại</th>
+                    <th>Ví</th>
+                    <th>Danh mục</th>
+                    <th className="tx-note-col">Mô tả</th>
+                    <th className="text-end">Số tiền</th>
+                    <th className="text-center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="text-center text-muted py-4">
+                        Không có giao dịch nào.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((t, i) => {
+                      const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
+                      const d = toDateObj(t.date);
+                      const dateStr = formatVietnamDate(d);
+                      const timeStr = formatVietnamTime(d);
+
+                      return (
+                        <tr key={t.id}>
+                          <td>{serial}</td>
+                          <td>{dateStr}</td>
+                          <td>{timeStr}</td>
+                          <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
+                          <td>{t.walletName}</td>
+                          <td>{t.category}</td>
+                          <td className="tx-note-cell" title={t.note || "-"}>
+                            {t.note || "-"}
+                          </td>
+                          <td className="text-end">
+                            <span
+                              className={
+                                t.type === "expense"
+                                  ? "tx-amount-expense"
+                                  : "tx-amount-income"
+                              }
+                            >
+                              {t.type === "expense" ? "-" : "+"}
+                              {formatMoney(t.amount, t.currency)}
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Xem chi tiết"
+                              onClick={() => setViewing(t)}
+                            >
+                              <i className="bi bi-eye" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Chỉnh sửa"
+                              onClick={() => setEditing(t)}
+                            >
+                              <i className="bi bi-pencil-square" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-danger"
+                              title="Xóa"
+                              onClick={() => setConfirmDel(t)}
+                            >
+                              <i className="bi bi-trash" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>STT</th>
+                    <th>Ngày</th>
+                    <th>Thời gian</th>
+                    <th>Ví gửi</th>
+                    <th>Ví nhận</th>
+                    <th className="tx-note-col">Ghi chú</th>
+                    <th className="text-end">Số tiền</th>
+                    <th className="text-center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center text-muted py-4">
+                        Không có giao dịch nào.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((t, i) => {
+                      const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
+                      const d = toDateObj(t.date);
+                      const dateStr = formatVietnamDate(d);
+                      const timeStr = formatVietnamTime(d);
+
+                      return (
+                        <tr key={t.id}>
+                          <td>{serial}</td>
+                          <td>{dateStr}</td>
+                          <td>{timeStr}</td>
+                          <td>{t.sourceWallet}</td>
+                          <td>{t.targetWallet}</td>
+                          <td className="tx-note-cell" title={t.note || "-"}>
+                            {t.note || "-"}
+                          </td>
+                          <td className="text-end">
+                            <span className="tx-amount-transfer">
+                              {formatMoney(t.amount, t.currency)}
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Xem chi tiết"
+                              onClick={() => setViewing(t)}
+                            >
+                              <i className="bi bi-eye" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-muted me-1"
+                              title="Chỉnh sửa"
+                              onClick={() => setEditing(t)}
+                            >
+                              <i className="bi bi-pencil-square" />
+                            </button>
+                            <button
+                              className="btn btn-link btn-sm text-danger"
+                              title="Xóa"
+                              onClick={() => setConfirmDel(t)}
+                            >
+                              <i className="bi bi-trash" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+          )}
+
+          <div className="card-footer d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
+            <span className="text-muted small">
+              Trang {currentPage}/{totalPages}
+            </span>
+            <div className="tx-pagination">
               <button
-                className="btn btn-outline-secondary btn-sm"
                 type="button"
-                onClick={clearFilters}
+                className="page-arrow"
+                disabled={currentPage === 1}
+                onClick={() => handlePageChange(1)}
               >
-                <i className="bi bi-x-circle me-1" />
-                Xóa lọc
+                «
+              </button>
+              <button
+                type="button"
+                className="page-arrow"
+                disabled={currentPage === 1}
+                onClick={() => handlePageChange(currentPage - 1)}
+              >
+                ‹
+              </button>
+              {paginationRange.map((item, idx) =>
+                typeof item === "string" && item.includes("ellipsis") ? (
+                  <span key={`${item}-${idx}`} className="page-ellipsis">…</span>
+                ) : (
+                  <button
+                    key={`tx-page-${item}`}
+                    type="button"
+                    className={`page-number ${currentPage === item ? "active" : ""}`}
+                    onClick={() => handlePageChange(item)}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                className="page-arrow"
+                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(currentPage + 1)}
+              >
+                ›
+              </button>
+              <button
+                type="button"
+                className="page-arrow"
+                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(totalPages)}
+              >
+                »
               </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Bảng danh sách */}
-      <div className="card border-0 shadow-sm tx-table-card">
-        {loading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Đang tải...</span>
-            </div>
-            <p className="mt-2 text-muted">Đang tải danh sách giao dịch...</p>
-          </div>
-        ) : (
-        <div className="table-responsive">
-          {activeTab === TABS.EXTERNAL ? (
-            <table className="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style={{ width: 60 }}>STT</th>
-                  <th>Ngày</th>
-                  <th>Thời gian</th>
-                  <th>Loại</th>
-                  <th>Ví</th>
-                  <th>Danh mục</th>
-                  <th className="tx-note-col">Mô tả</th>
-                  <th className="text-end">Số tiền</th>
-                  <th className="text-center">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="text-center text-muted py-4">
-                      Không có giao dịch nào.
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map((t, i) => {
-                    const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                    const d = toDateObj(t.date);
-                    const dateStr = formatVietnamDate(d);
-                    const timeStr = formatVietnamTime(d);
+      <ScheduledTransactionModal
+        open={scheduleModalOpen}
+        wallets={wallets}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+        onSubmit={handleScheduleSubmit}
+        onClose={() => setScheduleModalOpen(false)}
+      />
 
-                    return (
-                      <tr key={t.id}>
-                        <td>{serial}</td>
-                        <td>{dateStr}</td>
-                        <td>{timeStr}</td>
-                        <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
-                        <td>{t.walletName}</td>
-                        <td>{t.category}</td>
-                        <td className="tx-note-cell" title={t.note || "-"}>
-                          {t.note || "-"}
-                        </td>
-                        <td className="text-end">
-                          <span
-                            className={
-                              t.type === "expense"
-                                ? "tx-amount-expense"
-                                : "tx-amount-income"
-                            }
-                          >
-                            {t.type === "expense" ? "-" : "+"}
-                            {formatMoney(t.amount, t.currency)}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Xem chi tiết"
-                            onClick={() => setViewing(t)}
-                          >
-                            <i className="bi bi-eye" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Chỉnh sửa"
-                            onClick={() => setEditing(t)}
-                          >
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-danger"
-                            title="Xóa"
-                            onClick={() => setConfirmDel(t)}
-                          >
-                            <i className="bi bi-trash" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table className="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style={{ width: 60 }}>STT</th>
-                  <th>Ngày</th>
-                  <th>Thời gian</th>
-                  <th>Ví gửi</th>
-                  <th>Ví nhận</th>
-                  <th className="tx-note-col">Ghi chú</th>
-                  <th className="text-end">Số tiền</th>
-                  <th className="text-center">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center text-muted py-4">
-                      Không có giao dịch nào.
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map((t, i) => {
-                    const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                    const d = toDateObj(t.date);
-                    const dateStr = formatVietnamDate(d);
-                    const timeStr = formatVietnamTime(d);
-
-                    return (
-                      <tr key={t.id}>
-                        <td>{serial}</td>
-                        <td>{dateStr}</td>
-                        <td>{timeStr}</td>
-                        <td>{t.sourceWallet}</td>
-                        <td>{t.targetWallet}</td>
-                        <td className="tx-note-cell" title={t.note || "-"}>
-                          {t.note || "-"}
-                        </td>
-                        <td className="text-end">
-                          <span className="tx-amount-transfer">
-                            {formatMoney(t.amount, t.currency)}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Xem chi tiết"
-                            onClick={() => setViewing(t)}
-                          >
-                            <i className="bi bi-eye" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-muted me-1"
-                            title="Chỉnh sửa"
-                            onClick={() => setEditing(t)}
-                          >
-                            <i className="bi bi-pencil-square" />
-                          </button>
-                          <button
-                            className="btn btn-link btn-sm text-danger"
-                            title="Xóa"
-                            onClick={() => setConfirmDel(t)}
-                          >
-                            <i className="bi bi-trash" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-        )}
-
-        <div className="card-footer d-flex justify-content-between align-items-center">
-          <span className="text-muted small">
-            Trang {currentPage}/{totalPages}
-          </span>
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              disabled={currentPage === 1}
-              onClick={() => handlePageChange(currentPage - 1)}
-            >
-              « Trước
-            </button>
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              disabled={currentPage === totalPages}
-              onClick={() => handlePageChange(currentPage + 1)}
-            >
-              Sau »
-            </button>
-          </div>
-        </div>
-      </div>
+      <ScheduledTransactionDrawer
+        open={!!selectedSchedule}
+        schedule={selectedSchedule}
+        onClose={() => setSelectedSchedule(null)}
+        onCancel={handleScheduleCancel}
+      />
 
       <TransactionViewModal
         open={!!viewing}
@@ -1169,3 +1461,105 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+function formatVietnamDateTime(date) {
+  if (!date) return "";
+  let d;
+  if (date instanceof Date) {
+    d = date;
+  } else {
+    d = new Date(date);
+  }
+  if (Number.isNaN(d.getTime())) return "";
+  return `${formatVietnamDate(d)} ${formatVietnamTime(d)}`.trim();
+}
+
+function estimateScheduleRuns(startValue, endValue, scheduleType) {
+  if (scheduleType === "ONE_TIME") return 1;
+  if (!startValue || !endValue) return 0;
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
+  const diffDays = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+  switch (scheduleType) {
+    case "DAILY":
+      return diffDays + 1;
+    case "WEEKLY":
+      return Math.floor(diffDays / 7) + 1;
+    case "MONTHLY":
+      return Math.max(1, Math.round(diffDays / 30));
+    case "YEARLY":
+      return Math.max(1, Math.round(diffDays / 365));
+    default:
+      return 0;
+  }
+}
+
+const SCHEDULE_TYPE_LABELS = {
+  ONE_TIME: "Một lần",
+  DAILY: "Hằng ngày",
+  WEEKLY: "Hằng tuần",
+  MONTHLY: "Hằng tháng",
+  YEARLY: "Hằng năm",
+};
+
+const SCHEDULE_STATUS_META = {
+  PENDING: { label: "Chờ chạy", className: "schedule-status schedule-status--pending" },
+  RUNNING: { label: "Đang chạy", className: "schedule-status schedule-status--running" },
+  COMPLETED: { label: "Hoàn tất", className: "schedule-status schedule-status--success" },
+  FAILED: { label: "Thất bại", className: "schedule-status schedule-status--failed" },
+  CANCELLED: { label: "Đã hủy", className: "schedule-status schedule-status--muted" },
+};
+
+const SCHEDULE_TABS = [
+  { value: "all", label: "Tất cả" },
+  { value: "pending", label: "Chờ chạy" },
+  { value: "recurring", label: "Định kỳ" },
+];
+
+const MOCK_SCHEDULES = [
+  {
+    id: 101,
+    walletId: "wallet-main",
+    walletName: "Ví chính",
+    categoryName: "Hóa đơn",
+    transactionType: "expense",
+    amount: 2500000,
+    currency: "VND",
+    scheduleType: "MONTHLY",
+    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.MONTHLY,
+    status: "PENDING",
+    firstRun: "2025-01-05T08:00",
+    nextRun: "2025-03-05T08:00",
+    endDate: "2025-12-31",
+    successRuns: 1,
+    totalRuns: 12,
+    warning: null,
+    logs: [
+      { id: 1, time: "2025-02-05T08:00", status: "FAILED", message: "Không đủ số dư" },
+      { id: 2, time: "2025-01-05T08:00", status: "COMPLETED", message: "Thành công" },
+    ],
+  },
+  {
+    id: 102,
+    walletId: "wallet-travel",
+    walletName: "Ví du lịch",
+    categoryName: "Tiền lãi",
+    transactionType: "income",
+    amount: 1000000,
+    currency: "VND",
+    scheduleType: "DAILY",
+    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.DAILY,
+    status: "FAILED",
+    firstRun: "2025-02-01T09:00",
+    nextRun: "2025-02-22T09:00",
+    endDate: null,
+    successRuns: 3,
+    totalRuns: 5,
+    warning: "Không đủ số dư ở lần gần nhất",
+    logs: [
+      { id: 3, time: "2025-02-10T09:00", status: "FAILED", message: "Không đủ số dư ví du lịch" },
+      { id: 4, time: "2025-02-09T09:00", status: "COMPLETED", message: "Thành công" },
+    ],
+  },
+];

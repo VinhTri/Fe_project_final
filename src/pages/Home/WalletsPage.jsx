@@ -1,5 +1,6 @@
 // src/pages/Home/WalletsPage.jsx
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../home/store/WalletDataContext";
@@ -229,6 +230,7 @@ export default function WalletsPage() {
     loadWallets,
     setDefaultWallet,
   } = useWalletData();
+  const location = useLocation();
 
   const [currentUserId, setCurrentUserId] = useState(() => getLocalUserId());
 
@@ -371,6 +373,18 @@ export default function WalletsPage() {
   }, [sharedWithMeDisplayWallets, search, sortBy]);
 
   const [selectedId, setSelectedId] = useState(null);
+  const focusWalletId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("focus");
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!focusWalletId || !wallets.length) return;
+    const matched = wallets.find((w) => String(w.id) === String(focusWalletId));
+    if (matched) {
+      setSelectedId(matched.id);
+    }
+  }, [focusWalletId, wallets]);
   const selectedWallet = useMemo(
     () =>
       wallets.find((w) => String(w.id) === String(selectedId)) || null,
