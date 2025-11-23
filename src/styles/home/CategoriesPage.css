@@ -8,6 +8,124 @@
   padding: 18px 24px 32px;
 }
 
+/* HERO */
+.cat-hero {
+  border-radius: 24px;
+  padding: 20px 28px;
+  margin-bottom: 24px;
+  background: linear-gradient(90deg, #0b5aa5 0%, #0c7fb0 60%, #0ab5c0 100%);
+  color: #ffffff;
+  box-shadow: 0 20px 45px rgba(11, 99, 246, 0.18);
+}
+
+.cat-hero__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.cat-hero__info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cat-hero__title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.cat-hero__subtitle {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cat-hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cat-hero__toggle {
+  display: inline-flex;
+  gap: 0;
+  padding: 4px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid rgba(11, 90, 165, 0.25);
+  box-shadow: 0 12px 28px rgba(5, 32, 60, 0.25);
+}
+
+.cat-hero__toggle-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #0c3559;
+  padding: 8px 22px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+
+.cat-hero__toggle-btn:hover {
+  color: #063352;
+  background: rgba(11, 90, 165, 0.08);
+}
+
+.cat-hero__toggle-btn.is-active {
+  background: linear-gradient(125deg, #0b5aa5 0%, #0ab5c0 100%);
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(5, 32, 60, 0.35);
+}
+
+.cat-hero__btn {
+  border-radius: 12px;
+  border: 1px solid #2d99ae;
+  background: #ffffff;
+  color: #2d99ae;
+  padding: 10px 22px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 14px 28px rgba(4, 24, 50, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.cat-hero__btn:hover {
+  background: #2d99ae;
+  color: #ffffff;
+  border-color: #2d99ae;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .cat-hero {
+    padding: 20px;
+  }
+
+  .cat-hero__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cat-hero__toggle,
+  .cat-hero__btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* small alias so header styling doesn't completely vanish if component uses .cat-header */
 .cat-header {
   background: #ffffff;
@@ -234,17 +352,19 @@
 }
 
 .cat-header-icon-wrap {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.15));
+  box-shadow: 0 12px 30px rgba(4, 24, 50, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .cat-header-icon {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   color: #ffffff;
 }
 

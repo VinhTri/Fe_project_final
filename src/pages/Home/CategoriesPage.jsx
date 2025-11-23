@@ -170,50 +170,25 @@ export default function CategoriesPage() {
 
   return (
     <div className="cat-page container py-4">
-      {/* HEADER – màu giống trang Danh sách ví */}
-      <div
-        className="cat-header card border-0 mb-3"
-        style={{
-          borderRadius: 18,
-          background:
-            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
-          color: "#ffffff",
-        }}
-      >
-        <div className="card-body d-flex justify-content-between align-items-center">
-          {/* BÊN TRÁI: ICON + TEXT */}
-            <div className="d-flex align-items-center gap-2">
+      <div className="cat-hero">
+        <div className="cat-hero__content">
+          <div className="cat-hero__info">
             <div className="cat-header-icon-wrap">
-              {/* icon giống ở sidebar: Danh mục = bi-tags */}
               <i className="bi bi-tags cat-header-icon" />
             </div>
             <div>
-              <h2 className="mb-1" style={{ color: "#ffffff" }}>
-                Danh Mục
-              </h2>
-              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-                Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ
-                đây.
+              <h2 className="cat-hero__title">Danh Mục</h2>
+              <p className="cat-hero__subtitle">
+                Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ đây.
               </p>
             </div>
-          
           </div>
 
-          {/* BÊN PHẢI: NÚT TAB */}
-          <div className="d-flex align-items-center gap-3">
-            <div
-              className="btn-group rounded-pill bg-white p-1"
-              role="group"
-              style={{ boxShadow: "0 0 0 1px rgba(255,255,255,0.4)" }}
-            >
+          <div className="cat-hero__actions">
+            <div className="cat-hero__toggle" role="group">
               <button
                 type="button"
-                className={
-                  "btn btn-sm rounded-pill fw-semibold px-3 " +
-                  (activeTab === "expense"
-                    ? "text-white bg-success"
-                    : "text-dark bg-white")
-                }
+                className={`cat-hero__toggle-btn ${activeTab === "expense" ? "is-active" : ""}`}
                 onClick={() => {
                   setActiveTab("expense");
                   resetSearch();
@@ -222,15 +197,9 @@ export default function CategoriesPage() {
               >
                 Chi phí
               </button>
-
               <button
                 type="button"
-                className={
-                  "btn btn-sm rounded-pill fw-semibold px-3 " +
-                  (activeTab === "income"
-                    ? "text-white bg-success"
-                    : "text-dark bg-white")
-                }
+                className={`cat-hero__toggle-btn ${activeTab === "income" ? "is-active" : ""}`}
                 onClick={() => {
                   setActiveTab("income");
                   resetSearch();
@@ -240,16 +209,14 @@ export default function CategoriesPage() {
                 Thu nhập
               </button>
             </div>
-            <div className="ms-3">
-              <button
-                type="button"
-                className="btn btn-sm btn-success rounded-pill category-add-header-btn"
-                onClick={openAddModal}
-                style={{ padding: "6px 14px" }}
-              >
-                Thêm danh mục
-              </button>
-            </div>
+            <button
+              type="button"
+              className="cat-hero__btn"
+              onClick={openAddModal}
+            >
+              <i className="bi bi-plus-lg" />
+              <span>Thêm danh mục</span>
+            </button>
           </div>
         </div>
       </div>

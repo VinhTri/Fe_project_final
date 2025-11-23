@@ -8,7 +8,6 @@ const MENU = [
   { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
   { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
   { to: "/home/categories", label: "Danh mục", icon: "bi-tags" },
-  { to: "/home/wallet-groups", label: "Nhóm ví", icon: "bi-collection" },
   { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
   { to: "/home/reports", label: "Báo cáo", icon: "bi-bar-chart-line" },
   { to: "/home/accounts", label: "Tài khoản", icon: "bi-credit-card-2-front" },

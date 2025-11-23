@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import "../../styles/home/BudgetsPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
@@ -28,17 +29,54 @@ export default function BudgetsPage() {
   const [editingId, setEditingId] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [toast, setToast] = useState({ open: false, message: "", type: "success" });
-  const [searchName, setSearchName] = useState("");
-  const [searchDesc, setSearchDesc] = useState("");
+  const [highlightedBudgetId, setHighlightedBudgetId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [transactionFilter, setTransactionFilter] = useState("all");
   const [detailBudget, setDetailBudget] = useState(null);
+  const [transactionBudgetFilter, setTransactionBudgetFilter] = useState(null);
+  const transactionFilter = "all"; // giữ tương thích với logic cũ
+  const navigate = useNavigate();
   const statusTabs = [
     { value: "all", label: "Tất cả" },
     { value: "healthy", label: "Đang ổn" },
     { value: "warning", label: "Sắp đạt ngưỡng" },
     { value: "over", label: "Đã vượt" },
   ];
+
+  const parseDateOnly = useCallback((value) => {
+    if (!value) return null;
+    const [datePart] = value.split("T");
+    if (!datePart) return null;
+    const [year, month, day] = datePart.split("-").map((part) => Number(part));
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  }, []);
+
+  const isBudgetExpired = useCallback(
+    (budget) => {
+      if (!budget?.endDate) return false;
+      const end = parseDateOnly(budget.endDate);
+      if (!end) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      return end < today;
+    },
+    [parseDateOnly]
+  );
+
+  const isBudgetNotStarted = useCallback(
+    (budget) => {
+      if (!budget?.startDate) return false;
+      const start = parseDateOnly(budget.startDate);
+      if (!start) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      start.setHours(0, 0, 0, 0);
+      return start > today;
+    },
+    [parseDateOnly]
+  );
 
   const computeBudgetUsage = useCallback(
     (budget) => {
@@ -55,8 +93,15 @@ export default function BudgetsPage() {
       const percent = Math.min(999, Math.max(0, Math.round(percentRaw)));
       const threshold = budget.alertPercentage ?? 80;
 
+      const expired = isBudgetExpired(budget);
+      const notStarted = isBudgetNotStarted(budget);
+
       let status = "healthy";
-      if (percent >= 100) {
+      if (expired) {
+        status = "expired";
+      } else if (notStarted) {
+        status = "upcoming";
+      } else if (percent >= 100) {
         status = "over";
       } else if (percent >= threshold) {
         status = "warning";
@@ -67,9 +112,11 @@ export default function BudgetsPage() {
         remaining: limit - spentValue,
         percent,
         status,
+        expired,
+        notStarted,
       };
     },
-    [getSpentAmount, getSpentForBudget]
+    [getSpentAmount, getSpentForBudget, isBudgetExpired, isBudgetNotStarted]
   );
 
   const budgetUsageMap = useMemo(() => {
@@ -113,23 +160,20 @@ export default function BudgetsPage() {
     return `${dateObj.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })} ${dateObj.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
   };
 
-  const parseDateOnly = (value) => {
-    if (!value) return null;
-    const [year, month, day] = value.split("T")[0].split("-").map((part) => Number(part));
-    if (!year || !month || !day) return null;
-    return new Date(year, month - 1, day);
-  };
-
   const budgetStatusLabel = {
     healthy: "Đang ổn",
     warning: "Sắp đạt",
     over: "Đã vượt",
+    expired: "Hết hạn",
+    upcoming: "Chưa bắt đầu",
   };
 
   const budgetStatusTone = {
     healthy: "success",
     warning: "warning",
     over: "danger",
+    expired: "expired",
+    upcoming: "upcoming",
   };
 
   const statusCounts = useMemo(() => {
@@ -185,7 +229,7 @@ export default function BudgetsPage() {
       overCount,
       activeBudgets,
     };
-  }, [budgets, budgetUsageMap]);
+  }, [budgets, budgetUsageMap, parseDateOnly]);
 
   const bannerState = useMemo(() => {
     const overItems = [];
@@ -231,38 +275,64 @@ export default function BudgetsPage() {
     return Array.from(fallbackMap.values());
   }, [expenseCategories, budgets]);
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const matchesSearch = useCallback(
+    (budget) => {
+      if (!normalizedSearch) return true;
+      const haystack = [
+        budget.categoryName,
+        budget.walletName,
+        budget.note,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
+    },
+    [normalizedSearch]
+  );
+
   const visibleBudgets = useMemo(() => {
     if (!Array.isArray(budgets)) return [];
-    const normalizedName = searchName.trim().toLowerCase();
-    const normalizedDesc = searchDesc.trim().toLowerCase();
-
     return budgets.filter((budget) => {
-      const matchesName = !normalizedName || budget.categoryName?.toLowerCase().includes(normalizedName);
-      const matchesDesc = !normalizedDesc || (budget.note || "").toLowerCase().includes(normalizedDesc);
-      if (!matchesName || !matchesDesc) return false;
+      if (!matchesSearch(budget)) return false;
       if (statusFilter === "all") return true;
       const usage = budgetUsageMap.get(budget.id);
       return usage?.status === statusFilter;
     });
-  }, [budgets, searchName, searchDesc, statusFilter, budgetUsageMap]);
+  }, [budgets, matchesSearch, statusFilter, budgetUsageMap]);
+
+  const quickSearchResults = useMemo(() => {
+    if (!normalizedSearch || !Array.isArray(budgets)) return [];
+    return budgets.filter((budget) => matchesSearch(budget)).slice(0, 6);
+  }, [budgets, matchesSearch, normalizedSearch]);
 
   const latestTransactions = useMemo(() => {
     const list = Array.isArray(externalTransactionsList) ? externalTransactionsList : [];
-    const filtered = list.filter((tx) => {
-      if (transactionFilter === "all") return true;
-      return (tx.type || "").toLowerCase() === transactionFilter.toLowerCase();
-    });
+    if (transactionBudgetFilter?.isInactive) {
+      return [];
+    }
 
-    return filtered
+    const filteredByBudget = transactionBudgetFilter
+      ? list.filter((tx) => {
+          const txCategory = (tx.category || "").toLowerCase();
+          const budgetCategory = (transactionBudgetFilter.categoryName || "").toLowerCase();
+          if (txCategory !== budgetCategory) return false;
+
+          if (!transactionBudgetFilter.walletName || transactionBudgetFilter.walletName === "Tất cả ví") {
+            return true;
+          }
+
+          return (tx.walletName || "").toLowerCase() === (transactionBudgetFilter.walletName || "").toLowerCase();
+        })
+      : list;
+
+    return filteredByBudget
       .slice()
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
       .slice(0, 5);
-  }, [externalTransactionsList, transactionFilter]);
-
-  const handleSearchReset = useCallback(() => {
-    setSearchName("");
-    setSearchDesc("");
-  }, []);
+  }, [externalTransactionsList, transactionBudgetFilter]);
 
   const handleOpenDetail = useCallback((budget) => {
     if (!budget) return;
@@ -270,9 +340,56 @@ export default function BudgetsPage() {
     setDetailBudget({ budget, usage });
   }, [budgetUsageMap, computeBudgetUsage]);
 
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+  }, []);
+
   const handleCloseDetail = useCallback(() => {
     setDetailBudget(null);
   }, []);
+
+  const handleHighlightBudget = useCallback((budgetId) => {
+    if (!budgetId) return;
+    setHighlightedBudgetId(budgetId);
+    const cardEl = document.querySelector(`[data-budget-card="${budgetId}"]`);
+    if (cardEl && typeof cardEl.scrollIntoView === "function") {
+      cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    window.setTimeout(() => {
+      setHighlightedBudgetId((prev) => (prev === budgetId ? null : prev));
+    }, 2800);
+  }, []);
+
+  const handleSelectBudgetForTransactions = useCallback((budget) => {
+    if (!budget) return;
+    handleHighlightBudget(budget.id);
+    const usage = budgetUsageMap.get(budget.id) || computeBudgetUsage(budget);
+    const status = usage?.status;
+    setTransactionBudgetFilter({
+      id: budget.id,
+      categoryName: budget.categoryName,
+      walletName: budget.walletName,
+      status,
+      isInactive: status === "expired" || status === "upcoming",
+    });
+  }, [handleHighlightBudget, budgetUsageMap, computeBudgetUsage]);
+
+  const handleClearTransactionBudgetFilter = useCallback(() => {
+    setTransactionBudgetFilter(null);
+  }, []);
+
+  const transactionPanelSubtitle = useMemo(() => {
+    if (!transactionBudgetFilter) {
+      return "Hiển thị 5 giao dịch mới nhất";
+    }
+    if (transactionBudgetFilter.isInactive) {
+      return "Thẻ này chưa hoạt động.";
+    }
+    const walletLabel = transactionBudgetFilter.walletName && transactionBudgetFilter.walletName !== "Tất cả ví"
+      ? ` • ${transactionBudgetFilter.walletName}`
+      : "";
+    return `Đang xem giao dịch cho ${transactionBudgetFilter.categoryName}${walletLabel}`;
+  }, [transactionBudgetFilter]);
 
   const handleSendReminder = useCallback((budget) => {
     if (!budget) return;
@@ -293,8 +410,8 @@ export default function BudgetsPage() {
   }, []);
 
   const handleViewAllTransactions = useCallback(() => {
-    if (typeof window !== "undefined") {
-      window.location.href = "/home/transactions";
+    if (navigate) {
+      navigate("/home/transactions");
       return;
     }
     setToast({
@@ -302,7 +419,7 @@ export default function BudgetsPage() {
       message: "Không thể điều hướng trong môi trường hiện tại.",
       type: "error",
     });
-  }, []);
+  }, [navigate]);
 
   const handleModalSubmit = useCallback(async (payload) => {
     try {
@@ -337,10 +454,10 @@ export default function BudgetsPage() {
   return (
     <div className="budget-page container py-4">
       {/* HEADER – bố cục giống trang Giao dịch: trái = icon + text, phải = nút */}
-      <div className="budget-header card border-0 mb-3">
-        <div className="card-body budget-header-inner">
+      <div className="budget-hero mb-4">
+        <div className="budget-hero__content">
           {/* BÊN TRÁI: ICON + TIÊU ĐỀ + MÔ TẢ */}
-          <div className="budget-header-left">
+          <div className="budget-hero__info">
             <div className="budget-header-icon-wrap">
               {/* icon tương ứng chức năng: hạn mức = bi-graph-up-arrow */}
               <i className="bi bi-graph-up-arrow budget-header-icon" />
@@ -356,9 +473,9 @@ export default function BudgetsPage() {
           </div>
 
           {/* BÊN PHẢI: NÚT THÊM HẠN MỨC */}
-          <div className="budget-header-right">
+          <div className="budget-hero__actions">
             <button
-              className="btn btn-primary budget-add-btn d-flex align-items-center"
+              className="budget-add-btn budget-hero__btn d-flex align-items-center"
               style={{ whiteSpace: "nowrap" }}
               onClick={handleAddBudget}
             >
@@ -419,14 +536,29 @@ export default function BudgetsPage() {
             </span>
           </div>
           <div className="budget-warning-actions">
-            {bannerState.warningItems.length > 0 && (
-              <button className="btn btn-warning btn-sm" onClick={() => setStatusFilter("warning")}>
-                Xem cảnh báo
-              </button>
-            )}
-            {bannerState.overItems.length > 0 && (
-              <button className="btn btn-outline-danger btn-sm" onClick={() => setStatusFilter("over")}>
-                Xem đã vượt
+            <div className="budget-warning-button-groups">
+              {bannerState.warningItems.length > 0 && (
+                <div className="budget-warning-button-group">
+                  <button className="btn btn-warning btn-sm budget-warning-btn" onClick={() => setStatusFilter("warning")}>
+                    Xem cảnh báo
+                  </button>
+                </div>
+              )}
+              {bannerState.overItems.length > 0 && (
+                <div className="budget-warning-button-group">
+                  <button className="btn btn-sm budget-warning-over" onClick={() => setStatusFilter("over")}>
+                    Xem đã vượt
+                  </button>
+                </div>
+              )}
+            </div>
+            {(statusFilter === "warning" || statusFilter === "over") && (
+              <button
+                type="button"
+                className="btn btn-sm budget-warning-exit"
+                onClick={() => setStatusFilter("all")}
+              >
+                Thoát
               </button>
             )}
           </div>
@@ -434,51 +566,85 @@ export default function BudgetsPage() {
       )}
 
       {/* FORM TÌM KIẾM */}
-      <div className="card border-0 shadow-sm mb-3">
-        <div className="card-body">
-          <form className="budget-filter-form row g-3 align-items-end" onSubmit={(e) => e.preventDefault()}>
-            <div className="col-md-4">
-              <label className="form-label fw-semibold">Tên danh mục</label>
-              <input
-                className="form-control"
-                placeholder="VD: Ăn uống, Lương..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
-            </div>
-            <div className="col-md-5">
-              <label className="form-label fw-semibold">Mô tả</label>
-              <input
-                className="form-control"
-                placeholder="Mô tả ngắn cho danh mục (tùy chọn)"
-                value={searchDesc}
-                onChange={(e) => setSearchDesc(e.target.value)}
-              />
-            </div>
-            <div className="col-md-3 d-flex gap-2">
-              <button type="submit" className="btn btn-primary flex-grow-1">
-                Tìm kiếm
-              </button>
-              <button type="button" className="btn btn-outline-secondary" onClick={handleSearchReset}>
-                Xóa
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body budget-filter-card">
+          <div className="budget-filter-row">
+            <form className="budget-filter-form" onSubmit={(e) => e.preventDefault()}>
+              <div className="budget-search-field">
+                <input
+                  id="budget-search-input"
+                  type="text"
+                  className="form-control budget-search-input"
+                  placeholder="Nhập một ký tự để bắt đầu tìm..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="budget-search-clear"
+                    onClick={handleClearSearch}
+                    aria-label="Xóa tìm kiếm"
+                  >
+                    <i className="bi bi-x-lg" />
+                  </button>
+                )}
+              </div>
+            </form>
 
-      <div className="budget-status-tabs mb-4">
-        {statusTabs.map((tab) => (
-          <button
-            key={tab.value}
-            className={`budget-status-tab ${statusFilter === tab.value ? "active" : ""}`}
-            type="button"
-            onClick={() => setStatusFilter(tab.value)}
-          >
-            {tab.label}
-            <span className="badge-count">{statusCounts[tab.value] ?? 0}</span>
-          </button>
-        ))}
+            <div className="budget-status-tabs budget-status-tabs--inline">
+              {statusTabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  className={`budget-status-tab ${statusFilter === tab.value ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.value)}
+                >
+                  {tab.label}
+                  <span className="badge-count">{statusCounts[tab.value] ?? 0}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {searchQuery && (
+            <div className="budget-search-results">
+              {quickSearchResults.length === 0 ? (
+                <p className="text-muted mb-0 small">
+                  Không tìm thấy hạn mức phù hợp.
+                </p>
+              ) : (
+                <ul className="budget-search-result-list">
+                  {quickSearchResults.map((budget) => (
+                    <li
+                      key={budget.id}
+                      className="budget-search-result-item"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleHighlightBudget(budget.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleHighlightBudget(budget.id);
+                        }
+                      }}
+                    >
+                      <div>
+                        <span className="result-title">{budget.categoryName}</span>
+                        <span className="result-meta">
+                          {budget.walletName ? `Ví: ${budget.walletName}` : "Tất cả ví"}
+                        </span>
+                      </div>
+                      {budget.categoryType && (
+                        <span className="result-chip">{budget.categoryType}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="budget-content-layout">
@@ -496,16 +662,33 @@ export default function BudgetsPage() {
               <button className="btn btn-primary" onClick={handleAddBudget}>Thiết lập Hạn mức Chi tiêu đầu tiên</button>
             </div>
           ) : (
-            <div className="row g-4">
-              {visibleBudgets.map((budget) => {
+            <div className="budget-card-scroll">
+              <div className="budget-card-grid">
+                {visibleBudgets.map((budget) => {
                 const usage = budgetUsageMap.get(budget.id) || computeBudgetUsage(budget);
                 const { spent, remaining, percent, status } = usage;
+                const isExpired = status === "expired";
+                const isUpcoming = status === "upcoming";
+                const isInactive = isExpired || isUpcoming;
                 const isOver = status === "over";
                 const isWarning = status === "warning";
+                const isSelected = transactionBudgetFilter?.id === budget.id;
 
-                return (
-                  <div className="col-xl-6" key={budget.id}>
-                    <div className="budget-card">
+                  return (
+                    <div className="budget-card-grid__item" key={budget.id}>
+                    <div
+                      className={`budget-card${highlightedBudgetId === budget.id ? " budget-card--highlight" : ""}${isExpired ? " budget-card--expired" : ""}${isUpcoming ? " budget-card--upcoming" : ""}${isSelected ? " budget-card--selected" : ""}`}
+                      data-budget-card={budget.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleSelectBudgetForTransactions(budget)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleSelectBudgetForTransactions(budget);
+                        }
+                      }}
+                    >
                       <div className="budget-card-header">
                         <div className="budget-card-heading">
                           <div className="budget-card-icon">
@@ -517,7 +700,7 @@ export default function BudgetsPage() {
                           </div>
                         </div>
                         <span className={`budget-status-chip ${budgetStatusTone[status] || ""}`}>
-                          {budgetStatusLabel[status]}
+                          {budgetStatusLabel[status] || "Đang ổn"}
                         </span>
                       </div>
 
@@ -574,22 +757,57 @@ export default function BudgetsPage() {
                       )}
 
                       <div className="budget-card-quick-actions">
-                        <button type="button" onClick={() => handleOpenDetail(budget)}>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenDetail(budget);
+                          }}
+                          disabled={isInactive}
+                        >
                           <i className="bi bi-pie-chart" /> Chi tiết
                         </button>
-                        <button type="button" onClick={() => handleSendReminder(budget)}>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSendReminder(budget);
+                          }}
+                          disabled={isInactive}
+                        >
                           <i className="bi bi-bell" /> Nhắc nhở
                         </button>
-                        <button type="button" onClick={() => handleCreateTransactionShortcut(budget)}>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleCreateTransactionShortcut(budget);
+                          }}
+                          disabled={isInactive}
+                        >
                           <i className="bi bi-plus-circle" /> Tạo giao dịch
                         </button>
                       </div>
 
                       <div className="budget-card-actions">
-                        <button className="btn-edit-budget" onClick={() => handleEditBudget(budget)} title="Chỉnh sửa">
+                        <button
+                          className="btn-edit-budget"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleEditBudget(budget);
+                          }}
+                          title="Chỉnh sửa"
+                        >
                           <i className="bi bi-pencil me-1"></i>Chỉnh sửa
                         </button>
-                        <button className="btn-delete-budget" onClick={() => setConfirmDel(budget)} title="Xóa">
+                        <button
+                          className="btn-delete-budget"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setConfirmDel(budget);
+                          }}
+                          title="Xóa"
+                        >
                           <i className="bi bi-trash me-1"></i>Xóa
                         </button>
                       </div>
@@ -597,6 +815,7 @@ export default function BudgetsPage() {
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </div>
@@ -607,18 +826,23 @@ export default function BudgetsPage() {
               <div className="d-flex justify-content-between align-items-start mb-3">
                 <div>
                   <h5 className="mb-1">Giao dịch gần đây</h5>
-                 
+                  <p className="text-muted small mb-0">{transactionPanelSubtitle}</p>
                 </div>
-                <select
-                  className="form-select budget-transaction-filter"
-                  value={transactionFilter}
-                  onChange={(e) => setTransactionFilter(e.target.value)}
-                >
-                  <option value="all">Tất cả</option>
-                  <option value="expense">Chi tiêu</option>
-                  <option value="income">Thu nhập</option>
-                </select>
               </div>
+
+              {transactionBudgetFilter && !transactionBudgetFilter.isInactive && (
+                <div className="budget-transaction-filter-pill">
+                  <span>
+                    Đang xem giao dịch cho "{transactionBudgetFilter.categoryName}"
+                    {transactionBudgetFilter.walletName && transactionBudgetFilter.walletName !== "Tất cả ví"
+                      ? ` (${transactionBudgetFilter.walletName})`
+                      : ""}
+                  </span>
+                  <button type="button" onClick={handleClearTransactionBudgetFilter}>
+                    Xóa lọc
+                  </button>
+                </div>
+              )}
 
               <div className="table-responsive budget-transaction-mini">
                 <table className="table budget-transaction-table">
@@ -630,7 +854,13 @@ export default function BudgetsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {latestTransactions.length === 0 ? (
+                    {transactionBudgetFilter?.isInactive ? (
+                      <tr>
+                        <td colSpan={3} className="text-center text-muted py-4">
+                          Thẻ này chưa hoạt động.
+                        </td>
+                      </tr>
+                    ) : latestTransactions.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="text-center text-muted py-4">
                           Chưa có giao dịch được đồng bộ.

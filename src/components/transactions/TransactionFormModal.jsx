@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
+import SearchableSelect from "../common/SearchableSelect";
 
 /* ================== HELPER FUNCTIONS ================== */
 /**
@@ -128,6 +129,7 @@ function SelectInput({
     </div>
   );
 }
+
 
 /* ================== TransactionFormModal ================== */
 export default function TransactionFormModal({
@@ -602,30 +604,20 @@ export default function TransactionFormModal({
 
                   <div className="row g-3">
                     <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label fw-semibold">Ví</label>
-                        <select
-                          className="form-select"
-                          value={form.walletName || ""}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, walletName: e.target.value }))
-                          }
-                          disabled={mode === "edit" || !hasWallets}
-                          required={hasWallets}
-                        >
-                          <option value="">Chọn</option>
-                          {walletOptions.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
-                        {!hasWallets && (
-                          <div className="text-muted small mt-1">
-                            Không có ví nào. Vui lòng tạo ví trước khi thêm giao dịch.
-                          </div>
-                        )}
-                      </div>
+                      <SearchableSelect
+                        label="Ví"
+                        value={form.walletName}
+                        onChange={(val) => setForm((f) => ({ ...f, walletName: val }))}
+                        options={walletOptions}
+                        placeholder="Chọn hoặc nhập tên ví"
+                        disabled={mode === "edit" || !hasWallets}
+                        emptyMessage="Không có ví nào. Vui lòng tạo ví trước khi thêm giao dịch."
+                      />
+                      {!hasWallets && (
+                        <div className="text-muted small mt-n2 mb-2">
+                          Không có ví nào. Vui lòng tạo ví trước khi thêm giao dịch.
+                        </div>
+                      )}
                     </div>
 
                     <div className="col-md-6">
@@ -682,12 +674,12 @@ export default function TransactionFormModal({
                     </div>
 
                     <div className="col-md-6">
-                      <SelectInput
+                      <SearchableSelect
                         label="Danh mục"
                         value={form.category}
-                        onChange={(v) => setForm((f) => ({ ...f, category: v }))}
+                        onChange={(val) => setForm((f) => ({ ...f, category: val }))}
                         options={categoryOptions}
-                        required={hasCategories}
+                        placeholder="Chọn hoặc nhập danh mục"
                         disabled={!hasCategories}
                         emptyMessage="Không có danh mục nào. Vui lòng tạo danh mục trước."
                       />

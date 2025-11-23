@@ -239,25 +239,18 @@ export default function ReportsPage() {
 
   return (
     <div className="reports-page container py-4">
-      <div
-        className="reports-header card border-0 mb-4"
-        style={{
-          borderRadius: 18,
-          background: "linear-gradient(90deg, #0b5aa5 0%, #0c7fb0 60%, #0ab5c0 100%)",
-          color: "#ffffff",
-        }}
-      >
+      <div className="reports-header card border-0 mb-4">
         <div className="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
-          <div>
-            <h2 className="mb-1" style={{ color: "#fff" }}>
-              Báo cáo Tài chính
-            </h2>
-            <p className="mb-0" style={{ color: "rgba(255,255,255,0.85)" }}>
-              Theo dõi chi tiết dòng tiền vào/ra theo từng ví để ra quyết định chính xác hơn.
-            </p>
-          </div>
-          <div className="reports-header-pill">
-            <i className="bi bi-graph-up" /> Tổng quan realtime
+          <div className="reports-header__heading">
+            <span className="reports-header__icon" aria-hidden="true">
+              <i className="bi bi-bar-chart" />
+            </span>
+            <div>
+              <h2 className="mb-1">Báo cáo Tài chính</h2>
+              <p className="mb-0">
+                Theo dõi chi tiết dòng tiền vào/ra theo từng ví để ra quyết định chính xác hơn.
+              </p>
+            </div>
           </div>
         </div>
       </div>

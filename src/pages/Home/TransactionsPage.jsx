@@ -301,6 +301,41 @@ export default function TransactionsPage() {
     setAppliedFocusParam(normalizedFocus);
   }, [location.search, wallets, activeTab, appliedFocusParam]);
 
+  const parseBudgetDate = useCallback((value) => {
+    if (!value) return null;
+    const [datePart] = value.split("T");
+    if (!datePart) return null;
+    const [year, month, day] = datePart.split("-").map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  }, []);
+
+  const isBudgetExpired = useCallback(
+    (budget) => {
+      if (!budget?.endDate) return false;
+      const end = parseBudgetDate(budget.endDate);
+      if (!end) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      return end < today;
+    },
+    [parseBudgetDate]
+  );
+
+  const isBudgetNotStarted = useCallback(
+    (budget) => {
+      if (!budget?.startDate) return false;
+      const start = parseBudgetDate(budget.startDate);
+      if (!start) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      start.setHours(0, 0, 0, 0);
+      return start > today;
+    },
+    [parseBudgetDate]
+  );
+
   const handleTabChange = (e) => {
     const value = e.target.value;
     setActiveTab(value);
@@ -317,11 +352,12 @@ export default function TransactionsPage() {
     setCreating(false);
   };
 
-  const handleCreate = async (payload) => {
+  const handleCreate = async (payload, options = {}) => {
+    const { skipBudgetCheck = false } = options;
     // Check for budget warning if this is an external expense transaction with a category
-    if (activeTab === TABS.EXTERNAL && payload.type === "expense") {
+    if (!skipBudgetCheck && activeTab === TABS.EXTERNAL && payload.type === "expense") {
       const categoryBudget = budgets.find((b) => b.categoryName === payload.category);
-      if (categoryBudget) {
+      if (categoryBudget && !isBudgetExpired(categoryBudget) && !isBudgetNotStarted(categoryBudget)) {
         // Match budget type:
         // - If budget is for specific wallet, check only category:walletName transactions
         // - If budget is for all wallets, check only category:all transactions
@@ -479,7 +515,7 @@ export default function TransactionsPage() {
     if (!pendingTransaction) return;
 
     // Create the transaction anyway by calling handleCreate
-    await handleCreate(pendingTransaction);
+    await handleCreate(pendingTransaction, { skipBudgetCheck: true });
 
     setBudgetWarning(null);
     setPendingTransaction(null);
@@ -926,38 +962,22 @@ export default function TransactionsPage() {
 
   return (
     <div className="tx-page container py-4">
-      {/* HEADER – dùng màu giống trang Danh sách ví */}
-      <div
-        className="tx-header card border-0 mb-3"
-        style={{
-          borderRadius: 18,
-          background:
-            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
-          color: "#ffffff",
-        }}
-      >
-        <div className="card-body d-flex justify-content-between align-items-center">
-          {/* BÊN TRÁI: ICON + TEXT */}
-          <div className="d-flex align-items-center gap-2">
+      <div className="tx-hero">
+        <div className="tx-hero__content">
+          <div className="tx-hero__info">
             <div className="tx-header-icon-wrap">
-              {/* icon giống sidebar: Giao dịch = bi-cash-stack */}
               <i className="bi bi-cash-stack tx-header-icon" />
             </div>
             <div>
-              <h2 className="tx-title mb-1" style={{ color: "#ffffff" }}>
-                Quản lý Giao dịch
-              </h2>
-              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
+              <h2 className="tx-hero__title">Quản lý Giao dịch</h2>
+              <p className="tx-hero__subtitle">
                 Xem, tìm kiếm và quản lý các khoản thu chi gần đây.
               </p>
             </div>
           </div>
-
-          {/* BÊN PHẢI: CHỌN LOẠI TRANG + THÊM GIAO DỊCH */}
-          <div className="d-flex align-items-center gap-2">
+          <div className="tx-hero__actions">
             <select
-              className="form-select form-select-sm"
-              style={{ minWidth: 220 }}
+              className="tx-hero__select form-select"
               value={activeTab}
               onChange={handleTabChange}
             >
@@ -967,12 +987,12 @@ export default function TransactionsPage() {
             </select>
 
             <button
-              className="btn btn-primary tx-add-btn d-flex align-items-center"
-              style={{ whiteSpace: "nowrap" }}
+              className="tx-hero__btn"
+              type="button"
               onClick={() => setCreating(true)}
             >
-              <i className="bi bi-plus-lg me-2" />
-              Thêm giao dịch mới
+              <i className="bi bi-plus-lg" />
+              <span>Thêm giao dịch</span>
             </button>
           </div>
         </div>

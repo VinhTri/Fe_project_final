@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Modal from "../common/Modal/Modal";
+import SearchableSelect from "../common/SearchableSelect";
+import {
+  formatMoneyInput,
+  handleMoneyInputChange,
+  getMoneyValue,
+} from "../../utils/formatMoneyInput";
 
 export default function BudgetFormModal({
   open,
@@ -22,9 +28,13 @@ export default function BudgetFormModal({
   useEffect(() => {
     if (initialData && mode === "edit") {
       setSelectedCategory(initialData.categoryName);
-      setLimitAmount(initialData.limitAmount);
+      setLimitAmount(formatMoneyInput(initialData.limitAmount));
       // If wallet info exists on initialData, preselect
-      setSelectedWallet(initialData.walletId || initialData.walletName || "");
+      const initialWalletValue =
+        initialData.walletId !== undefined && initialData.walletId !== null
+          ? String(initialData.walletId)
+          : initialData.walletName || "";
+      setSelectedWallet(initialWalletValue);
       // Set dates from initialData if available
       setStartDate(initialData.startDate || "");
       setEndDate(initialData.endDate || "");
@@ -42,20 +52,10 @@ export default function BudgetFormModal({
     setErrors({});
   }, [open, mode, initialData]);
 
-  const handleCategoryChange = (e) => setSelectedCategory(e.target.value);
-  const handleWalletChange = (e) => setSelectedWallet(e.target.value);
-
-  const handleLimitChange = (e) => {
-    const val = e.target.value;
-    // allow only numbers
-    if (/^\d*$/.test(val)) {
-      setLimitAmount(val);
-    }
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
+    const limitValue = getMoneyValue(limitAmount);
 
     if (!selectedCategory) {
       newErrors.category = "Vui lòng chọn danh mục";
@@ -64,7 +64,7 @@ export default function BudgetFormModal({
     if (!selectedWallet) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
-    if (!limitAmount || limitAmount === "0") {
+    if (!limitValue || limitValue === 0) {
       newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
     }
     if (!startDate) {
@@ -91,7 +91,7 @@ export default function BudgetFormModal({
       categoryId: categoryObj.id || null,
       categoryName: selectedCategory,
       categoryType: "expense",
-      limitAmount: parseInt(limitAmount, 10),
+      limitAmount: limitValue,
       startDate,
       endDate,
       alertPercentage: Number(alertThreshold),
@@ -111,6 +111,22 @@ export default function BudgetFormModal({
 
   const categoryList = categories || [];
   const walletList = wallets || [];
+
+  const categoryOptions = useMemo(
+    () =>
+      categoryList
+        .map((cat) => ({ label: cat.name, value: cat.name }))
+        .filter((opt) => opt.label),
+    [categoryList]
+  );
+
+  const walletOptions = useMemo(() => {
+    const core = walletList.map((w) => ({
+      label: w.name,
+      value: String(w.id ?? w.name ?? ""),
+    })).filter((opt) => opt.label);
+    return [{ label: "Áp dụng cho tất cả ví", value: "ALL" }, ...core];
+  }, [walletList]);
 
   return (
     <Modal open={open} onClose={onClose} width={500}>
@@ -140,42 +156,41 @@ export default function BudgetFormModal({
         <form onSubmit={handleSubmit}>
           {/* Category Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Chọn Danh mục</label>
-            <select
-              className={`form-select ${errors.category ? "is-invalid" : ""}`}
+            <SearchableSelect
+              label="Chọn Danh mục"
               value={selectedCategory}
-              onChange={handleCategoryChange}
-            >
-              <option value="">-- Chọn danh mục --</option>
-              {categoryList.map((cat) => (
-                <option key={cat.id} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedCategory}
+              options={categoryOptions}
+              placeholder="-- Chọn danh mục --"
+              required
+            />
             {errors.category && (
               <div className="invalid-feedback d-block">{errors.category}</div>
+            )}
+            {categoryList.length === 0 && (
+              <div className="text-muted small mt-1">
+                Không có danh mục nào. Vui lòng tạo danh mục trước.
+              </div>
             )}
           </div>
 
           {/* Wallet Selector */}
           <div className="mb-3">
-            <label className="form-label fw-semibold">Áp dụng cho Ví</label>
-            <select
-              className={`form-select ${errors.wallet ? "is-invalid" : ""}`}
+            <SearchableSelect
+              label="Áp dụng cho Ví"
               value={selectedWallet}
-              onChange={handleWalletChange}
-            >
-              <option value="">-- Chọn ví --</option>
-              <option value="ALL">Áp dụng cho tất cả ví</option>
-              {walletList.map((w) => (
-                <option key={w.id || w.name} value={w.id ?? w.name}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedWallet}
+              options={walletOptions}
+              placeholder="-- Chọn ví --"
+              required
+            />
             {errors.wallet && (
               <div className="invalid-feedback d-block">{errors.wallet}</div>
+            )}
+            {walletList.length === 0 && (
+              <div className="text-muted small mt-1">
+                Không có ví nào. Vui lòng tạo ví trước khi thêm hạn mức.
+              </div>
             )}
           </div>
 
@@ -188,7 +203,7 @@ export default function BudgetFormModal({
                 className={`form-control ${errors.limit ? "is-invalid" : ""}`}
                 placeholder="0"
                 value={limitAmount}
-                onChange={handleLimitChange}
+                onChange={(e) => handleMoneyInputChange(e, setLimitAmount)}
               />
               <span className="input-group-text">VND</span>
             </div>

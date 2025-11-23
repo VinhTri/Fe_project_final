@@ -26,23 +26,95 @@
 
 /* HEADER */
 .funds-header {
-  background: linear-gradient(
-    120deg,
-    rgba(45, 153, 174, 0.06),
-    rgba(255, 255, 255, 0.98)
-  );
-  border-radius: var(--funds-radius-lg);
-  border: 1px solid rgba(45, 153, 174, 0.22);
-  box-shadow: var(--funds-shadow-soft);
+  border-radius: 24px;
+  padding: 20px 28px;
+  background: linear-gradient(90deg, #0b5aa5 0%, #0c7fb0 60%, #0ab5c0 100%);
+  color: #ffffff;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.14);
+  margin-bottom: 24px;
 }
 
-.funds-header h3 {
+.funds-header__content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.funds-header__heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.funds-header__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.15));
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  box-shadow: 0 12px 30px rgba(4, 24, 50, 0.35);
+}
+
+.funds-header__icon i {
+  font-size: 1.3rem;
+}
+
+.funds-header__title {
+  font-size: 1.6rem;
   font-weight: 600;
-  color: var(--funds-text);
+  margin: 0;
+  color: #ffffff;
 }
 
-.funds-header p {
-  color: var(--funds-text-muted);
+.funds-header__subtitle {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.funds-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.funds-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 10px 22px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 14px 28px rgba(4, 24, 50, 0.25);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    transform 0.15s ease;
+}
+
+.funds-btn i {
+  font-size: 1rem;
+}
+
+.funds-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  color: #0a4350;
+  border-color: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+.funds-btn--ghost {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* =========================

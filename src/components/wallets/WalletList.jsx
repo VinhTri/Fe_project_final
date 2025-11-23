@@ -71,9 +71,7 @@ export default function WalletList({
           onClick={() => onTabChange("personal")}
         >
           Ví cá nhân
-          {personalCount > 0 && (
-            <span className="wallets-tab__badge">{personalCount}</span>
-          )}
+          <span className="wallets-tab__badge">{personalCount}</span>
         </button>
         <button
           className={
@@ -84,9 +82,7 @@ export default function WalletList({
           onClick={() => onTabChange("group")}
         >
           Ví nhóm
-          {groupCount > 0 && (
-            <span className="wallets-tab__badge">{groupCount}</span>
-          )}
+          <span className="wallets-tab__badge">{groupCount}</span>
         </button>
         <button
           className={
@@ -97,9 +93,7 @@ export default function WalletList({
           onClick={() => onTabChange("shared")}
         >
           Ví chia sẻ
-          {sharedCount > 0 && (
-            <span className="wallets-tab__badge">{sharedCount}</span>
-          )}
+          <span className="wallets-tab__badge">{sharedCount}</span>
         </button>
       </div>
 

@@ -471,9 +471,14 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <div className="dashboard-page__header-box">
         <div className="dashboard-page__header">
-          <div>
-            <h2 className="dashboard-page__title">{t("dashboard.title")}</h2>
-            <p className="dashboard-page__subtitle">{t("dashboard.subtitle")}</p>
+          <div className="dashboard-page__heading">
+            <span className="dashboard-page__title-icon" aria-hidden="true">
+              <i className="bi bi-speedometer2" />
+            </span>
+            <div>
+              <h2 className="dashboard-page__title">{t("dashboard.title")}</h2>
+              <p className="dashboard-page__subtitle">{t("dashboard.subtitle")}</p>
+            </div>
           </div>
           <div className="dashboard-page__period">
             <button

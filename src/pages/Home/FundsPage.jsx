@@ -341,57 +341,58 @@ export default function FundsPage() {
   return (
     <div className="funds-page container py-4">
       {/* HEADER */}
-      <div className="funds-header card border-0 shadow-sm mb-3 p-3 p-lg-4">
-        <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-          <div>
-            <h3 className="mb-1">
-              <i className="bi bi-piggy-bank me-2" />
-              Quỹ của bạn
-            </h3>
-            <p className="mb-0 text-muted">
-              Theo dõi và quản lý các quỹ tiết kiệm, quỹ nhóm và quỹ bạn tham
-              gia.
-            </p>
+      <div className="funds-header">
+        <div className="funds-header__content">
+          <div className="funds-header__heading">
+            <span className="funds-header__icon" aria-hidden="true">
+              <i className="bi bi-piggy-bank" />
+            </span>
+            <div>
+              <h1 className="funds-header__title">Quỹ của bạn</h1>
+              <p className="funds-header__subtitle">
+                Theo dõi và quản lý các quỹ tiết kiệm, quỹ nhóm và quỹ bạn tham gia.
+              </p>
+            </div>
           </div>
 
-          <div className="d-flex flex-wrap gap-2 justify-content-lg-end">
+          <div className="funds-header__actions">
             {viewMode === "overview" ? (
               <>
                 <button
                   type="button"
-                  className="btn btn-outline-primary funds-btn"
+                  className="funds-btn"
                   onClick={() => setViewMode("create-personal")}
                 >
-                  <i className="bi bi-plus-circle me-1" />
+                  <i className="bi bi-plus-circle" />
                   Tạo quỹ cá nhân
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline-primary"
+                  className="funds-btn"
                   onClick={() => setViewMode("create-group")}
                 >
-                  <i className="bi bi-people-fill me-1" />
+                  <i className="bi bi-people-fill" />
                   Tạo quỹ nhóm
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline-secondary"
+                  className="funds-btn"
                   onClick={() => setViewMode("participate")}
                 >
-                  <i className="bi bi-person-check me-1" />
+                  <i className="bi bi-person-check" />
                   Quản lý quỹ tham gia
                 </button>
               </>
             ) : (
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="funds-btn funds-btn--ghost"
                 onClick={() => {
                   setViewMode("overview");
                   setActiveFund(null);
                 }}
               >
-                <i className="bi bi-arrow-left me-1" />
+                <i className="bi bi-arrow-left" />
                 Quay lại danh sách quỹ
               </button>
             )}

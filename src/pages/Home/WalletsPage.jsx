@@ -317,6 +317,19 @@ export default function WalletsPage() {
     [sharedCandidates, isWalletOwnedByMe]
   );
 
+  const sharedWalletCount = useMemo(
+    () => sharedByMeWallets.length + sharedWithMeWallets.length,
+    [sharedByMeWallets, sharedWithMeWallets]
+  );
+
+  const sumWalletBalance = useCallback((list) => {
+    return list.reduce((total, wallet) => total + (Number(wallet.balance ?? 0) || 0), 0);
+  }, []);
+
+  const personalBalanceTotal = useMemo(() => sumWalletBalance(personalWallets), [personalWallets, sumWalletBalance]);
+  const groupBalanceTotal = useMemo(() => sumWalletBalance(groupWallets), [groupWallets, sumWalletBalance]);
+  const sharedBalanceTotal = useMemo(() => sumWalletBalance(sharedCandidates), [sharedCandidates, sumWalletBalance]);
+
   const sharedWithMeDisplayWallets = useMemo(() => {
     const normalizedActual = sharedWithMeWallets.map((wallet) => ({
       ...wallet,
@@ -1242,62 +1255,86 @@ export default function WalletsPage() {
   };
 
   return (
-    <div className="wallets-page">
-      <div className="wallets-page__header">
-        <div>
-          <h1 className="wallets-page__title">Quản lý ví</h1>
-          <p className="wallets-page__subtitle">
-            Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một
-            màn hình.
-          </p>
+    <>
+      <div className="wallets-page__hero">
+        <div className="wallets-page__header">
+          <div className="wallets-page__heading">
+            <span className="wallets-page__title-icon" aria-hidden="true">
+              <i className="bi bi-wallet2" />
+            </span>
+            <div>
+              <h1 className="wallets-page__title">Quản lý ví</h1>
+              <p className="wallets-page__subtitle">
+                Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một
+                màn hình.
+              </p>
             </div>
-              <button
-          className="wallets-btn wallets-btn--primary"
-          onClick={() => setShowCreate((v) => !v)}
-        >
-          {showCreate ? "Đóng tạo ví" : "Tạo ví cá nhân"}
-              </button>
-            </div>
+          </div>
+          <button
+            className="wallets-btn wallets-btn--primary"
+            onClick={() => setShowCreate((v) => !v)}
+          >
+            {showCreate ? "Đóng tạo ví" : "Tạo ví cá nhân"}
+          </button>
+        </div>
+      </div>
 
-      <div className="wallets-page__stats">
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">Tổng số dư</span>
-          <span className="wallets-stat__value">
-            {formatMoney(totalBalance, displayCurrency || "VND")}
-              </span>
+      <div className="wallets-stats-card card border-0 shadow-sm">
+        <div className="wallets-page__stats">
+          <div className="wallets-stat">
+            <span className="wallets-stat__label">Tổng số dư</span>
+            <span className="wallets-stat__value">
+              {formatMoney(totalBalance, displayCurrency || "VND")}
+            </span>
+          </div>
+          <div className="wallets-stat">
+            <div className="wallets-stat__heading">
+              <span className="wallets-stat__label">Ví cá nhân</span>
+              <span className="wallets-stat__count">{personalWallets.length} ví</span>
             </div>
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">Ví cá nhân</span>
-          <span className="wallets-stat__value">{personalWallets.length}</span>
-                      </div>
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">Ví nhóm</span>
-          <span className="wallets-stat__value">{groupWallets.length}</span>
-                    </div>
-                  </div>
+            <span className="wallets-stat__sub">{formatMoney(personalBalanceTotal, displayCurrency || "VND")}</span>
+          </div>
+          <div className="wallets-stat">
+            <div className="wallets-stat__heading">
+              <span className="wallets-stat__label">Ví nhóm</span>
+              <span className="wallets-stat__count">{groupWallets.length} ví</span>
+            </div>
+            <span className="wallets-stat__sub">{formatMoney(groupBalanceTotal, displayCurrency || "VND")}</span>
+          </div>
+          <div className="wallets-stat">
+            <div className="wallets-stat__heading">
+              <span className="wallets-stat__label">Ví chia sẻ</span>
+              <span className="wallets-stat__count">{sharedWalletCount} ví</span>
+            </div>
+            <span className="wallets-stat__sub">{formatMoney(sharedBalanceTotal, displayCurrency || "VND")}</span>
+          </div>
+        </div>
+      </div>
 
       <div className="wallets-layout">
-        <WalletList
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          personalCount={personalWallets.length}
-          groupCount={groupWallets.length}
-          sharedCount={sharedByMeWallets.length + sharedWithMeDisplayWallets.length}
-          sharedFilter={sharedFilter}
-          onSharedFilterChange={setSharedFilter}
-          sharedByMeCount={sharedByMeWallets.length}
-          sharedWithMeCount={sharedWithMeDisplayWallets.length}
-          search={search}
-          onSearchChange={setSearch}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          wallets={sortedWallets}
-          selectedId={selectedId}
-          onSelectWallet={handleSelectWallet}
-          sharedWithMeOwners={sharedWithMeOwnerGroups}
-          selectedSharedOwnerId={selectedSharedOwnerId}
-          onSelectSharedOwner={handleSelectSharedOwner}
-        />
+        <div className="wallets-list-container card border-0 shadow-sm">
+          <WalletList
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            personalCount={personalWallets.length}
+            groupCount={groupWallets.length}
+            sharedCount={sharedByMeWallets.length + sharedWithMeDisplayWallets.length}
+            sharedFilter={sharedFilter}
+            onSharedFilterChange={setSharedFilter}
+            sharedByMeCount={sharedByMeWallets.length}
+            sharedWithMeCount={sharedWithMeDisplayWallets.length}
+            search={search}
+            onSearchChange={setSearch}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            wallets={sortedWallets}
+            selectedId={selectedId}
+            onSelectWallet={handleSelectWallet}
+            sharedWithMeOwners={sharedWithMeOwnerGroups}
+            selectedSharedOwnerId={selectedSharedOwnerId}
+            onSelectSharedOwner={handleSelectSharedOwner}
+          />
+        </div>
 
         <WalletDetail
                       wallet={selectedWallet}
@@ -1369,7 +1406,8 @@ export default function WalletsPage() {
           onDeleteWallet={handleDeleteWallet}
           onChangeSelectedWallet={handleChangeSelectedWallet}
         />
-              </div>
+
+      </div>
 
       <Toast
         open={toast.open}
@@ -1379,20 +1417,20 @@ export default function WalletsPage() {
         onClose={closeToast}
       />
 
-        {demoNavigationState.visible && (
-          <div className="wallets-demo-overlay">
-            <div className="wallets-demo-overlay__box">
-              <p className="wallets-demo-overlay__title">Đang điều hướng đến trang…</p>
-              {demoNavigationState.walletName && (
-                <p className="wallets-demo-overlay__wallet">{demoNavigationState.walletName}</p>
-              )}
-              <span className="wallets-demo-overlay__hint">
-                Đây là bản demo, chức năng sẽ được hoàn thiện trong bản chính thức.
-              </span>
-            </div>
+      {demoNavigationState.visible && (
+        <div className="wallets-demo-overlay">
+          <div className="wallets-demo-overlay__box">
+            <p className="wallets-demo-overlay__title">Đang điều hướng đến trang…</p>
+            {demoNavigationState.walletName && (
+              <p className="wallets-demo-overlay__wallet">{demoNavigationState.walletName}</p>
+            )}
+            <span className="wallets-demo-overlay__hint">
+              Đây là bản demo, chức năng sẽ được hoàn thiện trong bản chính thức.
+            </span>
           </div>
-        )}
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 
