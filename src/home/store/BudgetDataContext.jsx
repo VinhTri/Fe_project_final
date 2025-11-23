@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 const BudgetDataContext = createContext(null);
 
 export function BudgetDataProvider({ children }) {
+  const { formatDate } = useDateFormat();
   const [budgets, setBudgets] = useState([
     {
       id: 1,
@@ -48,10 +50,8 @@ export function BudgetDataProvider({ children }) {
   // ====== helpers ======
   const createBudget = useCallback((payload) => {
     // payload: { categoryId, categoryName, categoryType, limitAmount, walletId, walletName, startDate, endDate }
-    const currentMonth = new Date().toLocaleDateString("vi-VN", {
-      month: "2-digit",
-      year: "numeric",
-    });
+    const monthRaw = formatDate(new Date(), { pattern: "MM/yyyy" });
+    const currentMonth = monthRaw === "--" ? "" : monthRaw;
     const newBudget = {
       id: Date.now(),
       createdAt: new Date().toISOString(),
@@ -67,7 +67,7 @@ export function BudgetDataProvider({ children }) {
     };
     setBudgets((prev) => [newBudget, ...prev]);
     return newBudget;
-  }, []);
+  }, [formatDate]);
 
   const updateBudget = useCallback((budgetId, patch) => {
     setBudgets((prev) =>

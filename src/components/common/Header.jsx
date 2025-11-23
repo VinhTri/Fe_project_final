@@ -2,9 +2,12 @@
 import { useLocation } from "react-router-dom";
 import "../../styles/Header.css";
 import GlobalSearch from "./GlobalSearch";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function Header() {
   const location = useLocation();
+  const { translate } = useLanguage();
+  const t = translate;
   const isAuthPage = location.pathname.startsWith("/login") || 
                      location.pathname.startsWith("/register") || 
                      location.pathname.startsWith("/forgot-password") ||
@@ -28,10 +31,10 @@ export default function Header() {
 
         <div className="app-header__brand-text ms-3">
           <strong className="app-header__title">
-            Hệ thống quản lý chi tiêu cá nhân
+            {t("Hệ thống quản lý chi tiêu cá nhân", "Personal finance management system")}
           </strong>
           <p className="app-header__subtitle mb-0">
-            Chào mừng bạn đến với hệ thống
+            {t("Chào mừng bạn đến với hệ thống", "Welcome to the platform")}
           </p>
         </div>
       </div>

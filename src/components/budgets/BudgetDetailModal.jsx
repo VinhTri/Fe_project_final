@@ -1,7 +1,9 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit, onRemind }) {
+  const { formatDate } = useDateFormat();
   if (!open || !budget) return null;
 
   const formatCurrency = (value = 0) => {
@@ -28,7 +30,12 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
   const spent = usage?.spent || 0;
   const remaining = usage?.remaining ?? limit - spent;
   const rangeLabel = budget.startDate && budget.endDate
-    ? `${new Date(budget.startDate).toLocaleDateString("vi-VN")} - ${new Date(budget.endDate).toLocaleDateString("vi-VN")}`
+    ? (() => {
+        const start = formatDate(budget.startDate);
+        const end = formatDate(budget.endDate);
+        if (start === "--" || end === "--") return "Chưa thiết lập";
+        return `${start} - ${end}`;
+      })()
     : "Chưa thiết lập";
 
   return (
@@ -79,7 +86,7 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
             <ul>
               <li>Danh mục: {budget.categoryName}</li>
               <li>Ví áp dụng: {budget.walletName || "Tất cả ví"}</li>
-              <li>Ngày tạo: {budget.createdAt ? new Date(budget.createdAt).toLocaleDateString("vi-VN") : "--"}</li>
+              <li>Ngày tạo: {budget.createdAt ? formatDate(budget.createdAt) : "--"}</li>
             </ul>
           </div>
         </div>

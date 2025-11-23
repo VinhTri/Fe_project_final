@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from "react";
 import { Dropdown } from "bootstrap";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 export default function WalletGroupCard({ group, onView, onEdit, onDelete }) {
   const btnRef = useRef(null);
+  const { formatDate } = useDateFormat();
+  const createdAtLabel = group?.createdAt ? formatDate(group.createdAt) : "";
 
   useEffect(() => {
     if (btnRef.current) {
@@ -77,7 +80,7 @@ export default function WalletGroupCard({ group, onView, onEdit, onDelete }) {
             Gồm: {group.wallets?.length ? group.wallets.join(", ") : "Chưa có ví nào"}
           </p>
           <div className="small text-muted mt-2">
-            Tạo ngày: {new Date(group.createdAt).toLocaleDateString("vi-VN")}
+            Tạo ngày: {createdAtLabel && createdAtLabel !== "--" ? createdAtLabel : "—"}
           </div>
         </div>
       </div>

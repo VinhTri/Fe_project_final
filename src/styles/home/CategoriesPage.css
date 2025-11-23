@@ -1,11 +1,15 @@
 /* Trang Danh mục – đồng bộ style với các page Home khác */
 .category-page {
   padding: 18px 24px 32px;
+  color: var(--app-text);
+  --category-card-text: var(--app-card-text, #0f172a);
+  --category-card-muted: var(--app-card-muted, #475569);
 }
 
 /* Aliases for component classNames (component uses .cat-... names) */
 .cat-page {
   padding: 18px 24px 32px;
+  color: var(--app-text);
 }
 
 /* HERO */
@@ -299,23 +303,48 @@
   border-radius: 16px;
   padding: 20px 24px;
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.55);
+  color: var(--category-card-text);
 }
 
-.category-modal-title {
+.category-modal-title,
+.category-modal__title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--category-card-text);
 }
 
-.category-modal-label {
+.category-modal-label,
+.category-modal .form-label,
+.category-modal label {
   font-size: 0.85rem;
-  color: #4b5563;
+  color: var(--category-card-text);
+}
+
+.category-modal input,
+.category-modal textarea {
+  color: var(--category-card-text);
+  background-color: #ffffff;
+}
+
+.category-modal input::placeholder,
+.category-modal textarea::placeholder {
+  color: var(--category-card-muted);
+  opacity: 1;
+}
+
+.category-modal .btn-light {
+  color: var(--category-card-text);
 }
 
 .category-modal-text {
   font-size: 0.9rem;
-  color: #374151;
+  color: var(--category-card-muted);
   margin-bottom: 16px;
+}
+
+.category-modal small,
+.category-modal .text-muted {
+  color: var(--category-card-muted) !important;
 }
 
 .category-input {

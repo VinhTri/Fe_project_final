@@ -1,6 +1,7 @@
 /* ===== Reports Page Layout ===== */
 .reports-page {
   padding: 18px 24px 32px;
+  color: var(--app-text);
 }
 
 .reports-header {
@@ -38,6 +39,17 @@
 .reports-header__icon i {
   font-size: 1.3rem;
   color: #ffffff;
+}
+
+.reports-page .card,
+.reports-wallet-item {
+  color: var(--app-card-text);
+}
+
+.reports-page .card .text-muted,
+.reports-page .card small,
+.reports-wallet-item small {
+  color: var(--app-card-muted) !important;
 }
 
 .reports-layout {

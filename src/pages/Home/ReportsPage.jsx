@@ -2,13 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/home/ReportsPage.css";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 import { transactionAPI } from "../../services/api-client";
-
-const RANGE_OPTIONS = [
-  { value: "week", label: "Tuần" },
-  { value: "month", label: "Tháng" },
-  { value: "year", label: "Năm" },
-];
 
 const INCOME_COLOR = "#0B63F6";
 const EXPENSE_COLOR = "#00C2FF";
@@ -52,11 +47,13 @@ const sumInRange = (list, start, end) => {
   return totals;
 };
 
-const buildWeeklyData = (transactions) => {
+const buildWeeklyData = (transactions, labelOverrides) => {
   const now = new Date();
   const dayOfWeek = now.getDay() || 7; // 1..7 (Mon..Sun)
   const monday = addDays(now, 1 - dayOfWeek);
-  const periods = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((label, index) => {
+  const baseLabels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  const labels = Array.isArray(labelOverrides) && labelOverrides.length === baseLabels.length ? labelOverrides : baseLabels;
+  const periods = labels.map((label, index) => {
     const start = addDays(monday, index);
     start.setHours(0, 0, 0, 0);
     const end = addDays(start, 0);
@@ -70,49 +67,51 @@ const buildWeeklyData = (transactions) => {
   }));
 };
 
-const buildMonthlyData = (transactions) => {
+const buildMonthlyData = (transactions, labelOverrides) => {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
-  const periods = [
+  const basePeriods = [
     { label: "Tuần 1", startDay: 1, endDay: 7 },
     { label: "Tuần 2", startDay: 8, endDay: 14 },
     { label: "Tuần 3", startDay: 15, endDay: 21 },
     { label: "Tuần 4", startDay: 22, endDay: 31 },
   ];
 
-  return periods.map(({ label, startDay, endDay }) => {
+  return basePeriods.map(({ label, startDay, endDay }, index) => {
+    const resolvedLabel = Array.isArray(labelOverrides) && labelOverrides[index] ? labelOverrides[index] : label;
     const start = new Date(year, month, startDay, 0, 0, 0);
     const end = new Date(year, month, endDay, 23, 59, 59);
-    return { label, ...sumInRange(transactions, start, end) };
+    return { label: resolvedLabel, ...sumInRange(transactions, start, end) };
   });
 };
 
-const buildYearlyData = (transactions) => {
+const buildYearlyData = (transactions, labelOverrides) => {
   const now = new Date();
   const year = now.getFullYear();
-  const periods = Array.from({ length: 12 }, (_, idx) => ({
+  const basePeriods = Array.from({ length: 12 }, (_, idx) => ({
     label: `Th ${idx + 1}`,
     month: idx,
   }));
 
-  return periods.map(({ label, month }) => {
+  return basePeriods.map(({ label, month }, index) => {
+    const resolvedLabel = Array.isArray(labelOverrides) && labelOverrides[index] ? labelOverrides[index] : label;
     const start = new Date(year, month, 1, 0, 0, 0);
     const end = new Date(year, month + 1, 0, 23, 59, 59);
-    return { label, ...sumInRange(transactions, start, end) };
+    return { label: resolvedLabel, ...sumInRange(transactions, start, end) };
   });
 };
 
-const buildChartData = (transactions, range) => {
+const buildChartData = (transactions, range, labelOverrides = {}) => {
   if (!transactions.length) return [];
   switch (range) {
     case "month":
-      return buildMonthlyData(transactions);
+      return buildMonthlyData(transactions, labelOverrides.month);
     case "year":
-      return buildYearlyData(transactions);
+      return buildYearlyData(transactions, labelOverrides.year);
     case "week":
     default:
-      return buildWeeklyData(transactions);
+      return buildWeeklyData(transactions, labelOverrides.week);
   }
 };
 
@@ -132,6 +131,8 @@ const formatCompactNumber = (value) => {
 };
 
 export default function ReportsPage() {
+  const { translate } = useLanguage();
+  const t = translate;
   const { wallets, loading: walletsLoading } = useWalletData();
   const [selectedWalletId, setSelectedWalletId] = useState(null);
   const [range, setRange] = useState("week");
@@ -141,6 +142,35 @@ export default function ReportsPage() {
   const [error, setError] = useState("");
   const [hoveredColumnIndex, setHoveredColumnIndex] = useState(null);
   const navigate = useNavigate();
+  const rangeOptions = useMemo(
+    () => [
+      { value: "week", label: t("Tuần", "Week") },
+      { value: "month", label: t("Tháng", "Month") },
+      { value: "year", label: t("Năm", "Year") },
+    ],
+    [t]
+  );
+  const chartLabelOverrides = useMemo(
+    () => ({
+      week: [
+        t("T2", "Mon"),
+        t("T3", "Tue"),
+        t("T4", "Wed"),
+        t("T5", "Thu"),
+        t("T6", "Fri"),
+        t("T7", "Sat"),
+        t("CN", "Sun"),
+      ],
+      month: [
+        t("Tuần 1", "Week 1"),
+        t("Tuần 2", "Week 2"),
+        t("Tuần 3", "Week 3"),
+        t("Tuần 4", "Week 4"),
+      ],
+      year: Array.from({ length: 12 }, (_, idx) => t(`Th ${idx + 1}`, `M${idx + 1}`)),
+    }),
+    [t]
+  );
 
   useEffect(() => {
     if (!walletsLoading && wallets.length && !selectedWalletId) {
@@ -163,7 +193,7 @@ export default function ReportsPage() {
         }
       } catch (err) {
         if (mounted) {
-          setError(err.message || "Không thể tải dữ liệu báo cáo.");
+          setError(err.message || t("Không thể tải dữ liệu báo cáo.", "Unable to load report data."));
         }
       } finally {
         if (mounted) {
@@ -175,7 +205,7 @@ export default function ReportsPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [t]);
 
   const filteredWallets = useMemo(() => {
     const keyword = walletSearch.trim().toLowerCase();
@@ -193,7 +223,10 @@ export default function ReportsPage() {
     return transactions.filter((tx) => tx.walletId === Number(selectedWalletId));
   }, [transactions, selectedWalletId]);
 
-  const chartData = useMemo(() => buildChartData(walletTransactions, range), [walletTransactions, range]);
+  const chartData = useMemo(
+    () => buildChartData(walletTransactions, range, chartLabelOverrides),
+    [walletTransactions, range, chartLabelOverrides]
+  );
   const chartMaxValue = chartData.reduce((max, item) => Math.max(max, item.income, item.expense), 0);
   const yAxisTicks = useMemo(() => {
     if (!chartMaxValue) return [0];
@@ -246,9 +279,12 @@ export default function ReportsPage() {
               <i className="bi bi-bar-chart" />
             </span>
             <div>
-              <h2 className="mb-1">Báo cáo Tài chính</h2>
+              <h2 className="mb-1">{t("Báo cáo Tài chính", "Financial reports")}</h2>
               <p className="mb-0">
-                Theo dõi chi tiết dòng tiền vào/ra theo từng ví để ra quyết định chính xác hơn.
+                {t(
+                  "Theo dõi chi tiết dòng tiền vào/ra theo từng ví để ra quyết định chính xác hơn.",
+                  "Track wallet-level cash flow to make better decisions."
+                )}
               </p>
             </div>
           </div>
@@ -260,26 +296,26 @@ export default function ReportsPage() {
           <div className="card-body">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div>
-                <h5 className="mb-1">Danh sách ví</h5>
-                <p className="text-muted mb-0 small">Chọn một ví để xem biểu đồ dòng tiền.</p>
+                <h5 className="mb-1">{t("Danh sách ví", "Wallet list")}</h5>
+                <p className="text-muted mb-0 small">{t("Chọn một ví để xem biểu đồ dòng tiền.", "Select a wallet to view its cashflow chart.")}</p>
               </div>
-              <span className="badge rounded-pill text-bg-light">{wallets.length} ví</span>
+              <span className="badge rounded-pill text-bg-light">{t(`${wallets.length} ví`, `${wallets.length} wallets`)}</span>
             </div>
             <div className="reports-wallet-search mb-3">
               <i className="bi bi-search" />
               <input
                 type="text"
                 className="form-control"
-                placeholder="Tìm kiếm ví..."
+                placeholder={t("Tìm kiếm ví...", "Search wallets...")}
                 value={walletSearch}
                 onChange={(e) => setWalletSearch(e.target.value)}
               />
             </div>
             <div className="reports-wallet-list">
               {walletsLoading ? (
-                <div className="text-center py-4 text-muted small">Đang tải ví...</div>
+                <div className="text-center py-4 text-muted small">{t("Đang tải ví...", "Loading wallets...")}</div>
               ) : filteredWallets.length === 0 ? (
-                <div className="text-center py-4 text-muted small">Không tìm thấy ví phù hợp.</div>
+                <div className="text-center py-4 text-muted small">{t("Không tìm thấy ví phù hợp.", "No wallets match your search.")}</div>
               ) : (
                 filteredWallets.map((wallet) => (
                   <button
@@ -291,8 +327,8 @@ export default function ReportsPage() {
                     <div>
                       <p className="wallet-name mb-1">{wallet.name}</p>
                       <div className="wallet-tags">
-                        {wallet.isDefault && <span className="badge rounded-pill text-bg-primary">Mặc định</span>}
-                        {wallet.isShared && <span className="badge rounded-pill text-bg-info">Ví nhóm</span>}
+                        {wallet.isDefault && <span className="badge rounded-pill text-bg-primary">{t("Mặc định", "Default")}</span>}
+                        {wallet.isShared && <span className="badge rounded-pill text-bg-info">{t("Ví nhóm", "Group wallet")}</span>}
                       </div>
                     </div>
                     <div className="wallet-balance text-end">
@@ -311,26 +347,26 @@ export default function ReportsPage() {
             <div className="reports-chart-header-card">
               <div className="reports-chart-header">
                 <div>
-                  <p className="text-muted mb-1">Ví được chọn</p>
-                  <h4 className="mb-1">{selectedWallet?.name || "Chưa có ví"}</h4>
+                  <p className="text-muted mb-1">{t("Ví được chọn", "Selected wallet")}</p>
+                  <h4 className="mb-1">{selectedWallet?.name || t("Chưa có ví", "No wallet selected")}</h4>
                   <div className="reports-summary-row">
                     <div>
                       <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                      Thu vào: <strong>{formatCurrency(summary.income, currency)}</strong>
+                      {t("Thu vào", "Money in")}: <strong>{formatCurrency(summary.income, currency)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                      Chi ra: <strong>{formatCurrency(summary.expense, currency)}</strong>
+                      {t("Chi ra", "Money out")}: <strong>{formatCurrency(summary.expense, currency)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
-                      Còn lại: <strong>{formatCurrency(net, currency)}</strong>
+                      {t("Còn lại", "Net")}: <strong>{formatCurrency(net, currency)}</strong>
                     </div>
                   </div>
                 </div>
                 <div className="reports-header-actions">
                   <div className="reports-range-toggle">
-                    {RANGE_OPTIONS.map((option) => (
+                    {rangeOptions.map((option) => (
                       <button
                         key={option.value}
                         type="button"
@@ -347,7 +383,7 @@ export default function ReportsPage() {
                     onClick={handleViewHistory}
                     disabled={!selectedWalletId}
                   >
-                    <i className="bi bi-clock-history" /> Lịch sử giao dịch
+                    <i className="bi bi-clock-history" /> {t("Lịch sử giao dịch", "Transaction history")}
                   </button>
                 </div>
               </div>
@@ -357,11 +393,11 @@ export default function ReportsPage() {
               {loadingTransactions ? (
                 <div className="reports-chart-empty text-center text-muted py-5">
                   <div className="spinner-border text-primary mb-3" role="status" />
-                  <p className="mb-0">Đang tải dữ liệu giao dịch...</p>
+                  <p className="mb-0">{t("Đang tải dữ liệu giao dịch...", "Loading transaction data...")}</p>
                 </div>
               ) : !selectedWallet ? (
                 <div className="reports-chart-empty text-center text-muted py-5">
-                  Hãy chọn một ví để xem báo cáo.
+                  {t("Hãy chọn một ví để xem báo cáo.", "Choose a wallet to view its report.")}
                 </div>
               ) : error ? (
                 <div className="reports-chart-empty text-center text-danger py-5">
@@ -369,7 +405,7 @@ export default function ReportsPage() {
                 </div>
               ) : chartData.length === 0 ? (
                 <div className="reports-chart-empty text-center text-muted py-5">
-                  Chưa có giao dịch nào cho giai đoạn này.
+                  {t("Chưa có giao dịch nào cho giai đoạn này.", "No transactions for this period.")}
                 </div>
               ) : (
                 <div className="reports-chart-viewport">

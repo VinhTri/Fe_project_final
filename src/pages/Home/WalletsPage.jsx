@@ -7,6 +7,9 @@ import { useWalletData } from "../../home/store/WalletDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { transactionAPI, walletAPI } from "../../services/api-client";
 import Toast from "../../components/common/Toast/Toast";
+import { useLanguage } from "../../home/store/LanguageContext";
+import { useMoneyFormat } from "../../hooks/useMoneyFormat";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 import "../../styles/home/WalletsPage.css";
 
@@ -141,75 +144,6 @@ const sortWalletsByMode = (walletList = [], sortMode = "default") => {
   return arr;
 };
 
-/**
- * Format ngày theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "DD/MM/YYYY"
- */
-function formatVietnamDate(date) {
-  if (!date) return "";
-  
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  
-  if (Number.isNaN(d.getTime())) return "";
-  
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-/**
- * Format giờ theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "HH:mm"
- */
-function formatVietnamTime(date) {
-  if (!date) return "";
-  
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  
-  if (Number.isNaN(d.getTime())) return "";
-  
-  return d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
-/**
- * Format time label cho giao dịch (ngày giờ chính xác)
- */
-function formatTimeLabel(dateString) {
-  if (!dateString) return "";
-  
-  const transactionDate = new Date(dateString);
-  if (Number.isNaN(transactionDate.getTime())) return "";
-  
-  const dateStr = formatVietnamDate(transactionDate);
-  const timeStr = formatVietnamTime(transactionDate);
-  
-  return `${dateStr} ${timeStr}`;
-}
-
 const getVietnamDateTime = () => {
   const now = new Date();
   const vietnamTime = new Date(
@@ -219,6 +153,8 @@ const getVietnamDateTime = () => {
 };
 
 export default function WalletsPage() {
+  const { translate, language } = useLanguage();
+  const t = translate;
   const { 
     wallets = [],
     createWallet, 
@@ -230,6 +166,29 @@ export default function WalletsPage() {
     loadWallets,
     setDefaultWallet,
   } = useWalletData();
+  const { formatMoney } = useMoneyFormat();
+  const { formatDate } = useDateFormat();
+  const formatDateOnly = useCallback(
+    (value) => {
+      const formatted = formatDate(value);
+      return formatted === "--" ? "" : formatted;
+    },
+    [formatDate]
+  );
+  const formatTimeOnly = useCallback(
+    (value) => {
+      const formatted = formatDate(value, { pattern: "HH:mm" });
+      return formatted === "--" ? "" : formatted;
+    },
+    [formatDate]
+  );
+  const formatDateTimeLabel = useCallback(
+    (value) => {
+      const formatted = formatDate(value, { withTime: true });
+      return formatted === "--" ? "" : formatted;
+    },
+    [formatDate]
+  );
   const location = useLocation();
 
   const [currentUserId, setCurrentUserId] = useState(() => getLocalUserId());
@@ -248,6 +207,7 @@ export default function WalletsPage() {
   }, []);
 
   const { expenseCategories = [], incomeCategories = [] } = useCategoryData();
+  const locale = language === "en" ? "en-US" : "vi-VN";
 
   const incomeCategoryOptions = useMemo(
     () => (incomeCategories.length ? incomeCategories : DEMO_CATEGORIES),
@@ -761,31 +721,6 @@ export default function WalletsPage() {
     });
   }, [wallets]);
 
-  // Format số tiền
-  const formatMoney = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
-      }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
-    }
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  };
-
   // Tổng số dư: chuyển đổi tất cả về VND, sau đó quy đổi sang displayCurrency
   const totalBalance = useMemo(
     () => {
@@ -1160,7 +1095,7 @@ export default function WalletsPage() {
     
     // Format time label
     const dateValue = tx.createdAt || tx.transactionDate || new Date().toISOString();
-    const timeLabel = formatTimeLabel(dateValue);
+    const timeLabel = formatDateTimeLabel(dateValue);
     
     return {
       id: tx.transactionId,
@@ -1190,7 +1125,7 @@ export default function WalletsPage() {
     
     // Format time label
     const dateValue = transfer.createdAt || transfer.transferDate || new Date().toISOString();
-    const timeLabel = formatTimeLabel(dateValue);
+    const timeLabel = formatDateTimeLabel(dateValue);
     
     return {
       id: `transfer-${transfer.transferId}`,
@@ -1263,10 +1198,12 @@ export default function WalletsPage() {
               <i className="bi bi-wallet2" />
             </span>
             <div>
-              <h1 className="wallets-page__title">Quản lý ví</h1>
+              <h1 className="wallets-page__title">{t("Quản lý ví", "Wallet management")}</h1>
               <p className="wallets-page__subtitle">
-                Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một
-                màn hình.
+                {t(
+                  "Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một màn hình.",
+                  "Create wallets, deposit, withdraw, transfer, merge, and share — all on one screen."
+                )}
               </p>
             </div>
           </div>
@@ -1274,7 +1211,9 @@ export default function WalletsPage() {
             className="wallets-btn wallets-btn--primary"
             onClick={() => setShowCreate((v) => !v)}
           >
-            {showCreate ? "Đóng tạo ví" : "Tạo ví cá nhân"}
+            {showCreate
+              ? t("Đóng tạo ví", "Close create form")
+              : t("Tạo ví cá nhân", "Create personal wallet")}
           </button>
         </div>
       </div>
@@ -1282,29 +1221,29 @@ export default function WalletsPage() {
       <div className="wallets-stats-card card border-0 shadow-sm">
         <div className="wallets-page__stats">
           <div className="wallets-stat">
-            <span className="wallets-stat__label">Tổng số dư</span>
+              <span className="wallets-stat__label">{t("Tổng số dư", "Total balance")}</span>
             <span className="wallets-stat__value">
               {formatMoney(totalBalance, displayCurrency || "VND")}
             </span>
           </div>
           <div className="wallets-stat">
             <div className="wallets-stat__heading">
-              <span className="wallets-stat__label">Ví cá nhân</span>
-              <span className="wallets-stat__count">{personalWallets.length} ví</span>
+                <span className="wallets-stat__label">{t("Ví cá nhân", "Personal wallets")}</span>
+                <span className="wallets-stat__count">{personalWallets.length} {t("ví", "wallets")}</span>
             </div>
             <span className="wallets-stat__sub">{formatMoney(personalBalanceTotal, displayCurrency || "VND")}</span>
           </div>
           <div className="wallets-stat">
             <div className="wallets-stat__heading">
-              <span className="wallets-stat__label">Ví nhóm</span>
-              <span className="wallets-stat__count">{groupWallets.length} ví</span>
+                <span className="wallets-stat__label">{t("Ví nhóm", "Group wallets")}</span>
+                <span className="wallets-stat__count">{groupWallets.length} {t("ví", "wallets")}</span>
             </div>
             <span className="wallets-stat__sub">{formatMoney(groupBalanceTotal, displayCurrency || "VND")}</span>
           </div>
           <div className="wallets-stat">
             <div className="wallets-stat__heading">
-              <span className="wallets-stat__label">Ví chia sẻ</span>
-              <span className="wallets-stat__count">{sharedWalletCount} ví</span>
+                <span className="wallets-stat__label">{t("Ví chia sẻ", "Shared wallets")}</span>
+                <span className="wallets-stat__count">{sharedWalletCount} {t("ví", "wallets")}</span>
             </div>
             <span className="wallets-stat__sub">{formatMoney(sharedBalanceTotal, displayCurrency || "VND")}</span>
           </div>

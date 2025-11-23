@@ -4,15 +4,15 @@
 :root {
   --radius: 22px;
   --gap: 18px;
-  --text: #0f172a;
+  --text: var(--app-text);
   --content-pad: 24px;
 
   /* Nền & viền */
-  --main-bg: #f8fafc;
-  --sidebar-bg: #ffffff;
-  --header-bg: #ffffff;
-  --content-bg: #f9fafb;
-  --border-color: #e5e7eb;
+  --main-bg: var(--app-bg);
+  --sidebar-bg: var(--app-surface);
+  --header-bg: var(--app-surface);
+  --content-bg: var(--app-surface-muted);
+  --border-color: var(--app-border);
 
   /* Sidebar / Topbar */
   --sb-w: 260px;       /* sidebar mở */

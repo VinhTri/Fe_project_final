@@ -1,6 +1,7 @@
 // src/pages/Home/FundsPage.jsx
 import React, { useMemo, useState } from "react";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 import "../../styles/home/FundsPage.css";
 
 import FundSection from "../../components/funds/FundSection";
@@ -13,6 +14,8 @@ import FundDetailView from "../../components/funds/FundDetailView";
 
 export default function FundsPage() {
   const { wallets } = useWalletData();
+  const { translate } = useLanguage();
+  const t = translate;
 
   const personalWallets = useMemo(
     () => wallets.filter((w) => !w.isShared),
@@ -348,9 +351,14 @@ export default function FundsPage() {
               <i className="bi bi-piggy-bank" />
             </span>
             <div>
-              <h1 className="funds-header__title">Quỹ của bạn</h1>
+              <h1 className="funds-header__title">
+                {t("Quỹ của bạn", "Your funds")}
+              </h1>
               <p className="funds-header__subtitle">
-                Theo dõi và quản lý các quỹ tiết kiệm, quỹ nhóm và quỹ bạn tham gia.
+                {t(
+                  "Theo dõi và quản lý các quỹ tiết kiệm, quỹ nhóm và quỹ bạn tham gia.",
+                  "Track and manage your savings, group, and participating funds."
+                )}
               </p>
             </div>
           </div>
@@ -364,7 +372,7 @@ export default function FundsPage() {
                   onClick={() => setViewMode("create-personal")}
                 >
                   <i className="bi bi-plus-circle" />
-                  Tạo quỹ cá nhân
+                  {t("Tạo quỹ cá nhân", "Create personal fund")}
                 </button>
                 <button
                   type="button"
@@ -372,7 +380,7 @@ export default function FundsPage() {
                   onClick={() => setViewMode("create-group")}
                 >
                   <i className="bi bi-people-fill" />
-                  Tạo quỹ nhóm
+                  {t("Tạo quỹ nhóm", "Create group fund")}
                 </button>
                 <button
                   type="button"
@@ -380,7 +388,7 @@ export default function FundsPage() {
                   onClick={() => setViewMode("participate")}
                 >
                   <i className="bi bi-person-check" />
-                  Quản lý quỹ tham gia
+                  {t("Quản lý quỹ tham gia", "Manage participating funds")}
                 </button>
               </>
             ) : (
@@ -393,7 +401,7 @@ export default function FundsPage() {
                 }}
               >
                 <i className="bi bi-arrow-left" />
-                Quay lại danh sách quỹ
+                {t("Quay lại danh sách quỹ", "Back to fund list")}
               </button>
             )}
           </div>
@@ -405,11 +413,16 @@ export default function FundsPage() {
         <>
           {funds.length === 0 && (
             <div className="card border-0 shadow-sm p-4 mb-3">
-              <h5 className="mb-2">Chưa có quỹ nào</h5>
+              <h5 className="mb-2">{t("Chưa có quỹ nào", "No funds yet")}</h5>
               <p className="mb-0 text-muted">
-                Hãy bắt đầu bằng cách tạo <strong>quỹ cá nhân</strong> hoặc{" "}
-                <strong>quỹ nhóm</strong> phù hợp với mục tiêu tài chính của
-                bạn.
+                {t("Hãy bắt đầu bằng cách tạo", "Start by creating")}{" "}
+                <strong>{t("quỹ cá nhân", "a personal fund")}</strong>{" "}
+                {t("hoặc", "or")}{" "}
+                <strong>{t("quỹ nhóm", "a group fund")}</strong>{" "}
+                {t(
+                  "phù hợp với mục tiêu tài chính của bạn.",
+                  "to match your financial goals."
+                )}
               </p>
             </div>
           )}
@@ -418,22 +431,39 @@ export default function FundsPage() {
             {(personalTermFunds.length > 0 ||
               personalNoTermFunds.length > 0) && (
               <div className="funds-box">
-                <div className="funds-box__header">Quỹ cá nhân</div>
+                <div className="funds-box__header">
+                  {t("Quỹ cá nhân", "Personal funds")}
+                </div>
                 <div className="funds-box__body">
                   <p className="text-muted small mb-3">
-                    Các quỹ tiết kiệm do riêng bạn sở hữu và quản lý.
+                    {t(
+                      "Các quỹ tiết kiệm do riêng bạn sở hữu và quản lý.",
+                      "Savings funds owned and managed solely by you."
+                    )}
                   </p>
 
                   <FundSection
-                    title="Quỹ cá nhân có thời hạn"
-                    subtitle="Các quỹ có ngày kết thúc rõ ràng."
+                    title={t(
+                      "Quỹ cá nhân có thời hạn",
+                      "Personal funds with term"
+                    )}
+                    subtitle={t(
+                      "Các quỹ có ngày kết thúc rõ ràng.",
+                      "Funds that have a clear end date."
+                    )}
                     items={personalTermFunds}
                     onSelectFund={handleSelectFund}
                   />
 
                   <FundSection
-                    title="Quỹ cá nhân không thời hạn"
-                    subtitle="Quỹ tích luỹ dài hạn, không xác định ngày kết thúc."
+                    title={t(
+                      "Quỹ cá nhân không thời hạn",
+                      "Personal funds without term"
+                    )}
+                    subtitle={t(
+                      "Quỹ tích luỹ dài hạn, không xác định ngày kết thúc.",
+                      "Long-term accumulation funds without an end date."
+                    )}
                     items={personalNoTermFunds}
                     onSelectFund={handleSelectFund}
                   />
@@ -443,22 +473,39 @@ export default function FundsPage() {
 
             {(groupTermFunds.length > 0 || groupNoTermFunds.length > 0) && (
               <div className="funds-box">
-                <div className="funds-box__header">Quỹ nhóm</div>
+                <div className="funds-box__header">
+                  {t("Quỹ nhóm", "Group funds")}
+                </div>
                 <div className="funds-box__body">
                   <p className="text-muted small mb-3">
-                    Quỹ góp chung với bạn bè, gia đình hoặc lớp/nhóm.
+                    {t(
+                      "Quỹ góp chung với bạn bè, gia đình hoặc lớp/nhóm.",
+                      "Shared funds with friends, family, or teams."
+                    )}
                   </p>
 
                   <FundSection
-                    title="Quỹ nhóm có thời hạn"
-                    subtitle="Quỹ góp chung có mục tiêu thời hạn."
+                    title={t(
+                      "Quỹ nhóm có thời hạn",
+                      "Group funds with term"
+                    )}
+                    subtitle={t(
+                      "Quỹ góp chung có mục tiêu thời hạn.",
+                      "Shared funds that target a specific timeframe."
+                    )}
                     items={groupTermFunds}
                     onSelectFund={handleSelectFund}
                   />
 
                   <FundSection
-                    title="Quỹ nhóm không thời hạn"
-                    subtitle="Quỹ nhóm dùng lâu dài, không cố định thời gian."
+                    title={t(
+                      "Quỹ nhóm không thời hạn",
+                      "Group funds without term"
+                    )}
+                    subtitle={t(
+                      "Quỹ nhóm dùng lâu dài, không cố định thời gian.",
+                      "Group funds for long-term use without a fixed timeline."
+                    )}
                     items={groupNoTermFunds}
                     onSelectFund={handleSelectFund}
                   />
@@ -493,7 +540,7 @@ export default function FundsPage() {
               }
               onClick={() => setPersonalTab("term")}
             >
-              Quỹ cá nhân có thời hạn
+              {t("Quỹ cá nhân có thời hạn", "Personal funds with term")}
             </button>
             <button
               type="button"
@@ -503,7 +550,10 @@ export default function FundsPage() {
               }
               onClick={() => setPersonalTab("no-term")}
             >
-              Quỹ cá nhân không thời hạn
+              {t(
+                "Quỹ cá nhân không thời hạn",
+                "Personal funds without term"
+              )}
             </button>
           </div>
 
@@ -525,7 +575,7 @@ export default function FundsPage() {
               }
               onClick={() => setGroupTab("term")}
             >
-              Quỹ nhóm có thời hạn
+              {t("Quỹ nhóm có thời hạn", "Group funds with term")}
             </button>
             <button
               type="button"
@@ -535,7 +585,7 @@ export default function FundsPage() {
               }
               onClick={() => setGroupTab("no-term")}
             >
-              Quỹ nhóm không thời hạn
+              {t("Quỹ nhóm không thời hạn", "Group funds without term")}
             </button>
           </div>
 

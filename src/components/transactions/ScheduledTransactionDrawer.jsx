@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useCallback } from "react";
 import Modal from "../common/Modal/Modal";
+import { useMoneyFormat } from "../../hooks/useMoneyFormat";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 const STATUS_LABEL = {
   PENDING: "Chờ chạy",
@@ -17,17 +19,23 @@ const STATUS_CLASS = {
   CANCELLED: "schedule-status schedule-status--muted",
 };
 
-function formatDateTime(value) {
-  if (!value) return "--";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${date.toLocaleDateString("vi-VN")} ${date.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
-}
-
 export default function ScheduledTransactionDrawer({ open, schedule, onClose, onCancel }) {
+  const { formatMoney } = useMoneyFormat();
+  const { formatDate } = useDateFormat();
+  const formatDateTime = useCallback(
+    (value, options) => {
+      const formatted = formatDate(value, options);
+      return formatted === "--" ? "--" : formatted;
+    },
+    [formatDate]
+  );
+  const formatDateOnly = useCallback(
+    (value) => {
+      const formatted = formatDate(value);
+      return formatted === "--" ? "--" : formatted;
+    },
+    [formatDate]
+  );
   if (!open || !schedule) return null;
 
   const typeLabel = schedule.scheduleTypeLabel || schedule.scheduleType;
@@ -51,11 +59,11 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
             <li><span>Danh mục:</span> {schedule.categoryName} ({schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"})</li>
             <li><span>Kiểu lịch:</span> {typeLabel}</li>
             <li>
-              <span>Khoảng thời gian:</span> {formatDateTime(schedule.firstRun)}
-              {schedule.endDate ? ` → ${new Date(schedule.endDate).toLocaleDateString("vi-VN")}` : " (Không giới hạn)"}
+              <span>Khoảng thời gian:</span> {formatDateTime(schedule.firstRun, { withTime: true })}
+              {schedule.endDate ? ` → ${formatDateOnly(schedule.endDate)}` : " (Không giới hạn)"}
             </li>
-            <li><span>Số tiền:</span> {schedule.amount.toLocaleString("vi-VN") } VND</li>
-            <li><span>Tiếp theo:</span> {formatDateTime(schedule.nextRun)}</li>
+            <li><span>Số tiền:</span> {formatMoney(schedule.amount, schedule.currency || "VND")}</li>
+            <li><span>Tiếp theo:</span> {formatDateTime(schedule.nextRun, { withTime: true })}</li>
             <li><span>Số lần hoàn thành:</span> {schedule.successRuns}/{schedule.totalRuns}</li>
           </ul>
         </div>
@@ -67,7 +75,7 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
               {schedule.logs.map((log) => (
                 <li key={log.id}>
                   <div>
-                    <strong>{formatDateTime(log.time)}</strong>
+                    <strong>{formatDateTime(log.time, { withTime: true })}</strong>
                     <span className={`ms-2 ${log.status === "COMPLETED" ? "schedule-status schedule-status--success" : "schedule-status schedule-status--failed"}`}>
                       {log.status === "COMPLETED" ? "Thành công" : "Thất bại"}
                     </span>

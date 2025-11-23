@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import { walletAPI } from "../../services/api-client";
+import { useLanguage } from "../../home/store/LanguageContext";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 export default function WalletDetail(props) {
   const {
@@ -90,6 +92,9 @@ export default function WalletDetail(props) {
     onChangeSelectedWallet,
     onDeleteWallet,
   } = props;
+
+  const { translate } = useLanguage();
+  const t = translate;
 
   // Extract loadingTransactions với default value
   const isLoadingTransactions = loadingTransactions || false;
@@ -234,8 +239,8 @@ export default function WalletDetail(props) {
       <div className="wallets-detail-panel">
         <div className="wallets-section wallets-section--inline">
           <div className="wallets-section__header">
-            <h3>Tạo ví cá nhân</h3>
-            <span>Nhập thông tin để tạo ví</span>
+            <h3>{t("Tạo ví cá nhân", "Create a personal wallet")}</h3>
+            <span>{t("Nhập thông tin để tạo ví", "Fill in the details to create your wallet")}</span>
           </div>
           <form
             className="wallet-form"
@@ -244,7 +249,7 @@ export default function WalletDetail(props) {
           >
             <div className="wallet-form__row">
               <label>
-                Tên ví
+                {t("Tên ví", "Wallet name")}
                 <input
                   type="text"
                   required
@@ -252,11 +257,11 @@ export default function WalletDetail(props) {
                   onChange={(e) =>
                     onCreateFieldChange("name", e.target.value)
                   }
-                  placeholder="Ví tiền mặt, Ví ngân hàng..."
+                  placeholder={t("Ví tiền mặt, Ví ngân hàng...", "Cash wallet, Bank wallet...")}
                 />
               </label>
               <label>
-                Tiền tệ
+                {t("Tiền tệ", "Currency")}
                 <select
                   value={createForm.currency}
                   onChange={(e) =>
@@ -274,14 +279,14 @@ export default function WalletDetail(props) {
 
             <div className="wallet-form__row">
               <label className="wallet-form__full">
-                Ghi chú
+                {t("Ghi chú", "Notes")}
                 <textarea
                   rows={2}
                   value={createForm.note}
                   onChange={(e) =>
                     onCreateFieldChange("note", e.target.value)
                   }
-                  placeholder="Mục đích sử dụng ví này..."
+                  placeholder={t("Mục đích sử dụng ví này...", "How will you use this wallet?")}
                 />
               </label>
             </div>
@@ -294,14 +299,14 @@ export default function WalletDetail(props) {
                   checked={createShareEnabled}
                   onChange={(e) => setCreateShareEnabled(e.target.checked)}
                 />
-                <span>Chia sẻ ví này với người khác</span>
+                <span>{t("Chia sẻ ví này với người khác", "Share this wallet with others")}</span>
               </label>
             </div>
 
             {createShareEnabled && (
               <div className="wallet-form__share-block">
                 <label className="wallet-form__full">
-                  Email người được chia sẻ
+                  {t("Email người được chia sẻ", "Email of the recipient")}
                   <div className="wallet-form__share-row">
                     <input
                       type="email"
@@ -314,7 +319,7 @@ export default function WalletDetail(props) {
                       className="wallets-btn wallets-btn--ghost"
                       onClick={onAddCreateShareEmail}
                     >
-                      Thêm
+                      {t("Thêm", "Add")}
                     </button>
                   </div>
                 </label>
@@ -346,7 +351,7 @@ export default function WalletDetail(props) {
                     onCreateFieldChange("isDefault", e.target.checked)
                   }
                 />
-                <span>Đặt làm ví mặc định</span>
+                <span>{t("Đặt làm ví mặc định", "Set as default wallet")}</span>
               </label>
               <div className="wallet-form__actions">
                 <button
@@ -354,13 +359,13 @@ export default function WalletDetail(props) {
                   className="wallets-btn wallets-btn--ghost"
                   onClick={() => setShowCreate(false)}
                 >
-                  Hủy
+                  {t("Hủy", "Cancel")}
                 </button>
                 <button
                   type="submit"
                   className="wallets-btn wallets-btn--primary"
                 >
-                  Lưu ví cá nhân
+                  {t("Lưu ví cá nhân", "Save personal wallet")}
                 </button>
               </div>
             </div>
@@ -402,7 +407,7 @@ export default function WalletDetail(props) {
             <>
               <div className="wallets-shared-detail__owner-card">
                 <div>
-                  <p className="wallets-shared-detail__owner-label">Người chia sẻ</p>
+                  <p className="wallets-shared-detail__owner-label">{t("Người chia sẻ", "Shared by")}</p>
                   <h3 className="wallets-shared-detail__owner-name">{ownerName}</h3>
                   {selectedSharedOwnerGroup?.email && (
                     <p className="wallets-shared-detail__owner-email">
@@ -411,8 +416,15 @@ export default function WalletDetail(props) {
                   )}
                 </div>
                 <div className="wallets-shared-detail__owner-meta">
-                  <span>{ownerWallets.length} ví</span>
-                  <small>Chọn người khác ở cột trái để xem ví khác.</small>
+                  <span>
+                    {ownerWallets.length} {t("ví", "wallets")}
+                  </span>
+                  <small>
+                    {t(
+                      "Chọn người khác ở cột trái để xem ví khác.",
+                      "Pick another owner on the left to view their wallets."
+                    )}
+                  </small>
                 </div>
               </div>
 
@@ -438,7 +450,7 @@ export default function WalletDetail(props) {
                       <div className="wallets-shared-owner-wallet__header">
                         <div className="wallets-shared-owner-wallet__title">
                           <span className="wallets-shared-owner-wallet__name">
-                            {sharedWallet.name || "Chưa đặt tên"}
+                            {sharedWallet.name || t("Chưa đặt tên", "No name yet")}
                           </span>
                           {sharedWallet.isDemoShared && (
                             <span className="wallets-shared-demo-tag">Demo</span>
@@ -467,7 +479,7 @@ export default function WalletDetail(props) {
                               onSharedWalletDemoView?.(sharedWallet);
                             }}
                           >
-                            Xem
+                            {t("Xem", "View")}
                           </button>
                           <button
                             type="button"
@@ -477,7 +489,7 @@ export default function WalletDetail(props) {
                               onSharedWalletDemoCancel?.();
                             }}
                           >
-                            Hủy
+                            {t("Hủy", "Cancel")}
                           </button>
                         </div>
                       )}
@@ -499,27 +511,34 @@ export default function WalletDetail(props) {
           {isGroupTab ? (
             <>
               <h2 className="wallets-detail-empty__title">
-                Chưa có ví nhóm nào
+                {t("Chưa có ví nhóm nào", "No group wallets yet")}
               </h2>
               <p className="wallets-detail-empty__text">
-                Bạn chưa có ví nhóm trong mục này.
+                {t("Bạn chưa có ví nhóm trong mục này.", "You don't have any group wallets here.")}
               </p>
               <p className="wallets-detail-empty__hint">
-                Hãy tạo ví nhóm mới để bắt đầu quản lý chi tiêu chung với mọi
-                người.
+                {t(
+                  "Hãy tạo ví nhóm mới để bắt đầu quản lý chi tiêu chung với mọi người.",
+                  "Create a group wallet to manage shared spending."
+                )}
               </p>
             </>
           ) : (
             <>
               <h2 className="wallets-detail-empty__title">
-                Chưa có ví nào được chọn
+                {t("Chưa có ví nào được chọn", "No wallet selected")}
               </h2>
               <p className="wallets-detail-empty__text">
-                Vui lòng chọn một ví ở danh sách bên trái để xem chi tiết.
+                {t(
+                  "Vui lòng chọn một ví ở danh sách bên trái để xem chi tiết.",
+                  "Select a wallet from the list on the left to view its details."
+                )}
               </p>
               <p className="wallets-detail-empty__hint">
-                Hoặc dùng nút <strong>“Tạo ví cá nhân”</strong> ở góc trên bên
-                phải để tạo ví mới.
+                {t(
+                  "Hoặc dùng nút “Tạo ví cá nhân” ở góc trên bên phải để tạo ví mới.",
+                  "Or use the “Create personal wallet” button above to add a new wallet."
+                )}
               </p>
             </>
           )}
@@ -535,21 +554,21 @@ export default function WalletDetail(props) {
       <div className="wallets-detail__header">
         <div>
           <h2 className="wallets-detail__name">
-            {wallet.name || "Chưa đặt tên"}
+            {wallet.name || t("Chưa đặt tên", "No name yet")}
           </h2>
           <div className="wallets-detail__tags">
             <span className="wallet-tag">
-              {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+              {wallet.isShared ? t("Ví nhóm", "Group wallet") : t("Ví cá nhân", "Personal wallet")}
             </span>
             {!wallet.isShared && wallet.isDefault && (
               <span className="wallet-tag wallet-tag--outline">
-                Ví mặc định
+                {t("Ví mặc định", "Default wallet")}
               </span>
             )}
           </div>
         </div>
         <div className="wallets-detail__balance">
-          <div className="wallets-detail__balance-label">Số dư</div>
+          <div className="wallets-detail__balance-label">{t("Số dư", "Balance")}</div>
           <div className="wallets-detail__balance-value">
             {formatBalance(balance, wallet.currency || "VND")}
           </div>
@@ -566,7 +585,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("view")}
         >
-          Xem chi tiết
+          {t("Xem chi tiết", "Overview")}
         </button>
         <button
           className={
@@ -576,7 +595,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("topup")}
         >
-          Nạp ví
+          {t("Nạp ví", "Add money")}
         </button>
         <button
           className={
@@ -586,7 +605,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("withdraw")}
         >
-          Rút ví
+          {t("Rút ví", "Withdraw")}
         </button>
         <button
           className={
@@ -596,7 +615,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("transfer")}
         >
-          Chuyển tiền
+          {t("Chuyển tiền", "Transfer")}
         </button>
         <button
           className={
@@ -606,7 +625,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("edit")}
         >
-          Sửa ví
+          {t("Sửa ví", "Edit wallet")}
         </button>
         <button
           className={
@@ -616,7 +635,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("merge")}
         >
-          Gộp ví
+          {t("Gộp ví", "Merge wallets")}
         </button>
 
         {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
@@ -629,7 +648,7 @@ export default function WalletDetail(props) {
             }
             onClick={() => setActiveDetailTab("convert")}
           >
-            Chuyển thành ví nhóm
+            {t("Chuyển thành ví nhóm", "Convert to group wallet")}
           </button>
         )}
 
@@ -642,7 +661,7 @@ export default function WalletDetail(props) {
             }
             onClick={() => setActiveDetailTab("manageMembers")}
           >
-            Quản lý người dùng
+            {t("Quản lý người dùng", "Manage members")}
           </button>
         )}
       </div>
@@ -874,6 +893,7 @@ function DetailViewTab({
   const [showQuickShareForm, setShowQuickShareForm] = useState(false);
   const [quickShareEmail, setQuickShareEmail] = useState("");
   const [quickShareMessage, setQuickShareMessage] = useState("");
+  const { formatDate } = useDateFormat();
 
   const toggleQuickShareForm = () => {
     setShowQuickShareForm((prev) => !prev);
@@ -998,7 +1018,10 @@ function DetailViewTab({
                 <span className="wallet-detail-item__label">Ngày tạo</span>
                 <span className="wallet-detail-item__value">
                   {wallet.createdAt
-                    ? new Date(wallet.createdAt).toLocaleDateString("vi-VN")
+                    ? (() => {
+                        const label = formatDate(wallet.createdAt);
+                        return label === "--" ? "—" : label;
+                      })()
                     : "—"}
                 </span>
               </div>
@@ -1708,6 +1731,7 @@ function EditTab({
 }) {
   const isGroupWallet = !!wallet.isShared;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { formatDate } = useDateFormat();
 
   const handleOpenDelete = () => {
     setShowDeleteConfirm(true);
@@ -1718,57 +1742,51 @@ function EditTab({
   };
 
   const handleConfirmDelete = () => {
+    if (onDeleteWallet && wallet?.id) {
+      onDeleteWallet(wallet.id);
+    }
     setShowDeleteConfirm(false);
-    onDeleteWallet?.(wallet.id);
   };
 
-  // Sử dụng hàm getRate đã được định nghĩa ở top level
+  const currentBalance = Number(wallet?.balance || 0);
+  const oldCurrency = wallet?.currency || "VND";
+  const newCurrency = editForm.currency || oldCurrency;
+  const currencyChanged = oldCurrency !== newCurrency;
 
-  // Format số tiền (cho hiển thị thông thường)
   const formatMoney = (amount = 0, currency = "VND") => {
     const numAmount = Number(amount) || 0;
-    // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
     if (currency === "USD") {
-      // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
         });
         return `$${formatted}`;
       }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
       return `$${formatted}`;
     }
     if (currency === "VND") {
-      // VND: hiển thị số thập phân nếu có (khi chuyển đổi từ currency khác)
-      const hasDecimal = numAmount % 1 !== 0;
-      if (hasDecimal) {
-        const formatted = numAmount.toLocaleString("vi-VN", { 
-          minimumFractionDigits: 0, 
-          maximumFractionDigits: 8 
-        });
-        return `${formatted} VND`;
-      }
       return `${numAmount.toLocaleString("vi-VN")} VND`;
     }
-    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
     if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
     }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
   };
 
-  // Sử dụng các hàm formatConvertedBalance và formatExchangeRate đã được định nghĩa ở top level
-
-  // Tính số dư mới khi currency thay đổi
-  const oldCurrency = wallet?.currency || "VND";
-  const newCurrency = editForm.currency;
-  const currentBalance = Number(wallet?.balance || 0);
-  const currencyChanged = oldCurrency !== newCurrency;
-  
   const exchangeRate = useMemo(() => {
     if (!currencyChanged) return 1;
     return getRate(oldCurrency, newCurrency);
@@ -1783,9 +1801,10 @@ function EditTab({
 
   // Format thời gian tạo
   const createdAt = wallet?.createdAt
-    ? new Date(wallet.createdAt).toLocaleString("vi-VN", {
-        hour12: false,
-      })
+    ? (() => {
+        const label = formatDate(wallet.createdAt, { withTime: true });
+        return label === "--" ? null : label;
+      })()
     : null;
 
   return (
@@ -2168,7 +2187,6 @@ function MergeTab({
   })();
 
   const handleNextFromStep2 = () => {
-    if (!targetId) return;
     if (needDefaultConfirmation) {
       setStep(3);
     } else {
@@ -2177,11 +2195,12 @@ function MergeTab({
   };
 
   const handleConfirmMerge = () => {
-    if (!targetWallet || !sourceWallet || !agree) return;
-    if (!onSubmitMerge) return;
+    if (!onSubmitMerge || !sourceWallet) return;
 
     const sourceId = sourceWallet.id;
-    const targetIdFinal = targetWallet.id;
+    const targetIdFinal =
+      direction === "this_into_other" ? targetId : currentWallet?.id;
+
     if (!sourceId || !targetIdFinal) return;
 
     const payload = {
@@ -2209,7 +2228,7 @@ function MergeTab({
   const renderStep2 = () => {
     const currentBal =
       Number(currentWallet.balance ?? currentWallet.current ?? 0) || 0;
-    const currentCur = currentWallet.currency || "VND";
+    const currentCur = currentWallet?.currency || "VND";
     const currentTx = currentWallet?.txCount ?? currentWallet?.transactionCount ?? 0;
 
     const selectedBal =

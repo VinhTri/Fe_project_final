@@ -1,47 +1,89 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "../../styles/home/DashboardPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 const STORAGE_EXTERNAL = "app_external_transactions_v1";
 const DONUT_COLORS = ["#0C5776", "#2D99AE", "#58D3F7", "#BCFEFE"];
 const DONUT_OTHER_COLOR = "#F8DAD0";
 
 const translations = {
-  "dashboard.title": "Tổng quan tài chính",
-  "dashboard.subtitle": "Xem nhanh tình hình thu chi và biến động số dư.",
-  "dashboard.period.week": "Tuần",
-  "dashboard.period.month": "Tháng",
-  "dashboard.period.year": "Năm",
-  "dashboard.by_week": "Theo tuần",
-  "dashboard.by_month": "Theo tháng",
-  "dashboard.by_year": "Theo năm",
-  "dashboard.other": "Khác",
-  "dashboard.no_data": "Chưa có dữ liệu",
-  "dashboard.transaction_type": "Loại giao dịch",
-  "dashboard.total_spending": "Tổng chi tiêu",
-  "dashboard.total_expense": "Tổng chi",
-  "dashboard.spending_level": "Mức độ chi tiêu",
-  "dashboard.spending_level_subtitle": "Mức chi theo từng mốc thời gian",
-  "dashboard.balance_fluctuation": "Biến động số dư",
-  "dashboard.income_expense": "Thu vs Chi",
-  "dashboard.income": "Thu",
-  "dashboard.expense": "Chi",
-  "dashboard.transaction_history": "Lịch sử giao dịch",
-  "dashboard.recent_transactions": "Các giao dịch gần đây",
-  "dashboard.search_placeholder": "Tìm kiếm giao dịch...",
-  "dashboard.no_transactions": "Không có giao dịch",
-  "dashboard.chart.week_prefix": "Tuần",
-  "dashboard.chart.month_prefix": "T",
-  "common.day.mon": "T2",
-  "common.day.tue": "T3",
-  "common.day.wed": "T4",
-  "common.day.thu": "T5",
-  "common.day.fri": "T6",
-  "common.day.sat": "T7",
-  "common.day.sun": "CN",
+  vi: {
+    "dashboard.title": "Tổng quan tài chính",
+    "dashboard.subtitle": "Xem nhanh tình hình thu chi và biến động số dư.",
+    "dashboard.period.week": "Tuần",
+    "dashboard.period.month": "Tháng",
+    "dashboard.period.year": "Năm",
+    "dashboard.by_week": "Theo tuần",
+    "dashboard.by_month": "Theo tháng",
+    "dashboard.by_year": "Theo năm",
+    "dashboard.other": "Khác",
+    "dashboard.no_data": "Chưa có dữ liệu",
+    "dashboard.transaction_type": "Loại giao dịch",
+    "dashboard.total_spending": "Tổng chi tiêu",
+    "dashboard.total_expense": "Tổng chi",
+    "dashboard.spending_level": "Mức độ chi tiêu",
+    "dashboard.spending_level_subtitle": "Mức chi theo từng mốc thời gian",
+    "dashboard.balance_fluctuation": "Biến động số dư",
+    "dashboard.income_expense": "Thu vs Chi",
+    "dashboard.income": "Thu",
+    "dashboard.expense": "Chi",
+    "dashboard.transaction_history": "Lịch sử giao dịch",
+    "dashboard.recent_transactions": "Các giao dịch gần đây",
+    "dashboard.search_placeholder": "Tìm kiếm giao dịch...",
+    "dashboard.no_transactions": "Không có giao dịch",
+    "dashboard.chart.week_prefix": "Tuần",
+    "dashboard.chart.month_prefix": "T",
+    "dashboard.history.all": "Tất cả danh mục",
+    "dashboard.history.empty": "Không có ví nào được chia sẻ cho bạn.",
+    "dashboard.history.none": "Không có giao dịch",
+    "common.day.mon": "T2",
+    "common.day.tue": "T3",
+    "common.day.wed": "T4",
+    "common.day.thu": "T5",
+    "common.day.fri": "T6",
+    "common.day.sat": "T7",
+    "common.day.sun": "CN",
+  },
+  en: {
+    "dashboard.title": "Financial overview",
+    "dashboard.subtitle": "Get a quick view of income, expenses, and balance trends.",
+    "dashboard.period.week": "Week",
+    "dashboard.period.month": "Month",
+    "dashboard.period.year": "Year",
+    "dashboard.by_week": "By week",
+    "dashboard.by_month": "By month",
+    "dashboard.by_year": "By year",
+    "dashboard.other": "Other",
+    "dashboard.no_data": "No data",
+    "dashboard.transaction_type": "Transaction types",
+    "dashboard.total_spending": "Total spending",
+    "dashboard.total_expense": "Total expense",
+    "dashboard.spending_level": "Spending level",
+    "dashboard.spending_level_subtitle": "Spending per time frame",
+    "dashboard.balance_fluctuation": "Balance fluctuation",
+    "dashboard.income_expense": "Income vs Expense",
+    "dashboard.income": "Income",
+    "dashboard.expense": "Expense",
+    "dashboard.transaction_history": "Transaction history",
+    "dashboard.recent_transactions": "Recent transactions",
+    "dashboard.search_placeholder": "Search transactions...",
+    "dashboard.no_transactions": "No transactions",
+    "dashboard.chart.week_prefix": "Week",
+    "dashboard.chart.month_prefix": "M",
+    "dashboard.history.all": "All categories",
+    "dashboard.history.empty": "No shared wallets.",
+    "dashboard.history.none": "No transactions",
+    "common.day.mon": "Mon",
+    "common.day.tue": "Tue",
+    "common.day.wed": "Wed",
+    "common.day.thu": "Thu",
+    "common.day.fri": "Fri",
+    "common.day.sat": "Sat",
+    "common.day.sun": "Sun",
+  },
 };
-
-const t = (key) => translations[key] || key;
 
 const parseAmount = (value) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -53,7 +95,7 @@ const parseAmount = (value) => {
   return 0;
 };
 
-const normalizeTransaction = (tx) => {
+const normalizeTransaction = (tx, translator) => {
   if (!tx) return null;
   const rawDate = tx.date || tx.createdAt || tx.transactionDate;
   const date = new Date(rawDate);
@@ -75,7 +117,7 @@ const normalizeTransaction = (tx) => {
     tx.category?.categoryName ||
     tx.categoryName ||
     tx.category ||
-    (type === "income" ? "Thu nhập" : t("dashboard.other"));
+    (type === "income" ? translator("dashboard.income") : translator("dashboard.other"));
   const walletName = tx.wallet?.walletName || tx.walletName || "";
   const note = tx.note || tx.description || "";
 
@@ -192,6 +234,15 @@ const formatAmount = (value = 0, locale = "vi-VN") => {
 };
 
 export default function DashboardPage() {
+  const { language } = useLanguage();
+  const { formatDate } = useDateFormat();
+  const t = useCallback(
+    (key) => {
+      const bucket = translations[language] || translations.vi;
+      return bucket[key] || key;
+    },
+    [language]
+  );
   const { externalTransactionsList = [] } = useBudgetData();
   const [period, setPeriod] = useState("tuan");
   const [localTransactions, setLocalTransactions] = useState([]);
@@ -238,8 +289,8 @@ export default function DashboardPage() {
     : localTransactions;
 
   const normalizedTransactions = useMemo(
-    () => transactions.map(normalizeTransaction).filter(Boolean),
-    [transactions]
+    () => transactions.map((tx) => normalizeTransaction(tx, t)).filter(Boolean),
+    [transactions, t]
   );
 
   const currentTransactions = useMemo(() => {
@@ -400,7 +451,6 @@ export default function DashboardPage() {
   }, [currentTransactions, period, t]);
 
   const historyList = useMemo(() => {
-    const locale = "vi-VN";
     const normalizedSearch = historySearch.trim().toLowerCase();
     return currentTransactions
       .slice()
@@ -414,20 +464,21 @@ export default function DashboardPage() {
         return combined.includes(normalizedSearch);
       })
       .slice(0, 10)
-      .map((tx) => ({
-        id: tx.id,
-        title: tx.category,
-        description: tx.note || tx.walletName,
-        amount: tx.type === "expense" ? -tx.amount : tx.amount,
-        time: `${tx.date.toLocaleDateString(locale, {
-          day: "2-digit",
-          month: "2-digit",
-        })} • ${tx.date.toLocaleTimeString(locale, {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`,
-      }));
-  }, [currentTransactions, historySearch, historyFilter]);
+      .map((tx) => {
+        const dateLabelRaw = formatDate(tx.date);
+        const timeLabelRaw = formatDate(tx.date, { pattern: "HH:mm" });
+        const dateLabel = dateLabelRaw === "--" ? "" : dateLabelRaw;
+        const timeLabel = timeLabelRaw === "--" ? "" : timeLabelRaw;
+        const displayTime = dateLabel && timeLabel ? `${dateLabel} • ${timeLabel}` : dateLabel || timeLabel || "";
+        return {
+          id: tx.id,
+          title: tx.category,
+          description: tx.note || tx.walletName,
+          amount: tx.type === "expense" ? -tx.amount : tx.amount,
+          time: displayTime,
+        };
+      });
+  }, [currentTransactions, historySearch, historyFilter, formatDate]);
 
   const historyCategories = useMemo(() => {
     const categories = new Set();
@@ -682,7 +733,7 @@ export default function DashboardPage() {
                 value={historyFilter}
                 onChange={(event) => setHistoryFilter(event.target.value)}
               >
-                <option value="all">Tất cả danh mục</option>
+                <option value="all">{t("dashboard.history.all")}</option>
                 {historyCategories.map((category) => (
                   <option key={category} value={category}>
                     {category}

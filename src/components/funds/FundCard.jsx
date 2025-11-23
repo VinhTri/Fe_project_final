@@ -1,9 +1,16 @@
 // src/components/funds/FundCard.jsx
 import React from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function FundCard({ fund, onClick }) {
+  const { translate } = useLanguage();
+  const t = translate;
   const { name, current, target, currency } = fund;
   const pct = target ? Math.min(100, Math.round((current / target) * 100)) : 0;
+  const progressText = t("{pct}% hoàn thành", "{pct}% complete").replace(
+    "{pct}",
+    pct
+  );
 
   return (
     <div className="fund-card" onClick={onClick}>
@@ -24,7 +31,7 @@ export default function FundCard({ fund, onClick }) {
           <div className="fund-card__progress-bar">
             <span style={{ width: `${pct}%` }} />
           </div>
-          <div className="fund-card__progress-text">{pct}% hoàn thành</div>
+          <div className="fund-card__progress-text">{progressText}</div>
         </div>
       )}
     </div>

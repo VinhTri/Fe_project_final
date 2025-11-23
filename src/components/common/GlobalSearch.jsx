@@ -1,20 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/GlobalSearch.css";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 const MENU_ITEMS = [
-  { id: "dashboard", label: "Tổng quan", path: "/home", icon: "bi-speedometer2" },
-  { id: "wallets", label: "Ví", path: "/home/wallets", icon: "bi-wallet2" },
-  { id: "budgets", label: "Ngân sách", path: "/home/budgets", icon: "bi-graph-up-arrow" },
-  { id: "transactions", label: "Giao dịch", path: "/home/transactions", icon: "bi-cash-stack" },
-  { id: "categories", label: "Danh mục", path: "/home/categories", icon: "bi-tag" },
-  { id: "reports", label: "Báo cáo", path: "/home/reports", icon: "bi-graph-up" },
-  { id: "budgets-edit", label: "Chỉnh sửa ngân sách", path: "/home/budgets", icon: "bi-pencil" },
-  { id: "add-transaction", label: "Thêm giao dịch", path: "/home/transactions", icon: "bi-plus-lg" },
-  { id: "add-category", label: "Thêm danh mục", path: "/home/categories", icon: "bi-plus-lg" },
-  { id: "add-wallet", label: "Thêm ví", path: "/home/wallets", icon: "bi-plus-lg" },
-  { id: "settings", label: "Cài đặt", path: "/home/settings", icon: "bi-gear" },
-  { id: "profile", label: "Hồ sơ", path: "/home/profile", icon: "bi-person-circle" },
+  { id: "dashboard", labelVi: "Tổng quan", labelEn: "Overview", path: "/home", icon: "bi-speedometer2" },
+  { id: "wallets", labelVi: "Ví", labelEn: "Wallets", path: "/home/wallets", icon: "bi-wallet2" },
+  { id: "budgets", labelVi: "Ngân sách", labelEn: "Budgets", path: "/home/budgets", icon: "bi-graph-up-arrow" },
+  { id: "transactions", labelVi: "Giao dịch", labelEn: "Transactions", path: "/home/transactions", icon: "bi-cash-stack" },
+  { id: "categories", labelVi: "Danh mục", labelEn: "Categories", path: "/home/categories", icon: "bi-tag" },
+  { id: "reports", labelVi: "Báo cáo", labelEn: "Reports", path: "/home/reports", icon: "bi-graph-up" },
+  { id: "budgets-edit", labelVi: "Chỉnh sửa ngân sách", labelEn: "Edit budgets", path: "/home/budgets", icon: "bi-pencil" },
+  { id: "add-transaction", labelVi: "Thêm giao dịch", labelEn: "Add transaction", path: "/home/transactions", icon: "bi-plus-lg" },
+  { id: "add-category", labelVi: "Thêm danh mục", labelEn: "Add category", path: "/home/categories", icon: "bi-plus-lg" },
+  { id: "add-wallet", labelVi: "Thêm ví", labelEn: "Add wallet", path: "/home/wallets", icon: "bi-plus-lg" },
+  { id: "settings", labelVi: "Cài đặt", labelEn: "Settings", path: "/home/settings", icon: "bi-gear" },
+  { id: "profile", labelVi: "Hồ sơ", labelEn: "Profile", path: "/home/profile", icon: "bi-person-circle" },
 ];
 
 export default function GlobalSearch() {
@@ -24,6 +25,8 @@ export default function GlobalSearch() {
   const navigate = useNavigate();
   const searchBoxRef = useRef(null);
   const resultsRef = useRef(null);
+  const { translate } = useLanguage();
+  const t = translate;
 
   // Tìm kiếm khi gõ
   const handleSearch = (e) => {
@@ -37,11 +40,15 @@ export default function GlobalSearch() {
     }
 
     // Lọc các mục khớp với text tìm kiếm
-    const filtered = MENU_ITEMS.filter(
-      (item) =>
-        item.label.toLowerCase().includes(text) ||
+    const filtered = MENU_ITEMS.filter((item) => {
+      const vi = item.labelVi.toLowerCase();
+      const en = item.labelEn.toLowerCase();
+      return (
+        vi.includes(text) ||
+        en.includes(text) ||
         item.id.toLowerCase().includes(text)
-    );
+      );
+    });
 
     setResults(filtered);
     setIsOpen(true);
@@ -92,7 +99,7 @@ export default function GlobalSearch() {
         <input
           type="text"
           className="global-search-input"
-          placeholder="Tìm kiếm chức năng..."
+          placeholder={t("Tìm kiếm chức năng...", "Search features...")}
           value={searchText}
           onChange={handleSearch}
           onKeyDown={handleKeyDown}
@@ -110,7 +117,7 @@ export default function GlobalSearch() {
               onClick={() => handleSelectResult(item)}
             >
               <i className={`bi ${item.icon} global-search-result-icon`} />
-              <span className="global-search-result-label">{item.label}</span>
+              <span className="global-search-result-label">{t(item.labelVi, item.labelEn)}</span>
             </div>
           ))}
         </div>
@@ -119,7 +126,12 @@ export default function GlobalSearch() {
       {/* Thông báo không tìm thấy */}
       {isOpen && searchText.trim().length > 0 && results.length === 0 && (
         <div className="global-search-empty">
-          <p className="mb-0">Không tìm thấy chức năng "{searchText}"</p>
+          <p className="mb-0">
+            {t(
+              `Không tìm thấy chức năng "${searchText}"`,
+              `No feature found for "${searchText}"`
+            )}
+          </p>
         </div>
       )}
     </div>

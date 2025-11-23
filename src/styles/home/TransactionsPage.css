@@ -1,5 +1,6 @@
 .transactions-page {
   padding: 18px 24px 32px;
+  color: var(--app-text);
 }
 
 /* HERO */

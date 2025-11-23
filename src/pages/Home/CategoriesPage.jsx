@@ -4,10 +4,13 @@ import Toast from "../../components/common/Toast/Toast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 import useOnClickOutside from "../../hooks/useOnClickOutside";
 
 export default function CategoriesPage() {
   const { expenseCategories, incomeCategories, createExpenseCategory, createIncomeCategory, updateExpenseCategory, updateIncomeCategory, deleteExpenseCategory, deleteIncomeCategory } = useCategoryData();
+  const { translate } = useLanguage();
+  const t = translate;
 
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -113,14 +116,14 @@ export default function CategoriesPage() {
       }
       // go to first page to show the new item
       setPage(1);
-      setToast({ open: true, message: "Đã thêm danh mục mới.", type: "success" });
+      setToast({ open: true, message: t("Đã thêm danh mục mới.", "New category added."), type: "success" });
     } else if (modalMode === "edit") {
       if (activeTab === "expense") {
         updateExpenseCategory(modalEditingId, payload);
       } else {
         updateIncomeCategory(modalEditingId, payload);
       }
-      setToast({ open: true, message: "Đã cập nhật danh mục.", type: "success" });
+      setToast({ open: true, message: t("Đã cập nhật danh mục.", "Category updated."), type: "success" });
     }
     setModalOpen(false);
     setModalEditingId(null);
@@ -155,7 +158,7 @@ export default function CategoriesPage() {
         await deleteIncomeCategory(cat.id);
       }
 
-      setToast({ open: true, message: `Đã xóa danh mục "${cat.name}"`, type: "success" });
+      setToast({ open: true, message: t(`Đã xóa danh mục "${cat.name}"`, `Deleted category "${cat.name}"`), type: "success" });
       
       // Đóng modal edit nếu đang edit danh mục này
       if (modalEditingId === cat.id) {
@@ -164,7 +167,7 @@ export default function CategoriesPage() {
       }
     } catch (error) {
       console.error("Lỗi khi xóa danh mục:", error);
-      setToast({ open: true, message: error.message || "Lỗi khi xóa danh mục", type: "error" });
+      setToast({ open: true, message: error.message || t("Lỗi khi xóa danh mục", "Failed to delete category"), type: "error" });
     }
   };
 
@@ -177,9 +180,12 @@ export default function CategoriesPage() {
               <i className="bi bi-tags cat-header-icon" />
             </div>
             <div>
-              <h2 className="cat-hero__title">Danh Mục</h2>
+              <h2 className="cat-hero__title">{t("Danh Mục", "Categories")}</h2>
               <p className="cat-hero__subtitle">
-                Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ đây.
+                {t(
+                  "Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ đây.",
+                  "Add the categories you frequently spend or receive money with."
+                )}
               </p>
             </div>
           </div>
@@ -195,7 +201,7 @@ export default function CategoriesPage() {
                   setPage(1);
                 }}
               >
-                Chi phí
+                {t("Chi phí", "Expense")}
               </button>
               <button
                 type="button"
@@ -206,7 +212,7 @@ export default function CategoriesPage() {
                   setPage(1);
                 }}
               >
-                Thu nhập
+                {t("Thu nhập", "Income")}
               </button>
             </div>
             <button
@@ -215,7 +221,7 @@ export default function CategoriesPage() {
               onClick={openAddModal}
             >
               <i className="bi bi-plus-lg" />
-              <span>Thêm danh mục</span>
+              <span>{t("Thêm danh mục", "Add category")}</span>
             </button>
           </div>
         </div>
@@ -227,7 +233,7 @@ export default function CategoriesPage() {
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
           <form className="g-3" onSubmit={handleSearchSubmit}>
-            <label className="form-label fw-semibold">Tìm danh mục</label>
+            <label className="form-label fw-semibold">{t("Tìm danh mục", "Search categories")}</label>
             <div className="category-search-inline">
               <div
                 className={`searchable-select category-search-select flex-grow-1 ${selectMenuOpen ? "is-open" : ""}`}
@@ -236,7 +242,7 @@ export default function CategoriesPage() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Chọn hoặc nhập tên danh mục"
+                  placeholder={t("Chọn hoặc nhập tên danh mục", "Select or type a category name")}
                   value={searchQuery}
                   onFocus={() => setSelectMenuOpen(true)}
                   onChange={(e) => {
@@ -257,10 +263,10 @@ export default function CategoriesPage() {
                         setSelectMenuOpen(false);
                       }}
                     >
-                      Tất cả danh mục
+                      {t("Tất cả danh mục", "All categories")}
                     </button>
                     {filteredOptions.length === 0 ? (
-                      <div className="px-3 py-2 text-muted small">Không tìm thấy danh mục</div>
+                      <div className="px-3 py-2 text-muted small">{t("Không tìm thấy danh mục", "No categories found")}</div>
                     ) : (
                       filteredOptions.map((cat) => (
                         <button
@@ -284,10 +290,10 @@ export default function CategoriesPage() {
               </div>
               <div className="category-search-actions">
                 <button type="submit" className="btn btn-primary">
-                  Tìm kiếm
+                  {t("Tìm kiếm", "Search")}
                 </button>
                 <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
-                  Xóa lọc
+                  {t("Xóa lọc", "Clear filters")}
                 </button>
               </div>
             </div>
@@ -302,11 +308,11 @@ export default function CategoriesPage() {
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th style={{ width: "5%" }}>STT</th>
-                  <th style={{ width: "25%" }}>Tên danh mục</th>
-                  <th>Mô tả</th>
+                  <th style={{ width: "5%" }}>{t("STT", "No.")}</th>
+                  <th style={{ width: "25%" }}>{t("Tên danh mục", "Category name")}</th>
+                  <th>{t("Mô tả", "Description")}</th>
                   <th className="text-center" style={{ width: "15%" }}>
-                    Hành động
+                    {t("Hành động", "Actions")}
                   </th>
                 </tr>
               </thead>
@@ -314,7 +320,7 @@ export default function CategoriesPage() {
                 {displayedList.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center text-muted py-4">
-                      Chưa có danh mục nào.
+                      {t("Chưa có danh mục nào.", "No categories yet.")}
                     </td>
                   </tr>
                 ) : (
@@ -332,14 +338,14 @@ export default function CategoriesPage() {
                         <td className="text-center">
                           {!isSystemCategory ? (
                             <>
-                              <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title="Sửa">
+                              <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title={t("Sửa", "Edit")}>
                                 <i className="bi bi-pencil-square" />
                               </button>
                               <button
                                 className="btn btn-link btn-sm text-danger"
                                 type="button"
                                 onClick={() => handleDelete(c)}
-                                title="Xóa"
+                                title={t("Xóa", "Delete")}
                               >
                                 <i className="bi bi-trash" />
                               </button>
@@ -358,7 +364,7 @@ export default function CategoriesPage() {
         </div>
         {/* PAGINATION */}
         <div className="card-footer category-pagination-bar">
-          <span className="text-muted small">Trang {page} / {totalPages}</span>
+          <span className="text-muted small">{t("Trang", "Page")} {page} / {totalPages}</span>
           <div className="category-pagination">
             <button
               type="button"
@@ -414,17 +420,21 @@ export default function CategoriesPage() {
         open={modalOpen}
         mode={modalMode}
         initialValue={modalInitial}
-        typeLabel={activeTab === "expense" ? "chi phí" : "thu nhập"}
+        typeLabel={activeTab === "expense" ? t("chi phí", "expense") : t("thu nhập", "income")}
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
       />
 
       <ConfirmModal
         open={!!confirmDel}
-        title="Xóa danh mục"
-        message={confirmDel ? `Xóa danh mục "${confirmDel.name}"?` : ""}
-        okText="Xóa"
-        cancelText="Hủy"
+        title={t("Xóa danh mục", "Delete category")}
+        message={
+          confirmDel
+            ? t(`Xóa danh mục "${confirmDel.name}"?`, `Delete category "${confirmDel.name}"?`)
+            : ""
+        }
+        okText={t("Xóa", "Delete")}
+        cancelText={t("Hủy", "Cancel")}
         onOk={doDelete}
         onClose={() => setConfirmDel(null)}
       />

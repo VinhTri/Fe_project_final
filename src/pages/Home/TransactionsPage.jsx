@@ -11,7 +11,10 @@ import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 import { transactionAPI, walletAPI } from "../../services/api-client";
+import { useMoneyFormat } from "../../hooks/useMoneyFormat";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 // ===== REMOVED MOCK DATA - Now using API =====
 
@@ -29,107 +32,15 @@ function toDateObj(str) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/**
- * Format ngày theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "DD/MM/YYYY"
- */
-function formatVietnamDate(date) {
-  if (!date) return "";
-  
-  // Parse date string từ API (thường là ISO string ở UTC)
-  // Không dùng new Date() trực tiếp vì nó sẽ parse theo local timezone
-  // Thay vào đó, parse ISO string và convert sang VN timezone
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    // Nếu là ISO string, parse nó như UTC time
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  
-  if (Number.isNaN(d.getTime())) return "";
-  
-  // Dùng toLocaleString với timezone VN để convert đúng
-  return d.toLocaleDateString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-/**
- * Format giờ theo múi giờ Việt Nam (UTC+7)
- * @param {Date|string} date - Date object hoặc date string (ISO format từ API)
- * @returns {string} - Format: "HH:mm"
- */
-function formatVietnamTime(date) {
-  if (!date) return "";
-  
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else if (typeof date === 'string') {
-    // Parse ISO string như UTC time
-    d = new Date(date);
-  } else {
-    return "";
-  }
-  
-  if (Number.isNaN(d.getTime())) return "";
-  
-  // Dùng toLocaleString với timezone VN để convert đúng
-  return d.toLocaleTimeString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
-/**
- * Format số tiền với độ chính xác cao (tối đa 8 chữ số thập phân)
- * Để hiển thị chính xác số tiền nhỏ khi chuyển đổi tiền tệ
- */
-function formatMoney(amount = 0, currency = "VND") {
-  const numAmount = Number(amount) || 0;
-  
-  // Custom format cho USD: hiển thị $ ở trước
-  // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
-  if (currency === "USD") {
-    // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      const formatted = numAmount.toLocaleString("en-US", { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 8 
-      });
-      return `$${formatted}`;
-    }
-    const formatted = numAmount % 1 === 0 
-      ? numAmount.toLocaleString("en-US")
-      : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-    return `$${formatted}`;
-  }
-  
-  // Format cho VND và các currency khác
-  try {
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  } catch {
-    return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
-  }
-}
-
 export default function TransactionsPage() {
+  const { translate } = useLanguage();
+  const t = useCallback(
+    (viText, enText) =>
+      typeof translate === "function"
+        ? translate(viText, enText)
+        : viText ?? enText ?? "",
+    [translate]
+  );
   const [externalTransactions, setExternalTransactions] = useState([]);
   const [internalTransactions, setInternalTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -150,10 +61,49 @@ export default function TransactionsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [scheduledTransactions, setScheduledTransactions] = useState(MOCK_SCHEDULES);
+  const getInitialSchedules = () => {
+    if (typeof window === "undefined") return MOCK_SCHEDULES;
+    try {
+      const raw = localStorage.getItem("scheduledTransactions");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.error("Không thể đọc scheduledTransactions từ localStorage:", error);
+    }
+    return MOCK_SCHEDULES;
+  };
+
+  const [scheduledTransactions, setScheduledTransactions] = useState(getInitialSchedules);
   const [scheduleFilter, setScheduleFilter] = useState("all");
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const { formatMoney } = useMoneyFormat();
+  const { formatDate } = useDateFormat();
+  const formatDateOnly = useCallback(
+    (value) => {
+      const formatted = formatDate(value);
+      return formatted === "--" ? "" : formatted;
+    },
+    [formatDate]
+  );
+  const formatTimeOnly = useCallback(
+    (value) => {
+      const formatted = formatDate(value, { pattern: "HH:mm" });
+      return formatted === "--" ? "" : formatted;
+    },
+    [formatDate]
+  );
+  const formatDateWithTime = useCallback(
+    (value) => {
+      const formatted = formatDate(value, { withTime: true });
+      return formatted === "--" ? "" : formatted;
+    },
+    [formatDate]
+  );
 
   // Get shared data from contexts
   const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
@@ -175,7 +125,7 @@ export default function TransactionsPage() {
     
     // Dùng created_at từ database thay vì transaction_date
     // Giữ nguyên date string từ API (ISO format), không convert
-    // Format sẽ được xử lý khi hiển thị bằng formatVietnamDate/Time
+    // Format sẽ được xử lý khi hiển thị bằng formatter chung
     const dateValue = tx.createdAt || tx.transactionDate || new Date().toISOString();
     
     return {
@@ -730,14 +680,14 @@ export default function TransactionsPage() {
   );
 
   const allCategories = useMemo(() => {
-    const s = new Set(currentTransactions.map((t) => t.category).filter(Boolean));
+    const s = new Set(currentTransactions.map((tx) => tx.category).filter(Boolean));
     return Array.from(s);
   }, [currentTransactions]);
 
   const allWallets = useMemo(() => {
     if (activeTab === TABS.EXTERNAL) {
       const s = new Set(
-        externalTransactions.map((t) => t.walletName).filter(Boolean)
+        externalTransactions.map((tx) => tx.walletName).filter(Boolean)
       );
       return Array.from(s);
     }
@@ -748,6 +698,15 @@ export default function TransactionsPage() {
     });
     return Array.from(s);
   }, [activeTab, externalTransactions, internalTransactions]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem("scheduledTransactions", JSON.stringify(scheduledTransactions));
+    } catch (error) {
+      console.error("Không thể lưu scheduledTransactions vào localStorage:", error);
+    }
+  }, [scheduledTransactions]);
 
   const scheduleCounts = useMemo(() => {
     const counts = { all: scheduledTransactions.length, pending: 0, recurring: 0 };
@@ -769,6 +728,41 @@ export default function TransactionsPage() {
       return true;
     });
   }, [scheduledTransactions, scheduleFilter]);
+
+  const scheduleTypeLabels = useMemo(
+    () => ({
+      ONE_TIME: t("Một lần", "One-time"),
+      DAILY: t("Hằng ngày", "Daily"),
+      WEEKLY: t("Hằng tuần", "Weekly"),
+      MONTHLY: t("Hằng tháng", "Monthly"),
+      YEARLY: t("Hằng năm", "Yearly"),
+    }),
+    [t]
+  );
+
+  const scheduleStatusLabels = useMemo(
+    () => ({
+      PENDING: t("Chờ chạy", "Pending"),
+      RUNNING: t("Đang chạy", "Running"),
+      COMPLETED: t("Hoàn tất", "Completed"),
+      FAILED: t("Thất bại", "Failed"),
+      CANCELLED: t("Đã hủy", "Cancelled"),
+    }),
+    [t]
+  );
+
+  const scheduleTabLabels = useMemo(
+    () => ({
+      all: t("Tất cả", "All"),
+      pending: t("Chờ chạy", "Pending"),
+      recurring: t("Định kỳ", "Recurring"),
+    }),
+    [t]
+  );
+
+  const incomeLabel = t("Thu nhập", "Income");
+  const expenseLabel = t("Chi tiêu", "Expense");
+  const transferLabel = t("Giao dịch giữa các ví", "Wallet transfers");
 
   const isScheduleView = activeTab === TABS.SCHEDULE;
 
@@ -969,9 +963,14 @@ export default function TransactionsPage() {
               <i className="bi bi-cash-stack tx-header-icon" />
             </div>
             <div>
-              <h2 className="tx-hero__title">Quản lý Giao dịch</h2>
+              <h2 className="tx-hero__title">
+                {t("Quản lý Giao dịch", "Manage transactions")}
+              </h2>
               <p className="tx-hero__subtitle">
-                Xem, tìm kiếm và quản lý các khoản thu chi gần đây.
+                {t(
+                  "Xem, tìm kiếm và quản lý các khoản thu chi gần đây.",
+                  "View, search, and manage your recent income and expenses."
+                )}
               </p>
             </div>
           </div>
@@ -981,9 +980,13 @@ export default function TransactionsPage() {
               value={activeTab}
               onChange={handleTabChange}
             >
-              <option value={TABS.EXTERNAL}>Giao dịch ngoài</option>
-              <option value={TABS.INTERNAL}>Giao dịch giữa các ví</option>
-              <option value={TABS.SCHEDULE}>Lịch giao dịch định kỳ</option>
+              <option value={TABS.EXTERNAL}>
+                {t("Giao dịch ngoài", "External transactions")}
+              </option>
+              <option value={TABS.INTERNAL}>{transferLabel}</option>
+              <option value={TABS.SCHEDULE}>
+                {t("Lịch giao dịch định kỳ", "Scheduled transactions")}
+              </option>
             </select>
 
             <button
@@ -992,7 +995,7 @@ export default function TransactionsPage() {
               onClick={() => setCreating(true)}
             >
               <i className="bi bi-plus-lg" />
-              <span>Thêm giao dịch</span>
+              <span>{t("Thêm giao dịch", "Add transaction")}</span>
             </button>
           </div>
         </div>
@@ -1009,8 +1012,12 @@ export default function TransactionsPage() {
                     <i className="bi bi-search text-muted" />
                   </span>
                   <input
+                    type="text"
                     className="form-control border-start-0"
-                    placeholder="Tìm kiếm giao dịch..."
+                    placeholder={t(
+                      "Tìm kiếm giao dịch...",
+                      "Search transactions..."
+                    )}
                     value={searchText}
                     onChange={(e) => {
                       setSearchText(e.target.value);
@@ -1027,9 +1034,11 @@ export default function TransactionsPage() {
                     value={filterType}
                     onChange={handleFilterChange(setFilterType)}
                   >
-                    <option value="all">Loại giao dịch</option>
-                    <option value="income">Thu nhập</option>
-                    <option value="expense">Chi tiêu</option>
+                    <option value="all">
+                      {t("Loại giao dịch", "Transaction type")}
+                    </option>
+                    <option value="income">{incomeLabel}</option>
+                    <option value="expense">{expenseLabel}</option>
                   </select>
                 </div>
               )}
@@ -1040,7 +1049,7 @@ export default function TransactionsPage() {
                   value={filterCategory}
                   onChange={handleFilterChange(setFilterCategory)}
                 >
-                  <option value="all">Danh mục</option>
+                  <option value="all">{t("Danh mục", "Category")}</option>
                   {allCategories.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -1057,7 +1066,7 @@ export default function TransactionsPage() {
                   value={filterWallet}
                   onChange={handleFilterChange(setFilterWallet)}
                 >
-                  <option value="all">Ví</option>
+                  <option value="all">{t("Ví", "Wallet")}</option>
                   {allWallets.map((w) => (
                     <option key={w} value={w}>
                       {w}
@@ -1073,7 +1082,9 @@ export default function TransactionsPage() {
                   value={fromDateTime}
                   onChange={handleDateChange(setFromDateTime)}
                 />
-                <span className="text-muted small px-1">đến</span>
+                <span className="text-muted small px-1">
+                  {t("đến", "to")}
+                </span>
                 <input
                   type="datetime-local"
                   className="form-control"
@@ -1089,7 +1100,7 @@ export default function TransactionsPage() {
                   onClick={clearFilters}
                 >
                   <i className="bi bi-x-circle me-1" />
-                  Xóa lọc
+                  {t("Xóa lọc", "Clear filters")}
                 </button>
               </div>
             </div>
@@ -1102,11 +1113,19 @@ export default function TransactionsPage() {
           <div className="card-body">
             <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
               <div>
-                <h5 className="mb-1">Lịch giao dịch định kỳ</h5>
-                <p className="text-muted mb-0">Quản lý các khoản thu chi được lập lịch tự động.</p>
+                <h5 className="mb-1">
+                  {t("Lịch giao dịch định kỳ", "Scheduled transactions")}
+                </h5>
+                <p className="text-muted mb-0">
+                  {t(
+                    "Quản lý các khoản thu chi được lập lịch tự động.",
+                    "Manage income and expenses that run on an automated schedule."
+                  )}
+                </p>
               </div>
               <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
-                <i className="bi bi-plus-lg me-2" />Tạo lịch giao dịch
+                <i className="bi bi-plus-lg me-2" />
+                {t("Tạo lịch giao dịch", "Create schedule")}
               </button>
             </div>
 
@@ -1118,7 +1137,7 @@ export default function TransactionsPage() {
                   className={`schedule-tab ${scheduleFilter === tab.value ? "active" : ""}`}
                   onClick={() => setScheduleFilter(tab.value)}
                 >
-                  {tab.label}
+                  {scheduleTabLabels[tab.value] || tab.label}
                   <span className="badge rounded-pill bg-light text-dark ms-2">
                     {scheduleCounts[tab.value] ?? 0}
                   </span>
@@ -1128,31 +1147,44 @@ export default function TransactionsPage() {
 
             {filteredSchedules.length === 0 ? (
               <div className="text-center text-muted py-4">
-                Chưa có lịch nào phù hợp.
+                {t("Chưa có lịch nào phù hợp.", "No schedules match your filters.")}
               </div>
             ) : (
               <div className="schedule-list">
                 {filteredSchedules.map((schedule) => {
-                  const meta = SCHEDULE_STATUS_META[schedule.status] || SCHEDULE_STATUS_META.PENDING;
+                  const baseMeta = SCHEDULE_STATUS_META[schedule.status] || SCHEDULE_STATUS_META.PENDING;
+                  const meta = {
+                    ...baseMeta,
+                    label:
+                      scheduleStatusLabels[schedule.status] ||
+                      scheduleStatusLabels.PENDING,
+                  };
                   const progress = schedule.totalRuns > 0 ? Math.min(100, Math.round((schedule.successRuns / schedule.totalRuns) * 100)) : 0;
                   return (
                     <div className="scheduled-card" key={schedule.id}>
                       <div className="d-flex justify-content-between align-items-start mb-2">
                         <div>
                           <h6 className="mb-1">
-                            {schedule.walletName} • {schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"}
+                            {schedule.walletName} • {schedule.transactionType === "income" ? incomeLabel : expenseLabel}
                           </h6>
                           <p className="mb-1 text-muted">
-                            {schedule.categoryName} · {schedule.scheduleTypeLabel}
+                            {schedule.categoryName} · {scheduleTypeLabels[schedule.scheduleType] || schedule.scheduleTypeLabel}
                           </p>
                         </div>
                         <span className={meta.className}>{meta.label}</span>
                       </div>
                       <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
-                        <span>Số tiền: {formatMoney(schedule.amount, schedule.currency)}</span>
-                        <span>Tiếp theo: {formatVietnamDateTime(schedule.nextRun)}</span>
                         <span>
-                          Lần hoàn thành: {schedule.successRuns}/{schedule.totalRuns || "∞"}
+                          {t("Số tiền:", "Amount:")}{" "}
+                          {formatMoney(schedule.amount, schedule.currency)}
+                        </span>
+                        <span>
+                          {t("Tiếp theo:", "Next:")}{" "}
+                          {formatDateWithTime(schedule.nextRun)}
+                        </span>
+                        <span>
+                          {t("Lần hoàn thành:", "Completed runs:")}{" "}
+                          {schedule.successRuns}/{schedule.totalRuns || "∞"}
                         </span>
                       </div>
                       <div className="progress schedule-progress">
@@ -1166,7 +1198,7 @@ export default function TransactionsPage() {
                       )}
                       <div className="scheduled-card-actions">
                         <button type="button" className="btn btn-link px-0" onClick={() => setSelectedSchedule(schedule)}>
-                          Xem lịch sử
+                          {t("Xem lịch sử", "View logs")}
                         </button>
                         <button
                           type="button"
@@ -1174,7 +1206,7 @@ export default function TransactionsPage() {
                           disabled={schedule.status === "CANCELLED"}
                           onClick={() => handleScheduleCancel(schedule.id)}
                         >
-                          Hủy lịch
+                          {t("Hủy lịch", "Cancel schedule")}
                         </button>
                       </div>
                     </div>
@@ -1189,9 +1221,16 @@ export default function TransactionsPage() {
           {loading ? (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Đang tải...</span>
+                <span className="visually-hidden">
+                  {t("Đang tải...", "Loading...")}
+                </span>
               </div>
-              <p className="mt-2 text-muted">Đang tải danh sách giao dịch...</p>
+              <p className="mt-2 text-muted">
+                {t(
+                  "Đang tải danh sách giao dịch...",
+                  "Loading the transaction list..."
+                )}
+              </p>
             </div>
           ) : (
           <div className="table-responsive">
@@ -1199,73 +1238,73 @@ export default function TransactionsPage() {
               <table className="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th style={{ width: 60 }}>STT</th>
-                    <th>Ngày</th>
-                    <th>Thời gian</th>
-                    <th>Loại</th>
-                    <th>Ví</th>
-                    <th>Danh mục</th>
-                    <th className="tx-note-col">Mô tả</th>
-                    <th className="text-end">Số tiền</th>
-                    <th className="text-center">Hành động</th>
+                    <th style={{ width: 60 }}>{t("STT", "No.")}</th>
+                    <th>{t("Ngày", "Date")}</th>
+                    <th>{t("Thời gian", "Time")}</th>
+                    <th>{t("Loại", "Type")}</th>
+                    <th>{t("Ví", "Wallet")}</th>
+                    <th>{t("Danh mục", "Category")}</th>
+                    <th className="tx-note-col">{t("Mô tả", "Description")}</th>
+                    <th className="text-end">{t("Số tiền", "Amount")}</th>
+                    <th className="text-center">{t("Hành động", "Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="text-center text-muted py-4">
-                        Không có giao dịch nào.
+                        {t("Không có giao dịch nào.", "No transactions found.")}
                       </td>
                     </tr>
                   ) : (
-                    paginated.map((t, i) => {
+                    paginated.map((tx, i) => {
                       const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                      const d = toDateObj(t.date);
-                      const dateStr = formatVietnamDate(d);
-                      const timeStr = formatVietnamTime(d);
+                      const d = toDateObj(tx.date);
+                      const dateStr = formatDateOnly(d);
+                      const timeStr = formatTimeOnly(d);
 
                       return (
-                        <tr key={t.id}>
+                        <tr key={tx.id}>
                           <td>{serial}</td>
                           <td>{dateStr}</td>
                           <td>{timeStr}</td>
-                          <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
-                          <td>{t.walletName}</td>
-                          <td>{t.category}</td>
-                          <td className="tx-note-cell" title={t.note || "-"}>
-                            {t.note || "-"}
+                          <td>{tx.type === "income" ? incomeLabel : expenseLabel}</td>
+                          <td>{tx.walletName}</td>
+                          <td>{tx.category}</td>
+                          <td className="tx-note-cell" title={tx.note || "-"}>
+                            {tx.note || "-"}
                           </td>
                           <td className="text-end">
                             <span
                               className={
-                                t.type === "expense"
+                                tx.type === "expense"
                                   ? "tx-amount-expense"
                                   : "tx-amount-income"
                               }
                             >
-                              {t.type === "expense" ? "-" : "+"}
-                              {formatMoney(t.amount, t.currency)}
+                              {tx.type === "expense" ? "-" : "+"}
+                              {formatMoney(tx.amount, tx.currency)}
                             </span>
                           </td>
                           <td className="text-center">
                             <button
                               className="btn btn-link btn-sm text-muted me-1"
-                              title="Xem chi tiết"
-                              onClick={() => setViewing(t)}
+                              title={t("Xem chi tiết", "View details")}
+                              onClick={() => setViewing(tx)}
                             >
                               <i className="bi bi-eye" />
                             </button>
                             <button
                               className="btn btn-link btn-sm text-muted me-1"
-                              title="Chỉnh sửa"
-                              onClick={() => setEditing(t)}
+                              title={t("Chỉnh sửa", "Edit")}
+                              onClick={() => setEditing(tx)}
                             >
                               <i className="bi bi-pencil-square" />
                             </button>
                             <button
                               className="btn btn-link btn-sm text-danger"
-                              title="Xóa"
-                              onClick={() => setConfirmDel(t)}
+                              title={t("Xóa", "Delete")}
+                              onClick={() => setConfirmDel(tx)}
                             >
                               <i className="bi bi-trash" />
                             </button>
@@ -1280,64 +1319,64 @@ export default function TransactionsPage() {
               <table className="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th style={{ width: 60 }}>STT</th>
-                    <th>Ngày</th>
-                    <th>Thời gian</th>
-                    <th>Ví gửi</th>
-                    <th>Ví nhận</th>
-                    <th className="tx-note-col">Ghi chú</th>
-                    <th className="text-end">Số tiền</th>
-                    <th className="text-center">Hành động</th>
+                    <th style={{ width: 60 }}>{t("STT", "No.")}</th>
+                    <th>{t("Ngày", "Date")}</th>
+                    <th>{t("Thời gian", "Time")}</th>
+                    <th>{t("Ví gửi", "Source wallet")}</th>
+                    <th>{t("Ví nhận", "Destination wallet")}</th>
+                    <th className="tx-note-col">{t("Ghi chú", "Note")}</th>
+                    <th className="text-end">{t("Số tiền", "Amount")}</th>
+                    <th className="text-center">{t("Hành động", "Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center text-muted py-4">
-                        Không có giao dịch nào.
+                        {t("Không có giao dịch nào.", "No transactions found.")}
                       </td>
                     </tr>
                   ) : (
-                    paginated.map((t, i) => {
+                    paginated.map((tx, i) => {
                       const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                      const d = toDateObj(t.date);
-                      const dateStr = formatVietnamDate(d);
-                      const timeStr = formatVietnamTime(d);
+                      const d = toDateObj(tx.date);
+                      const dateStr = formatDateOnly(d);
+                      const timeStr = formatTimeOnly(d);
 
                       return (
-                        <tr key={t.id}>
+                        <tr key={tx.id}>
                           <td>{serial}</td>
                           <td>{dateStr}</td>
                           <td>{timeStr}</td>
-                          <td>{t.sourceWallet}</td>
-                          <td>{t.targetWallet}</td>
-                          <td className="tx-note-cell" title={t.note || "-"}>
-                            {t.note || "-"}
+                          <td>{tx.sourceWallet}</td>
+                          <td>{tx.targetWallet}</td>
+                          <td className="tx-note-cell" title={tx.note || "-"}>
+                            {tx.note || "-"}
                           </td>
                           <td className="text-end">
                             <span className="tx-amount-transfer">
-                              {formatMoney(t.amount, t.currency)}
+                              {formatMoney(tx.amount, tx.currency)}
                             </span>
                           </td>
                           <td className="text-center">
                             <button
                               className="btn btn-link btn-sm text-muted me-1"
-                              title="Xem chi tiết"
-                              onClick={() => setViewing(t)}
+                              title={t("Xem chi tiết", "View details")}
+                              onClick={() => setViewing(tx)}
                             >
                               <i className="bi bi-eye" />
                             </button>
                             <button
                               className="btn btn-link btn-sm text-muted me-1"
-                              title="Chỉnh sửa"
-                              onClick={() => setEditing(t)}
+                              title={t("Chỉnh sửa", "Edit")}
+                              onClick={() => setEditing(tx)}
                             >
                               <i className="bi bi-pencil-square" />
                             </button>
                             <button
                               className="btn btn-link btn-sm text-danger"
-                              title="Xóa"
-                              onClick={() => setConfirmDel(t)}
+                              title={t("Xóa", "Delete")}
+                              onClick={() => setConfirmDel(tx)}
                             >
                               <i className="bi bi-trash" />
                             </button>
@@ -1354,7 +1393,7 @@ export default function TransactionsPage() {
 
           <div className="card-footer d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
             <span className="text-muted small">
-              Trang {currentPage}/{totalPages}
+              {t("Trang", "Page")} {currentPage}/{totalPages}
             </span>
             <div className="tx-pagination">
               <button
@@ -1449,12 +1488,17 @@ export default function TransactionsPage() {
 
       <ConfirmModal
         open={!!confirmDel}
-        title="Xóa giao dịch"
+        title={t("Xóa giao dịch", "Delete transaction")}
         message={
-          confirmDel ? `Bạn chắc chắn muốn xóa giao dịch ${confirmDel.code}?` : ""
+          confirmDel
+            ? t(
+                "Bạn chắc chắn muốn xóa giao dịch {code}?",
+                "Are you sure you want to delete transaction {code}?"
+              ).replace("{code}", confirmDel.code)
+            : ""
         }
-        okText="Xóa"
-        cancelText="Hủy"
+        okText={t("Xóa", "Delete")}
+        cancelText={t("Hủy", "Cancel")}
         onOk={handleDelete}
         onClose={() => setConfirmDel(null)}
       />
@@ -1480,18 +1524,6 @@ export default function TransactionsPage() {
       />
     </div>
   );
-}
-
-function formatVietnamDateTime(date) {
-  if (!date) return "";
-  let d;
-  if (date instanceof Date) {
-    d = date;
-  } else {
-    d = new Date(date);
-  }
-  if (Number.isNaN(d.getTime())) return "";
-  return `${formatVietnamDate(d)} ${formatVietnamTime(d)}`.trim();
 }
 
 function estimateScheduleRuns(startValue, endValue, scheduleType) {

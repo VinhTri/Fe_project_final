@@ -1,7 +1,10 @@
 import React from "react";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 export default function WalletGroupViewModal({ group, onClose }) {
+  const { formatDate } = useDateFormat();
   if (!group) return null;
+  const createdAtLabel = group.createdAt ? formatDate(group.createdAt, { withTime: true }) : "";
 
   return (
     <div className="modal d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
@@ -42,7 +45,7 @@ export default function WalletGroupViewModal({ group, onClose }) {
 
             <div className="text-muted small">
               Tạo ngày:{" "}
-              {new Date(group.createdAt).toLocaleString("vi-VN")}
+              {createdAtLabel && createdAtLabel !== "--" ? createdAtLabel : "—"}
             </div>
           </div>
 

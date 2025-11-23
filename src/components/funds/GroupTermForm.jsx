@@ -5,6 +5,7 @@ import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { calcEstimateDate } from "./fundUtils";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 export default function GroupTermForm({ wallets = [] }) {
   // ... (GIỮ nguyên đúng y code GroupTermForm mình gửi ở tin trước)
@@ -37,6 +38,7 @@ export default function GroupTermForm({ wallets = [] }) {
   const [autoTopupOn, setAutoTopupOn] = useState(false);
 
   const [members, setMembers] = useState([]);
+  const { formatDate } = useDateFormat();
 
   // validate target
   useEffect(() => {
@@ -102,7 +104,8 @@ export default function GroupTermForm({ wallets = [] }) {
       return;
     }
 
-    const dateStr = doneDate.toLocaleDateString("vi-VN");
+    const formattedDate = formatDate(doneDate);
+    const dateStr = formattedDate === "--" ? "" : formattedDate;
     let unitText = "";
     switch (freq) {
       case "day":
@@ -122,9 +125,11 @@ export default function GroupTermForm({ wallets = [] }) {
     }
 
     setEstimateText(
-      `Dự kiến hoàn thành sau khoảng ${unitText}, vào khoảng ngày ${dateStr}.`
+      dateStr
+        ? `Dự kiến hoàn thành sau khoảng ${unitText}, vào khoảng ngày ${dateStr}.`
+        : `Dự kiến hoàn thành sau khoảng ${unitText}.`
     );
-  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance]);
+  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance, formatDate]);
 
   // member handlers
   const handleAddMember = () => {

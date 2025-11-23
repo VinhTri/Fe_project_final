@@ -5,6 +5,7 @@ import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { calcEstimateDate } from "./fundUtils";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 export default function PersonalTermForm({ wallets }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
@@ -31,6 +32,7 @@ export default function PersonalTermForm({ wallets }) {
 
   const [reminderOn, setReminderOn] = useState(false);
   const [autoTopupOn, setAutoTopupOn] = useState(false);
+  const { formatDate } = useDateFormat();
 
   useEffect(() => {
     if (!selectedWallet || !targetAmount) {
@@ -94,7 +96,8 @@ export default function PersonalTermForm({ wallets }) {
       return;
     }
 
-    const dateStr = doneDate.toLocaleDateString("vi-VN");
+    const formattedDate = formatDate(doneDate);
+    const dateStr = formattedDate === "--" ? "" : formattedDate;
     let unitText = "";
     switch (freq) {
       case "day":
@@ -114,9 +117,11 @@ export default function PersonalTermForm({ wallets }) {
     }
 
     setEstimateText(
-      `Dự kiến hoàn thành sau khoảng ${unitText}, vào khoảng ngày ${dateStr}.`
+      dateStr
+        ? `Dự kiến hoàn thành sau khoảng ${unitText}, vào khoảng ngày ${dateStr}.`
+        : `Dự kiến hoàn thành sau khoảng ${unitText}.`
     );
-  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance]);
+  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance, formatDate]);
 
   const handleSave = () => {
     if (!selectedWallet) {

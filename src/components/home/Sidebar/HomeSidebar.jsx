@@ -1,27 +1,36 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
+import { useLanguage } from "../../../home/store/LanguageContext";
 
 const MENU = [
-  { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
-  { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
-  { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
-  { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
-  { to: "/home/categories", label: "Danh mục", icon: "bi-tags" },
-  { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
-  { to: "/home/reports", label: "Báo cáo", icon: "bi-bar-chart-line" },
-  { to: "/home/accounts", label: "Tài khoản", icon: "bi-credit-card-2-front" },
+  { to: "/home", labelVi: "Tổng quan", labelEn: "Overview", icon: "bi-speedometer2", end: true },
+  { to: "/home/wallets", labelVi: "Ví", labelEn: "Wallets", icon: "bi-wallet2" },
+  { to: "/home/funds", labelVi: "Quỹ", labelEn: "Funds", icon: "bi-piggy-bank" },
+  { to: "/home/transactions", labelVi: "Giao dịch", labelEn: "Transactions", icon: "bi-cash-stack" },
+  { to: "/home/categories", labelVi: "Danh mục", labelEn: "Categories", icon: "bi-tags" },
+  { to: "/home/budgets", labelVi: "Ngân sách", labelEn: "Budgets", icon: "bi-graph-up-arrow" },
+  { to: "/home/reports", labelVi: "Báo cáo", labelEn: "Reports", icon: "bi-bar-chart-line" },
+  { to: "/home/accounts", labelVi: "Tài khoản", labelEn: "Accounts", icon: "bi-credit-card-2-front" },
 ];
 
 export default function HomeSidebar() {
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
+  const { translate } = useLanguage();
+  const t = translate;
 
   useEffect(() => {
     document.body.classList.toggle("sb-collapsed", collapsed);
     localStorage.setItem("sb_collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
+
+  const brandTitle = t("HỆ THỐNG QUẢN LÝ", "MANAGEMENT SYSTEM");
+  const brandSub = t("Quản lý ví cá nhân", "Personal wallet manager");
+  const toggleLabel = t("Thu gọn / Mở rộng Sidebar", "Collapse / expand sidebar");
+  const toggleTooltip = t("Mở rộng", "Expand");
+  const menuLabel = t("Menu", "Menu");
 
   return (
     <div className={`sb__container ${collapsed ? "is-collapsed" : ""}`}>
@@ -39,8 +48,8 @@ export default function HomeSidebar() {
         />
 
         <div className="sb__brand-text">
-          <div className="sb__brand-title">HỆ THỐNG QUẢN LÝ</div>
-          <div className="sb__brand-sub">Quản lý ví cá nhân</div>
+          <div className="sb__brand-title">{brandTitle}</div>
+          <div className="sb__brand-sub">{brandSub}</div>
         </div>
       </div>
 
@@ -51,13 +60,13 @@ export default function HomeSidebar() {
         type="button"
         className="sb__link sb__link--header"
         onClick={() => setCollapsed((v) => !v)}
-        aria-label="Thu gọn / Mở rộng Sidebar"
-        data-title={collapsed ? "Mở rộng" : undefined}
+        aria-label={toggleLabel}
+        data-title={collapsed ? toggleTooltip : undefined}
       >
         <span className="sb__icon" aria-hidden="true">
           <i className="bi bi-list" />
         </span>
-        <span className="sb__text sb__menu-title">Menu</span>
+        <span className="sb__text sb__menu-title">{menuLabel}</span>
       </button>
 
       <div className="sb__divider" />
@@ -74,14 +83,13 @@ export default function HomeSidebar() {
             className={({ isActive }) =>
               "sb__link" + (isActive ? " is-active" : "")
             }
-            // dùng data-title để tooltip CSS, tránh title mặc định
-            data-title={collapsed ? m.label : undefined}
-            aria-label={collapsed ? m.label : undefined}
+            data-title={collapsed ? t(m.labelVi, m.labelEn) : undefined}
+            aria-label={collapsed ? t(m.labelVi, m.labelEn) : undefined}
           >
             <span className="sb__icon" aria-hidden="true">
               <i className={`bi ${m.icon}`} />
             </span>
-            <span className="sb__text">{m.label}</span>
+            <span className="sb__text">{t(m.labelVi, m.labelEn)}</span>
           </NavLink>
         ))}
       </nav>

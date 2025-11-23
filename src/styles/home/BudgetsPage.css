@@ -41,6 +41,9 @@
 .budget-page {
   min-height: 100vh;
   background-color: #f8f9fa;
+  color: var(--app-text);
+  --budget-card-text: var(--app-card-text, #0f172a);
+  --budget-card-muted: var(--app-card-muted, #475569);
 }
 
 /* ================= HEADER ================= */
@@ -188,18 +191,20 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  color: var(--budget-card-text);
 }
 
 .budget-metric-label {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #6c757d;
+  color: var(--budget-card-muted);
 }
 
 .budget-metric-value {
   font-size: 1.4rem;
   font-weight: 700;
+  color: inherit;
 }
 
 .budget-warning-banner {
@@ -307,6 +312,7 @@
   align-items: center;
   gap: 0.5rem;
   transition: all 0.2s ease;
+  color: var(--budget-card-text);
 }
 
 .budget-status-tab .badge-count {
@@ -315,6 +321,7 @@
   padding: 0.1rem 0.65rem;
   font-size: 0.85rem;
   font-weight: 600;
+  color: var(--budget-card-muted);
 }
 
 .budget-status-tab.active {
@@ -506,6 +513,12 @@
   position: relative;
   overflow: hidden;
   cursor: pointer;
+  color: var(--budget-card-text);
+}
+
+.budget-card .text-muted,
+.budget-card small {
+  color: var(--budget-card-muted) !important;
 }
 
 .budget-card--highlight {
@@ -621,7 +634,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #6c757d;
+  color: var(--budget-card-muted);
   margin-bottom: 0.25rem;
 }
 
@@ -633,7 +646,7 @@
 .budget-card-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #212529;
+  color: var(--budget-card-text);
   margin: 0;
 }
 
@@ -665,7 +678,7 @@
   border-radius: 8px;
   padding: 0.65rem 0.75rem;
   font-size: 0.9rem;
-  color: #495057;
+  color: var(--budget-card-text);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -739,7 +752,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--budget-card-muted);
   margin-bottom: 1rem;
 }
 
@@ -750,14 +763,14 @@
 
 .budget-stat-label {
   font-weight: 500;
-  color: #495057;
+  color: var(--budget-card-muted);
   margin-bottom: 0.25rem;
 }
 
 .budget-stat-value {
   font-size: 1rem;
   font-weight: 600;
-  color: #212529;
+  color: var(--budget-card-text);
 }
 
 .budget-stat-value.danger {

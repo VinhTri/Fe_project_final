@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "../common/Modal/Modal";
+import { useDateFormat } from "../../hooks/useDateFormat";
 
 const SCHEDULE_TYPES = [
   { value: "ONE_TIME", label: "Một lần", tooltip: "Chỉ thực hiện một lần vào ngày đã chọn" },
@@ -30,6 +31,7 @@ export default function ScheduledTransactionModal({
 }) {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [errors, setErrors] = useState({});
+  const { formatDate } = useDateFormat();
 
   useEffect(() => {
     if (open) {
@@ -52,13 +54,12 @@ export default function ScheduledTransactionModal({
     const start = new Date(form.firstRun);
     if (Number.isNaN(start.getTime())) return "Chưa chọn thời điểm chạy";
 
-    const startLabel = start.toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const startLabelRaw = formatDate(form.firstRun, { withTime: true });
+    const startLabel = startLabelRaw === "--" ? "" : startLabelRaw;
+
+    if (!startLabel) {
+      return "Chưa chọn thời điểm chạy";
+    }
 
     if (form.scheduleType === "ONE_TIME" || !form.endDate) {
       return `Sẽ chạy từ ${startLabel}`;
@@ -88,9 +89,12 @@ export default function ScheduledTransactionModal({
         estimate = 1;
     }
 
-    const endLabel = end.toLocaleDateString("vi-VN");
-    return `Ước tính chạy ${estimate} lần (từ ${startLabel} → ${endLabel})`;
-  }, [form.firstRun, form.endDate, form.scheduleType]);
+    const endLabelRaw = formatDate(form.endDate);
+    const endLabel = endLabelRaw === "--" ? "" : endLabelRaw;
+    return endLabel
+      ? `Ước tính chạy ${estimate} lần (từ ${startLabel} → ${endLabel})`
+      : `Ước tính chạy ${estimate} lần (bắt đầu ${startLabel})`;
+  }, [form.firstRun, form.endDate, form.scheduleType, formatDate]);
 
   const handleChange = (key) => (event) => {
     const value = event.target.value;

@@ -1,9 +1,16 @@
 // src/components/funds/FundSection.jsx
 import React from "react";
 import FundCard from "./FundCard";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function FundSection({ title, subtitle, items, onSelectFund }) {
+  const { translate } = useLanguage();
+  const t = translate;
   if (!items || items.length === 0) return null;
+  const badgeText = t("{count} quỹ", "{count} funds").replace(
+    "{count}",
+    items.length
+  );
 
   return (
     <section className="fund-section card border-0 shadow-sm mb-3">
@@ -12,7 +19,7 @@ export default function FundSection({ title, subtitle, items, onSelectFund }) {
           <h5 className="mb-1">{title}</h5>
           {subtitle && <p className="mb-0 text-muted small">{subtitle}</p>}
         </div>
-        <span className="badge bg-light text-dark">{items.length} quỹ</span>
+        <span className="badge bg-light text-dark">{badgeText}</span>
       </div>
       <div className="fund-section__grid">
         {items.map((f) => (
