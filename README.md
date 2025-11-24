@@ -1,70 +1,60 @@
-# Getting Started with Create React App
+# 🌐 Frontend - Ứng dụng Quản Lý Tài Chính Cá Nhân
+# Đây chỉ là frontend,hãy truy cập đường dẫn sau để vào backend:"https://github.com/tuanburh1134/final_project_I.git"
+## 📝 Giới thiệu
+Đây là phần **giao diện người dùng (UI)** của hệ thống quản lý tài chính cá nhân, được phát triển bằng **React.js** nhằm mang đến trải nghiệm trực quan, hiện đại và dễ sử dụng. Ứng dụng cho phép người dùng theo dõi thu chi, quản lý ví, thiết lập ngân sách và xem báo cáo tài chính một cách chi tiết.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### 🎯 Mục tiêu
+- Giúp người dùng kiểm soát chi tiêu hàng ngày.
+- Hỗ trợ thiết lập ngân sách và cảnh báo khi vượt hạn mức.
+- Cung cấp báo cáo trực quan để phân tích xu hướng tài chính.
+- Tích hợp dễ dàng với backend thông qua API RESTful.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🔍 Chức năng chính
+Ứng dụng bao gồm nhiều module và trang chức năng:
 
-### `npm start`
+- **Tổng quan (Dashboard)**  
+  Hiển thị số dư tổng, thu chi gần đây, biểu đồ thống kê theo thời gian.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Quản lý Ví**  
+  Tạo, chỉnh sửa, xóa ví (tiền mặt, ngân hàng, ví điện tử). Hiển thị số dư từng ví.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **Quỹ tiết kiệm (Funds)**  
+  Thiết lập mục tiêu tài chính dài hạn, theo dõi tiến độ đạt mục tiêu.
 
-### `npm test`
+- **Giao dịch (Transactions)**  
+  Quản lý thu chi, chuyển tiền giữa các ví. Hỗ trợ tìm kiếm và lọc theo ngày, danh mục.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **Danh mục chi tiêu (Categories)**  
+  Phân loại giao dịch theo danh mục như ăn uống, mua sắm, hóa đơn, giải trí...
 
-### `npm run build`
+- **Nhóm ví (Wallet Groups)**  
+  Gom các ví vào nhóm để quản lý dễ dàng hơn.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **Ngân sách (Budgets)**  
+  Đặt hạn mức chi tiêu cho từng danh mục, cảnh báo khi vượt mức.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **Báo cáo tài chính (Reports)**  
+  Biểu đồ thu chi, so sánh ngân sách, phân tích xu hướng theo tháng/quý/năm.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **Quản lý tài khoản (Auth)**  
+  Đăng ký, đăng nhập, bảo mật bằng JWT. Hỗ trợ phân quyền người dùng.
 
-### `npm run eject`
+- **Phản hồi (Feedback)**  
+  Cho phép người dùng gửi phản hồi về hệ thống.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+---
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 🛠 Công nghệ sử dụng
+- **React.js** (Hooks, Functional Components)
+- **React Router DOM** (Điều hướng giữa các trang)
+- **Axios** (Gọi API đến backend)
+- **CSS Modules** (Tùy chỉnh giao diện)
+- **Chart.js / Recharts** (Hiển thị biểu đồ)
+- **JWT** (Xác thực với backend)
+- **ESLint + Prettier** (Chuẩn hóa code)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+---
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 📂 Cấu trúc thư mục
