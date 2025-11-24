@@ -37,7 +37,7 @@ const LoginSuccessModal = ({
     if (remain > 0) return;
 
     // chỉ chạy 1 lần khi remain vừa về 0
-    onClose?.(); // setShowSuccess(false) ở LoginPage
+    onClose?.(); // setShowSuccess(false) ở RegisterPage
     navigate(redirectUrl, { replace: true });
   }, [remain, open, onClose, navigate, redirectUrl]);
 
@@ -69,8 +69,7 @@ const LoginSuccessModal = ({
         {/* Thông báo */}
         <h5 className="mb-2">{message}</h5>
         <div className="text-muted mb-3">
-          Đang chuyển đến trang tiếp theo trong{" "}
-          <strong>{remain > 0 ? remain : 0}s</strong>…
+          Đang chuyển đến trang tiếp theo trong <strong>{remain}s</strong>…
         </div>
 
         {/* Spinner */}

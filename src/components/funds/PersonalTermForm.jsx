@@ -5,10 +5,8 @@ import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { calcEstimateDate } from "./fundUtils";
-import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function PersonalTermForm({ wallets }) {
-  const { t } = useLanguage();
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
     () => wallets.find((w) => String(w.id) === String(srcWalletId)) || null,
@@ -40,23 +38,23 @@ export default function PersonalTermForm({ wallets }) {
       return;
     }
 
-    const tVal = Number(targetAmount);
-    if (Number.isNaN(tVal) || tVal <= 0) {
-      setTargetError(t("funds.form.target_invalid"));
+    const t = Number(targetAmount);
+    if (Number.isNaN(t) || t <= 0) {
+      setTargetError("Vui lòng nhập số tiền mục tiêu hợp lệ.");
       return;
     }
 
-    if (tVal <= currentBalance) {
+    if (t <= currentBalance) {
       setTargetError(
-        t("funds.form.target_error_balance")
-          .replace("{balance}", currentBalance.toLocaleString("vi-VN"))
-          .replace("{currency}", currency)
+        `Số tiền mục tiêu phải lớn hơn số dư hiện tại của ví (${currentBalance.toLocaleString(
+          "vi-VN"
+        )} ${currency}).`
       );
       return;
     }
 
     setTargetError("");
-  }, [targetAmount, selectedWallet, currentBalance, currency, t]);
+  }, [targetAmount, selectedWallet, currentBalance, currency]);
 
   useEffect(() => {
     if (!selectedWallet) {
@@ -64,25 +62,25 @@ export default function PersonalTermForm({ wallets }) {
       return;
     }
 
-    const tVal = Number(targetAmount);
+    const t = Number(targetAmount);
     const p = Number(periodAmount);
 
     if (
       !targetAmount ||
       !periodAmount ||
-      Number.isNaN(tVal) ||
+      Number.isNaN(t) ||
       Number.isNaN(p) ||
       p <= 0
     ) {
       setEstimateText("");
       return;
     }
-    if (tVal <= currentBalance) {
+    if (t <= currentBalance) {
       setEstimateText("");
       return;
     }
 
-    const need = tVal - currentBalance;
+    const need = t - currentBalance;
     const periods = Math.ceil(need / p);
     if (!periods || periods <= 0) {
       setEstimateText("");
@@ -100,39 +98,37 @@ export default function PersonalTermForm({ wallets }) {
     let unitText = "";
     switch (freq) {
       case "day":
-        unitText = `${periods} ${t("funds.form.freq_day").toLowerCase()}`;
+        unitText = `${periods} ngày`;
         break;
       case "week":
-        unitText = `${periods} ${t("funds.form.freq_week").toLowerCase()}`;
+        unitText = `${periods} tuần`;
         break;
       case "month":
-        unitText = `${periods} ${t("funds.form.freq_month").toLowerCase()}`;
+        unitText = `${periods} tháng`;
         break;
       case "year":
-        unitText = `${periods} ${t("funds.form.freq_year").toLowerCase()}`;
+        unitText = `${periods} năm`;
         break;
       default:
         break;
     }
 
     setEstimateText(
-      t("funds.form.estimate_text")
-        .replace("{duration}", unitText)
-        .replace("{date}", dateStr)
+      `Dự kiến hoàn thành sau khoảng ${unitText}, vào khoảng ngày ${dateStr}.`
     );
-  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance, t]);
+  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance]);
 
   const handleSave = () => {
     if (!selectedWallet) {
-      alert(t("funds.form.alert_wallet"));
+      alert("Vui lòng chọn ví nguồn trước khi lưu quỹ.");
       return;
     }
     if (!targetAmount) {
-      alert(t("funds.form.alert_target"));
+      alert("Vui lòng nhập số tiền mục tiêu quỹ.");
       return;
     }
     if (targetError) {
-      alert(t("funds.form.alert_target_invalid"));
+      alert("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.");
       return;
     }
 
@@ -149,18 +145,18 @@ export default function PersonalTermForm({ wallets }) {
   return (
     <div className="funds-grid">
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">{t("funds.form.info_legend")}</div>
+        <div className="funds-fieldset__legend">Thông tin quỹ</div>
 
         <div className="funds-field">
           <label>
-            {t("funds.form.name")} <span className="req">*</span>
+            Tên quỹ <span className="req">*</span>
           </label>
           <input
             type="text"
             maxLength={50}
-            placeholder={t("funds.form.name_placeholder")}
+            placeholder="Ví dụ: Quỹ mua xe máy"
           />
-          <div className="funds-hint">{t("funds.form.name_hint")}</div>
+          <div className="funds-hint">Tối đa 50 ký tự.</div>
         </div>
 
         <WalletSourceField
@@ -172,16 +168,16 @@ export default function PersonalTermForm({ wallets }) {
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.current_balance")}</label>
+            <label>Số dư hiện tại của ví</label>
             <input
               type="text"
               disabled
-              placeholder={t("funds.form.auto_balance")}
+              placeholder="Tự động hiển thị sau khi chọn ví"
               value={currentBalanceText}
             />
           </div>
           <div>
-            <label>{t("funds.form.create_date")}</label>
+            <label>Ngày tạo quỹ</label>
             <input
               type="date"
               value={startDate}
@@ -192,47 +188,48 @@ export default function PersonalTermForm({ wallets }) {
       </div>
 
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">{t("funds.form.target_legend")}</div>
+        <div className="funds-fieldset__legend">Mục tiêu & tần suất</div>
 
         <div className="funds-field">
           <label>
-            {t("funds.form.target_amount")}{" "}
+            Số tiền mục tiêu quỹ{" "}
             {currency && <span>({currency})</span>} <span className="req">*</span>
           </label>
           <input
             type="number"
             min={0}
-            placeholder={t("funds.form.target_placeholder")}
+            placeholder="Nhập số tiền mục tiêu"
             value={targetAmount}
             onChange={(e) => setTargetAmount(e.target.value)}
           />
           <div className="funds-hint">
-            {t("funds.form.target_hint")}
+            Phải lớn hơn số dư ví nguồn. Đơn vị tiền tệ của quỹ sẽ dùng chung
+            với ví nguồn.
           </div>
           {targetError && <div className="funds-error">{targetError}</div>}
         </div>
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.freq_label")}</label>
+            <label>Tần suất gửi quỹ</label>
             <select value={freq} onChange={(e) => setFreq(e.target.value)}>
-              <option value="day">{t("funds.form.freq_day")}</option>
-              <option value="week">{t("funds.form.freq_week")}</option>
-              <option value="month">{t("funds.form.freq_month")}</option>
-              <option value="year">{t("funds.form.freq_year")}</option>
+              <option value="day">Theo ngày</option>
+              <option value="week">Theo tuần</option>
+              <option value="month">Theo tháng</option>
+              <option value="year">Theo năm</option>
             </select>
           </div>
           <div>
-            <label>{t("funds.form.period_amount")}</label>
+            <label>Số tiền gửi mỗi kỳ</label>
             <input
               type="number"
               min={0}
-              placeholder={t("funds.form.period_placeholder")}
+              placeholder="Nhập số tiền mỗi kỳ"
               value={periodAmount}
               onChange={(e) => setPeriodAmount(e.target.value)}
             />
             <div className="funds-hint">
-              {t("funds.form.period_hint")}
+              Dùng để gợi ý thời gian hoàn thành theo tần suất đã chọn.
             </div>
             {estimateText && (
               <div className="funds-hint funds-hint--strong">
@@ -244,7 +241,7 @@ export default function PersonalTermForm({ wallets }) {
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.start_date")}</label>
+            <label>Ngày bắt đầu</label>
             <input
               type="date"
               value={startDate}
@@ -252,7 +249,7 @@ export default function PersonalTermForm({ wallets }) {
             />
           </div>
           <div>
-            <label>{t("funds.form.end_date")}</label>
+            <label>Ngày kết thúc (có thể tự điều chỉnh)</label>
             <input
               type="date"
               value={endDate}
@@ -277,10 +274,10 @@ export default function PersonalTermForm({ wallets }) {
 
       <div className="funds-fieldset funds-fieldset--full">
         <div className="funds-field">
-          <label>{t("funds.form.note")}</label>
+          <label>Ghi chú</label>
           <textarea
             rows={3}
-            placeholder={t("funds.form.note_placeholder")}
+            placeholder="Ghi chú riêng cho quỹ này (không bắt buộc)"
           />
         </div>
 
@@ -292,14 +289,14 @@ export default function PersonalTermForm({ wallets }) {
               console.log("Hủy tạo quỹ cá nhân có thời hạn")
             }
           >
-            {t("funds.form.cancel")}
+            Hủy
           </button>
           <button
             type="button"
             className="btn-primary"
             onClick={handleSave}
           >
-            {t("funds.form.save_personal")}
+            Lưu quỹ cá nhân
           </button>
         </div>
       </div>

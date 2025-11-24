@@ -1,28 +1,95 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "../../styles/home/DashboardPage.css";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useBudgetData } from "../../home/store/BudgetDataContext";
 
+const STORAGE_EXTERNAL = "app_external_transactions_v1";
+const DONUT_COLORS = ["#0C5776", "#2D99AE", "#58D3F7", "#BCFEFE"];
+const DONUT_OTHER_COLOR = "#F8DAD0";
 
-/**
- * Dashboard tổng quan tài chính – dùng dữ liệu ảo, đổi theo:
- *  - Tuần này
- *  - Tháng này
- *  - Năm nay
- *
- * =================== NƠI GẮN API SAU NÀY ===================
- * TODO: Khi có backend, thay các object mock*ByPeriod bằng
- *       dữ liệu thật lấy từ API.
- *  Ví dụ:
- *    useEffect(() => {
- *      fetch(`/api/dashboard?period=${period}`)
- *        .then(res => res.json())
- *        .then(setData);
- *    }, [period]);
- * ===========================================================
- */
+const translations = {
+  "dashboard.title": "Tổng quan tài chính",
+  "dashboard.subtitle": "Xem nhanh tình hình thu chi và biến động số dư.",
+  "dashboard.period.week": "Tuần",
+  "dashboard.period.month": "Tháng",
+  "dashboard.period.year": "Năm",
+  "dashboard.by_week": "Theo tuần",
+  "dashboard.by_month": "Theo tháng",
+  "dashboard.by_year": "Theo năm",
+  "dashboard.other": "Khác",
+  "dashboard.no_data": "Chưa có dữ liệu",
+  "dashboard.transaction_type": "Loại giao dịch",
+  "dashboard.total_spending": "Tổng chi tiêu",
+  "dashboard.total_expense": "Tổng chi",
+  "dashboard.spending_level": "Mức độ chi tiêu",
+  "dashboard.spending_level_subtitle": "Mức chi theo từng mốc thời gian",
+  "dashboard.balance_fluctuation": "Biến động số dư",
+  "dashboard.income_expense": "Thu vs Chi",
+  "dashboard.income": "Thu",
+  "dashboard.expense": "Chi",
+  "dashboard.transaction_history": "Lịch sử giao dịch",
+  "dashboard.recent_transactions": "Các giao dịch gần đây",
+  "dashboard.search_placeholder": "Tìm kiếm giao dịch...",
+  "dashboard.no_transactions": "Không có giao dịch",
+  "dashboard.chart.week_prefix": "Tuần",
+  "dashboard.chart.month_prefix": "T",
+  "common.day.mon": "T2",
+  "common.day.tue": "T3",
+  "common.day.wed": "T4",
+  "common.day.thu": "T5",
+  "common.day.fri": "T6",
+  "common.day.sat": "T7",
+  "common.day.sun": "CN",
+};
 
-// ===== MOCK DATA (Fallback nếu chưa có localStorage) =====
-// Để demo đẹp, ta sẽ sinh dữ liệu quanh thời điểm hiện tại (2025)
+const t = (key) => translations[key] || key;
+
+const parseAmount = (value) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const sanitized = value.replace(/[^0-9-]/g, "");
+    const parsed = Number(sanitized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const normalizeTransaction = (tx) => {
+  if (!tx) return null;
+  const rawDate = tx.date || tx.createdAt || tx.transactionDate;
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const typeSource = (
+    tx.type ||
+    tx.transactionType ||
+    tx.transactionTypeName ||
+    tx.transactionTypeLabel ||
+    ""
+  )
+    .toString()
+    .toLowerCase();
+  const type = typeSource.includes("thu") || typeSource.includes("income") ? "income" : "expense";
+
+  const amount = Math.abs(parseAmount(tx.amount));
+  const category =
+    tx.category?.categoryName ||
+    tx.categoryName ||
+    tx.category ||
+    (type === "income" ? "Thu nhập" : t("dashboard.other"));
+  const walletName = tx.wallet?.walletName || tx.walletName || "";
+  const note = tx.note || tx.description || "";
+
+  return {
+    id: tx.id || tx.transactionId || `${category}-${date.getTime()}`,
+    type,
+    amount,
+    category,
+    walletName,
+    note,
+    date,
+  };
+};
+
 const createMockData = () => {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -70,7 +137,7 @@ const createMockData = () => {
       walletName: "Tiền mặt",
       amount: 3500000,
       currency: "VND",
-      date: new Date(currentYear, currentMonth, 3, 8, 0).toISOString(), // Đầu tháng
+      date: new Date(currentYear, currentMonth, 3, 8, 0).toISOString(),
       category: "Hóa đơn",
       note: "Tiền phòng",
     },
@@ -88,46 +155,48 @@ const createMockData = () => {
   ];
 };
 
-const STORAGE_EXTERNAL = "app_external_transactions_v1";
-
-// Helper: Lấy khoảng thời gian
 const getPeriodRange = (period) => {
   const now = new Date();
   const start = new Date(now);
   const end = new Date(now);
 
   if (period === "tuan") {
-    // Tuần này: T2 -> CN
-    const day = start.getDay(); // 0=CN, 1=T2...
+    const day = start.getDay();
     const diff = start.getDate() - day + (day === 0 ? -6 : 1);
     start.setDate(diff);
     start.setHours(0, 0, 0, 0);
-    
+
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
   } else if (period === "thang") {
-    // Tháng này: 1 -> Cuối tháng
     start.setDate(1);
     start.setHours(0, 0, 0, 0);
-    
+
     end.setMonth(end.getMonth() + 1);
     end.setDate(0);
     end.setHours(23, 59, 59, 999);
-  } else if (period === "nam") {
-    // Năm nay: 1/1 -> 31/12
+  } else {
     start.setMonth(0, 1);
     start.setHours(0, 0, 0, 0);
-    
+
     end.setMonth(11, 31);
     end.setHours(23, 59, 59, 999);
   }
+
   return { start, end };
 };
 
+const formatAmount = (value = 0, locale = "vi-VN") => {
+  const safe = Number(value) || 0;
+  return safe.toLocaleString(locale);
+};
+
 export default function DashboardPage() {
-  const { t, language } = useLanguage();
+  const { externalTransactionsList = [] } = useBudgetData();
   const [period, setPeriod] = useState("tuan");
-  const [transactions, setTransactions] = useState([]);
+  const [localTransactions, setLocalTransactions] = useState([]);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyFilter, setHistoryFilter] = useState("all");
 
   const periodLabelFull = {
     tuan: t("dashboard.period.week"),
@@ -141,7 +210,6 @@ export default function DashboardPage() {
     nam: t("dashboard.by_year"),
   };
 
-  // Load dữ liệu từ localStorage (giống TransactionsPage)
   useEffect(() => {
     const loadData = () => {
       try {
@@ -149,94 +217,91 @@ export default function DashboardPage() {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) {
-            setTransactions(parsed);
+            setLocalTransactions(parsed);
             return;
           }
         }
-        // Nếu không có dữ liệu, dùng mock
-        setTransactions(createMockData());
-      } catch (e) {
-        console.error("Lỗi đọc dữ liệu:", e);
-        setTransactions(createMockData());
+        setLocalTransactions(createMockData());
+      } catch (err) {
+        console.error("DashboardPage: loadData", err);
+        setLocalTransactions(createMockData());
       }
     };
+
     loadData();
-    
-    // Lắng nghe sự thay đổi của localStorage (nếu mở tab khác)
     window.addEventListener("storage", loadData);
     return () => window.removeEventListener("storage", loadData);
   }, []);
 
-  // Lọc giao dịch theo kỳ
+  const transactions = externalTransactionsList.length
+    ? externalTransactionsList
+    : localTransactions;
+
+  const normalizedTransactions = useMemo(
+    () => transactions.map(normalizeTransaction).filter(Boolean),
+    [transactions]
+  );
+
   const currentTransactions = useMemo(() => {
     const { start, end } = getPeriodRange(period);
-    return transactions.filter((t) => {
-      const d = new Date(t.date);
-      return d >= start && d <= end;
-    });
-  }, [transactions, period]);
+    return normalizedTransactions.filter((tx) => tx.date >= start && tx.date <= end);
+  }, [normalizedTransactions, period]);
 
-  // 1. Tổng chi tiêu
   const totalSpending = useMemo(() => {
     return currentTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((tx) => tx.type === "expense")
+      .reduce((sum, tx) => sum + tx.amount, 0);
   }, [currentTransactions]);
 
-  // 2. Loại giao dịch (Donut chart) - Top 3 danh mục chi tiêu + Khác
   const transactionTypeData = useMemo(() => {
-    const expenseTxs = currentTransactions.filter((t) => t.type === "expense");
+    const expenseTxs = currentTransactions.filter((tx) => tx.type === "expense");
     const map = {};
     let total = 0;
-    expenseTxs.forEach((t) => {
-      const cat = t.category || t("dashboard.other");
-      map[cat] = (map[cat] || 0) + t.amount;
-      total += t.amount;
+
+    expenseTxs.forEach((tx) => {
+      const label = tx.category || t("dashboard.other");
+      map[label] = (map[label] || 0) + tx.amount;
+      total += tx.amount;
     });
 
-    const sorted = Object.entries(map)
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value);
+    const sortedEntries = Object.entries(map)
+      .map(([label, amount]) => ({ label, amount }))
+      .sort((a, b) => b.amount - a.amount);
 
-    // Yêu cầu: 4 dịch vụ nhiều nhất + 1 Khác
-    const top4 = sorted.slice(0, 4);
-    const others = sorted.slice(4);
-    const otherValue = others.reduce((sum, item) => sum + item.value, 0);
+    const topCategories = sortedEntries.slice(0, 4);
+    const otherCategories = sortedEntries.slice(4);
+    const otherAmount = otherCategories.reduce((sum, item) => sum + item.amount, 0);
 
-    const colors = ["#0C5776", "#2D99AE", "#58D3F7", "#BCFEFE"];
-
-    const result = top4.map((item, index) => ({
+    const result = topCategories.map((item, index) => ({
       id: item.label,
       label: item.label,
-      value: total ? Math.round((item.value / total) * 100) : 0,
-      color: colors[index] || "#ccc",
+      amount: item.amount,
+      value: total ? Math.round((item.amount / total) * 100) : 0,
+      color: DONUT_COLORS[index] || DONUT_COLORS[DONUT_COLORS.length - 1],
     }));
 
-    if (otherValue > 0) {
+    if (otherAmount > 0) {
       result.push({
-        id: "khac",
+        id: "others",
         label: t("dashboard.other"),
-        value: total ? Math.round((otherValue / total) * 100) : 0,
-        color: "#F8DAD0",
+        amount: otherAmount,
+        value: total ? Math.round((otherAmount / total) * 100) : 0,
+        color: DONUT_OTHER_COLOR,
       });
     }
-    
-    // Nếu không có dữ liệu
+
     if (result.length === 0) {
-      return [{ id: "empty", label: t("dashboard.no_data"), value: 0, color: "#eee" }];
+      return [{ id: "empty", label: t("dashboard.no_data"), value: 0, amount: 0, color: "#eee" }];
     }
 
     return result;
-  }, [currentTransactions, t]);
+  }, [currentTransactions]);
 
-  // 3. Biểu đồ đường (Spending Trend) & Biểu đồ cột (Spending Level)
-  // Cần gom nhóm theo thời gian (Ngày cho Tuần, Tuần cho Tháng, Tháng cho Năm)
   const chartData = useMemo(() => {
-    const { start, end } = getPeriodRange(period);
+    const { start } = getPeriodRange(period);
     const data = [];
-    
+
     if (period === "tuan") {
-      // 7 ngày: T2 -> CN
       const dayLabels = [
         t("common.day.mon"),
         t("common.day.tue"),
@@ -247,107 +312,156 @@ export default function DashboardPage() {
         t("common.day.sun"),
       ];
 
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        const label = dayLabels[i];
-        
-        // Tính tổng chi ngày đó
-        const dayStart = new Date(d); dayStart.setHours(0,0,0,0);
-        const dayEnd = new Date(d); dayEnd.setHours(23,59,59,999);
-        
-        const spending = currentTransactions
-          .filter(t => t.type === "expense" && new Date(t.date) >= dayStart && new Date(t.date) <= dayEnd)
-          .reduce((sum, t) => sum + t.amount, 0);
-          
-        const income = currentTransactions
-          .filter(t => t.type === "income" && new Date(t.date) >= dayStart && new Date(t.date) <= dayEnd)
-          .reduce((sum, t) => sum + t.amount, 0);
+      for (let i = 0; i < 7; i += 1) {
+        const dayStart = new Date(start);
+        dayStart.setDate(start.getDate() + i);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setHours(23, 59, 59, 999);
 
-        data.push({ label, value: spending, income, spending });
+        const spending = currentTransactions
+          .filter((tx) => tx.type === "expense")
+          .filter((tx) => {
+            const d = new Date(tx.date);
+            return d >= dayStart && d <= dayEnd;
+          })
+          .reduce((sum, tx) => sum + tx.amount, 0);
+
+        const income = currentTransactions
+          .filter((tx) => tx.type === "income")
+          .filter((tx) => {
+            const d = new Date(tx.date);
+            return d >= dayStart && d <= dayEnd;
+          })
+          .reduce((sum, tx) => sum + tx.amount, 0);
+
+        data.push({ label: dayLabels[i], value: spending, income, spending });
       }
     } else if (period === "thang") {
-      // 4-5 tuần
-      // Đơn giản hóa: chia làm 4 tuần
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 4; i += 1) {
         const label = `${t("dashboard.chart.week_prefix")} ${i}`;
-        // Logic chia tuần tương đối
-        // Tuần 1: 1-7, Tuần 2: 8-14, Tuần 3: 15-21, Tuần 4: 22-end
-        const wStart = new Date(start);
-        wStart.setDate((i - 1) * 7 + 1);
-        const wEnd = new Date(start);
-        if (i === 4) wEnd.setMonth(wEnd.getMonth() + 1, 0);
-        else wEnd.setDate(i * 7);
-        wEnd.setHours(23, 59, 59, 999);
+        const weekStart = new Date(start);
+        weekStart.setDate((i - 1) * 7 + 1);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(start);
+        if (i === 4) {
+          weekEnd.setMonth(weekEnd.getMonth() + 1, 0);
+        } else {
+          weekEnd.setDate(i * 7);
+        }
+        weekEnd.setHours(23, 59, 59, 999);
 
         const spending = currentTransactions
-          .filter(t => t.type === "expense" && new Date(t.date) >= wStart && new Date(t.date) <= wEnd)
-          .reduce((sum, t) => sum + t.amount, 0);
-        
+          .filter((tx) => tx.type === "expense")
+          .filter((tx) => {
+            const d = new Date(tx.date);
+            return d >= weekStart && d <= weekEnd;
+          })
+          .reduce((sum, tx) => sum + tx.amount, 0);
+
         const income = currentTransactions
-          .filter(t => t.type === "income" && new Date(t.date) >= wStart && new Date(t.date) <= wEnd)
-          .reduce((sum, t) => sum + t.amount, 0);
+          .filter((tx) => tx.type === "income")
+          .filter((tx) => {
+            const d = new Date(tx.date);
+            return d >= weekStart && d <= weekEnd;
+          })
+          .reduce((sum, tx) => sum + tx.amount, 0);
 
         data.push({ label, value: spending, income, spending });
       }
     } else {
-      // 12 tháng
-      for (let i = 0; i < 12; i++) {
+      const year = start.getFullYear();
+      for (let i = 0; i < 12; i += 1) {
         const label = `${t("dashboard.chart.month_prefix")}${i + 1}`;
-        const mStart = new Date(start.getFullYear(), i, 1);
-        const mEnd = new Date(start.getFullYear(), i + 1, 0, 23, 59, 59);
+        const monthStart = new Date(year, i, 1);
+        const monthEnd = new Date(year, i + 1, 0, 23, 59, 59, 999);
 
         const spending = currentTransactions
-          .filter(t => t.type === "expense" && new Date(t.date) >= mStart && new Date(t.date) <= mEnd)
-          .reduce((sum, t) => sum + t.amount, 0);
+          .filter((tx) => tx.type === "expense")
+          .filter((tx) => {
+            const d = new Date(tx.date);
+            return d >= monthStart && d <= monthEnd;
+          })
+          .reduce((sum, tx) => sum + tx.amount, 0);
 
         const income = currentTransactions
-          .filter(t => t.type === "income" && new Date(t.date) >= mStart && new Date(t.date) <= mEnd)
-          .reduce((sum, t) => sum + t.amount, 0);
+          .filter((tx) => tx.type === "income")
+          .filter((tx) => {
+            const d = new Date(tx.date);
+            return d >= monthStart && d <= monthEnd;
+          })
+          .reduce((sum, tx) => sum + tx.amount, 0);
 
         data.push({ label, value: spending, income, spending });
       }
     }
+
     return data;
   }, [currentTransactions, period, t]);
 
-  // 4. Lịch sử giao dịch (Mới nhất trước)
   const historyList = useMemo(() => {
-    const locale = language === "vi" ? "vi-VN" : "en-US";
-    return [...currentTransactions]
+    const locale = "vi-VN";
+    const normalizedSearch = historySearch.trim().toLowerCase();
+    return currentTransactions
+      .slice()
       .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 10) // Lấy 10 giao dịch gần nhất
-      .map(t => ({
-        id: t.id,
-        title: t.category,
-        description: t.note || t.walletName,
-        amount: t.type === "expense" ? -t.amount : t.amount,
-        time: new Date(t.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }) + " • " + new Date(t.date).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+      .filter((tx) => {
+        if (historyFilter !== "all" && tx.category !== historyFilter) {
+          return false;
+        }
+        if (!normalizedSearch) return true;
+        const combined = `${tx.category} ${tx.note || ""} ${tx.walletName || ""}`.toLowerCase();
+        return combined.includes(normalizedSearch);
+      })
+      .slice(0, 10)
+      .map((tx) => ({
+        id: tx.id,
+        title: tx.category,
+        description: tx.note || tx.walletName,
+        amount: tx.type === "expense" ? -tx.amount : tx.amount,
+        time: `${tx.date.toLocaleDateString(locale, {
+          day: "2-digit",
+          month: "2-digit",
+        })} • ${tx.date.toLocaleTimeString(locale, {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`,
       }));
-  }, [currentTransactions, language]);
+  }, [currentTransactions, historySearch, historyFilter]);
 
-  // Main Donut Value (Lấy cái lớn nhất)
-  const mainDonutValue = transactionTypeData.length > 0 ? transactionTypeData[0] : { value: 0 };
+  const historyCategories = useMemo(() => {
+    const categories = new Set();
+    currentTransactions.forEach((tx) => {
+      if (tx.category) categories.add(tx.category);
+    });
+    return Array.from(categories).sort();
+  }, [currentTransactions]);
 
-  // Tạo gradient động cho biểu đồ tròn
+  useEffect(() => {
+    if (historyFilter !== "all" && !historyCategories.includes(historyFilter)) {
+      setHistoryFilter("all");
+    }
+  }, [historyCategories, historyFilter]);
+
+  const mainDonutValue = transactionTypeData[0] || { value: 0, label: t("dashboard.no_data") };
+
   const donutGradient = useMemo(() => {
-    if (!transactionTypeData || transactionTypeData.length === 0) {
+    if (!transactionTypeData.length) {
       return "conic-gradient(#eee 0% 100%)";
     }
-    
-    let parts = [];
+
+    const parts = [];
     let currentPercent = 0;
-    
+
     transactionTypeData.forEach((item) => {
       const start = currentPercent;
       const end = currentPercent + item.value;
       parts.push(`${item.color} ${start}% ${end}%`);
       currentPercent = end;
     });
-    
-    // Nếu chưa đủ 100% do làm tròn, lấp đầy bằng màu cuối cùng hoặc trong suốt
+
     if (currentPercent < 100) {
-       // parts.push(`${transactionTypeData[transactionTypeData.length-1].color} ${currentPercent}% 100%`);
+      parts.push(`${transactionTypeData.at(-1).color} ${currentPercent}% 100%`);
     }
 
     return `conic-gradient(${parts.join(", ")})`;
@@ -355,39 +469,27 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-page">
-      {/* Ô bọc trắng cho phần tiêu đề */}
       <div className="dashboard-page__header-box">
         <div className="dashboard-page__header">
           <div>
             <h2 className="dashboard-page__title">{t("dashboard.title")}</h2>
-            <p className="dashboard-page__subtitle">
-              {t("dashboard.subtitle")}
-            </p>
+            <p className="dashboard-page__subtitle">{t("dashboard.subtitle")}</p>
           </div>
           <div className="dashboard-page__period">
             <button
-              className={
-                "db-btn db-btn--ghost " +
-                (period === "tuan" ? "db-btn--active" : "")
-              }
+              className={"db-btn db-btn--ghost " + (period === "tuan" ? "db-btn--active" : "")}
               onClick={() => setPeriod("tuan")}
             >
               {t("dashboard.period.week")}
             </button>
             <button
-              className={
-                "db-btn db-btn--ghost " +
-                (period === "thang" ? "db-btn--active" : "")
-              }
+              className={"db-btn db-btn--ghost " + (period === "thang" ? "db-btn--active" : "")}
               onClick={() => setPeriod("thang")}
             >
               {t("dashboard.period.month")}
             </button>
             <button
-              className={
-                "db-btn db-btn--ghost " +
-                (period === "nam" ? "db-btn--active" : "")
-              }
+              className={"db-btn db-btn--ghost " + (period === "nam" ? "db-btn--active" : "")}
               onClick={() => setPeriod("nam")}
             >
               {t("dashboard.period.year")}
@@ -397,34 +499,24 @@ export default function DashboardPage() {
       </div>
 
       <div className="dashboard-grid">
-        {/* Cột trái */}
         <section className="dashboard-main">
           <div className="db-card-grid">
-            {/* Loại giao dịch */}
             <div className="db-card">
               <div className="db-card__header">
                 <h3>{t("dashboard.transaction_type")}</h3>
               </div>
               <div className="db-card__body db-card__body--horizontal">
                 <div className="db-donut">
-                  <div 
-                    className="db-donut__ring" 
-                    style={{ background: donutGradient }}
-                  />
+                  <div className="db-donut__ring" style={{ background: donutGradient }} />
                   <div className="db-donut__center">
-                    <span className="db-donut__value">
-                      {mainDonutValue.value}%
-                    </span>
+                    <span className="db-donut__value">{mainDonutValue.value}%</span>
                     <span className="db-donut__label">{mainDonutValue.label}</span>
                   </div>
                 </div>
                 <ul className="db-legend">
                   {transactionTypeData.map((item) => (
                     <li key={item.id} className="db-legend__item">
-                      <span
-                        className="db-legend__dot"
-                        style={{ backgroundColor: item.color }}
-                      />
+                      <span className="db-legend__dot" style={{ backgroundColor: item.color }} />
                       <span className="db-legend__label">{item.label}</span>
                       <span className="db-legend__value">
                         {item.value}
@@ -436,102 +528,74 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Tổng chi tiêu */}
             <div className="db-card">
               <div className="db-card__header">
                 <h3>{t("dashboard.total_spending")}</h3>
-                <span className="db-card__tag">
-                  {periodLabelFull[period] || ""}
-                </span>
+                <span className="db-card__tag">{periodLabelFull[period] || ""}</span>
               </div>
               <div className="db-card__body">
                 <div className="db-card__kpi">
                   <div>
                     <p className="db-kpi__label">{t("dashboard.total_expense")}</p>
-                    <p className="db-kpi__value">
-                      {totalSpending.toLocaleString("vi-VN")}đ
-                    </p>
+                    <p className="db-kpi__value">{formatAmount(totalSpending)}đ</p>
                   </div>
-                  {/* Trend tạm thời ẩn hoặc tính toán nếu cần */}
-                  {/* <div className="db-kpi__trend db-kpi__trend--up">
-                    <i className="bi bi-arrow-up-right" />
-                    <span>+12,3% so với kỳ trước</span>
-                  </div> */}
                 </div>
                 <div className="db-line-chart">
-                  <svg viewBox="0 0 100 40" className="db-line-chart__svg" preserveAspectRatio="none" style={{ overflow: "visible" }}>
+                  <svg viewBox="0 0 100 40" className="db-line-chart__svg" preserveAspectRatio="none">
                     <polyline
                       className="db-line-chart__line db-line-chart__line--primary"
                       points={chartData
                         .map((item, index) => {
-                          const xStep =
-                            chartData.length > 1
-                              ? 100 /
-                                (chartData.length - 1)
-                              : 0;
+                          const xStep = chartData.length > 1 ? 100 / (chartData.length - 1) : 0;
                           const x = index * xStep;
-                          const max = Math.max(
-                            ...chartData.map((p) => p.value)
-                          );
-                          const min = Math.min(
-                            ...chartData.map((p) => p.value)
-                          );
-                          const range = max - min || 1;
-                          // Normalize to 0-40 height (svg height)
-                          // Invert Y because SVG 0 is top
-                          const normalized =
-                            40 - ((item.value - min) / range) * 30 - 5; 
+                          const values = chartData.map((point) => point.value);
+                          const max = Math.max(...values, 1);
+                          const normalized = 40 - (item.value / max) * 32 - 4;
                           return `${x},${normalized}`;
                         })
                         .join(" ")}
                     />
                   </svg>
                   <div className="db-line-chart__labels">
-                    {chartData.map((item, i) => (
-                      // Chỉ hiện label cách nhau để đỡ rối nếu nhiều
-                      <span key={i} style={{ fontSize: '8px' }}>{item.label}</span>
+                    {chartData.map((item) => (
+                      <span key={item.label}>{item.label}</span>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Mức độ chi tiêu */}
             <div className="db-card">
               <div className="db-card__header">
                 <h3>{t("dashboard.spending_level")}</h3>
-                <span className="db-card__tag">
-                  {spendingLevelTagLabel[period]}
-                </span>
+                <span className="db-card__tag">{spendingLevelTagLabel[period]}</span>
               </div>
               <div className="db-card__body">
-                <p className="db-card__subtitle">
-                  {t("dashboard.spending_level_subtitle")}
-                </p>
+                <p className="db-card__subtitle">{t("dashboard.spending_level_subtitle")}</p>
                 <div className="db-bar-chart db-bar-chart--dense">
-                  {chartData.map((item, i) => {
-                     const max = Math.max(...chartData.map(p => p.value)) || 1;
-                     const height = (item.value / max) * 100; // max 100px height
-                     return (
-                      <div key={i} className="db-bar-chart__item">
+                  {chartData.map((item) => {
+                    const max = Math.max(...chartData.map((point) => point.value), 1);
+                    const height = (item.value / max) * 100;
+                    return (
+                      <div key={item.label} className="db-bar-chart__item">
                         <div className="db-bar-chart__bar-wrap">
                           <div
                             className="db-bar-chart__bar db-bar-chart__bar--spending"
                             style={{ height: `${height}px` }}
-                            title={`${item.value.toLocaleString()}đ`}
+                            title={`${formatAmount(item.value)}đ`}
                           />
                         </div>
-                        <span className="db-bar-chart__label">
-                          {item.label}
-                        </span>
+                        <span className="db-bar-chart__label">{item.label}</span>
                       </div>
-                     );
+                    );
                   })}
+                  {chartData.length === 0 && (
+                    <span className="db-card__subtitle">{t("dashboard.no_data")}</span>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Biến động số dư */}
             <div className="db-card">
               <div className="db-card__header">
                 <h3>{t("dashboard.balance_fluctuation")}</h3>
@@ -539,46 +603,37 @@ export default function DashboardPage() {
               </div>
               <div className="db-card__body">
                 <div className="db-balance-chart">
-                  <svg viewBox="0 0 100 40" className="db-line-chart__svg" preserveAspectRatio="none" style={{ overflow: "visible" }}>
-                    {/* Thu vào */}
+                  <svg viewBox="0 0 100 40" className="db-line-chart__svg" preserveAspectRatio="none">
                     <polyline
                       className="db-line-chart__line db-line-chart__line--primary"
                       points={chartData
                         .map((item, index) => {
                           const xStep = chartData.length > 1 ? 100 / (chartData.length - 1) : 0;
                           const x = index * xStep;
-                          // Scale chung cho cả thu và chi để so sánh
-                          const allValues = [...chartData.map(p => p.income), ...chartData.map(p => p.spending)];
-                          const max = Math.max(...allValues) || 1;
-                          const min = 0;
-                          const range = max - min;
-                          
-                          const normalized = 40 - (item.income / range) * 35;
+                          const values = chartData.flatMap((point) => [point.income, point.spending]);
+                          const max = Math.max(...values, 1);
+                          const normalized = 40 - (item.income / max) * 32 - 4;
                           return `${x},${normalized}`;
                         })
                         .join(" ")}
                     />
-                    {/* Chi ra */}
                     <polyline
                       className="db-line-chart__line db-line-chart__line--secondary"
                       points={chartData
                         .map((item, index) => {
                           const xStep = chartData.length > 1 ? 100 / (chartData.length - 1) : 0;
                           const x = index * xStep;
-                          const allValues = [...chartData.map(p => p.income), ...chartData.map(p => p.spending)];
-                          const max = Math.max(...allValues) || 1;
-                          const min = 0;
-                          const range = max - min;
-                          
-                          const normalized = 40 - (item.spending / range) * 35;
+                          const values = chartData.flatMap((point) => [point.income, point.spending]);
+                          const max = Math.max(...values, 1);
+                          const normalized = 40 - (item.spending / max) * 32 - 4;
                           return `${x},${normalized}`;
                         })
                         .join(" ")}
                     />
                   </svg>
                   <div className="db-line-chart__labels">
-                    {chartData.map((item, i) => (
-                      <span key={i} style={{ fontSize: '8px' }}>{item.label}</span>
+                    {chartData.map((item) => (
+                      <span key={item.label}>{item.label}</span>
                     ))}
                   </div>
                   <div className="db-balance-legend">
@@ -595,7 +650,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Cột phải: lịch sử giao dịch */}
         <aside className="dashboard-side">
           <div className="db-card db-card--side">
             <div className="db-card__header db-card__header--side">
@@ -603,9 +657,7 @@ export default function DashboardPage() {
                 <h3>{t("dashboard.transaction_history")}</h3>
                 <p className="db-card__subtitle">{t("dashboard.recent_transactions")}</p>
               </div>
-              <span className="db-card__tag">
-                {periodLabelFull[period] || ""}
-              </span>
+              <span className="db-card__tag">{periodLabelFull[period] || ""}</span>
             </div>
             <div className="db-side__search">
               <span className="db-side__search-icon">
@@ -615,7 +667,23 @@ export default function DashboardPage() {
                 type="text"
                 placeholder={t("dashboard.search_placeholder")}
                 className="db-side__search-input"
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
               />
+            </div>
+            <div className="db-side__filters">
+              <select
+                className="db-side__select"
+                value={historyFilter}
+                onChange={(event) => setHistoryFilter(event.target.value)}
+              >
+                <option value="all">Tất cả danh mục</option>
+                {historyCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </div>
             <ul className="db-history-list">
               {historyList.length === 0 ? (
@@ -628,9 +696,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="db-history-item__main">
                       <div className="db-history-item__row">
-                        <span className="db-history-item__title">
-                          {item.title}
-                        </span>
+                        <span className="db-history-item__title">{item.title}</span>
                         <span
                           className={
                             "db-history-item__amount " +
@@ -639,16 +705,12 @@ export default function DashboardPage() {
                               : "db-history-item__amount--negative")
                           }
                         >
-                          {item.amount >= 0 ? "+" : ""}
-                          {item.amount.toLocaleString("vi-VN")}đ
+                          {item.amount >= 0 ? "+" : "-"}
+                          {formatAmount(Math.abs(item.amount))}đ
                         </span>
                       </div>
-                      <p className="db-history-item__desc">
-                        {item.description}
-                      </p>
-                      <span className="db-history-item__time">
-                        {item.time}
-                      </span>
+                      <p className="db-history-item__desc">{item.description}</p>
+                      <span className="db-history-item__time">{item.time}</span>
                     </div>
                   </li>
                 ))

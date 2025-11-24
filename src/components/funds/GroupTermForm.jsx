@@ -5,10 +5,11 @@ import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { calcEstimateDate } from "./fundUtils";
-import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function GroupTermForm({ wallets = [] }) {
-  const { t } = useLanguage();
+  // ... (GIỮ nguyên đúng y code GroupTermForm mình gửi ở tin trước)
+
+
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
     () =>
@@ -44,23 +45,23 @@ export default function GroupTermForm({ wallets = [] }) {
       return;
     }
 
-    const tVal = Number(targetAmount);
-    if (Number.isNaN(tVal) || tVal <= 0) {
-      setTargetError(t("funds.form.target_invalid"));
+    const t = Number(targetAmount);
+    if (Number.isNaN(t) || t <= 0) {
+      setTargetError("Vui lòng nhập số tiền mục tiêu hợp lệ.");
       return;
     }
 
-    if (tVal <= currentBalance) {
+    if (t <= currentBalance) {
       setTargetError(
-        t("funds.form.target_error_balance")
-          .replace("{balance}", currentBalance.toLocaleString("vi-VN"))
-          .replace("{currency}", currency)
+        `Số tiền mục tiêu phải lớn hơn số dư hiện tại của ví (${currentBalance.toLocaleString(
+          "vi-VN"
+        )} ${currency}).`
       );
       return;
     }
 
     setTargetError("");
-  }, [targetAmount, selectedWallet, currentBalance, currency, t]);
+  }, [targetAmount, selectedWallet, currentBalance, currency]);
 
   // ước tính ngày hoàn thành
   useEffect(() => {
@@ -69,25 +70,25 @@ export default function GroupTermForm({ wallets = [] }) {
       return;
     }
 
-    const tVal = Number(targetAmount);
+    const t = Number(targetAmount);
     const p = Number(periodAmount);
 
     if (
       !targetAmount ||
       !periodAmount ||
-      Number.isNaN(tVal) ||
+      Number.isNaN(t) ||
       Number.isNaN(p) ||
       p <= 0
     ) {
       setEstimateText("");
       return;
     }
-    if (tVal <= currentBalance) {
+    if (t <= currentBalance) {
       setEstimateText("");
       return;
     }
 
-    const need = tVal - currentBalance;
+    const need = t - currentBalance;
     const periods = Math.ceil(need / p);
     if (!periods || periods <= 0) {
       setEstimateText("");
@@ -105,27 +106,25 @@ export default function GroupTermForm({ wallets = [] }) {
     let unitText = "";
     switch (freq) {
       case "day":
-        unitText = `${periods} ${t("funds.form.freq_day").toLowerCase()}`;
+        unitText = `${periods} ngày`;
         break;
       case "week":
-        unitText = `${periods} ${t("funds.form.freq_week").toLowerCase()}`;
+        unitText = `${periods} tuần`;
         break;
       case "month":
-        unitText = `${periods} ${t("funds.form.freq_month").toLowerCase()}`;
+        unitText = `${periods} tháng`;
         break;
       case "year":
-        unitText = `${periods} ${t("funds.form.freq_year").toLowerCase()}`;
+        unitText = `${periods} năm`;
         break;
       default:
         break;
     }
 
     setEstimateText(
-      t("funds.form.estimate_text")
-        .replace("{duration}", unitText)
-        .replace("{date}", dateStr)
+      `Dự kiến hoàn thành sau khoảng ${unitText}, vào khoảng ngày ${dateStr}.`
     );
-  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance, t]);
+  }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance]);
 
   // member handlers
   const handleAddMember = () => {
@@ -147,15 +146,15 @@ export default function GroupTermForm({ wallets = [] }) {
 
   const handleSave = () => {
     if (!selectedWallet) {
-      alert(t("funds.form.alert_wallet_group"));
+      alert("Vui lòng chọn ví nguồn trước khi lưu quỹ nhóm.");
       return;
     }
     if (!targetAmount) {
-      alert(t("funds.form.alert_target"));
+      alert("Vui lòng nhập số tiền mục tiêu quỹ.");
       return;
     }
     if (targetError) {
-      alert(t("funds.form.alert_target_invalid"));
+      alert("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.");
       return;
     }
 
@@ -173,16 +172,16 @@ export default function GroupTermForm({ wallets = [] }) {
   return (
     <div className="funds-grid">
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">{t("funds.form.info_legend_group")}</div>
+        <div className="funds-fieldset__legend">Thông tin quỹ nhóm</div>
 
         <div className="funds-field">
           <label>
-            {t("funds.form.name_group")} <span className="req">*</span>
+            Tên quỹ nhóm <span className="req">*</span>
           </label>
           <input
             type="text"
             maxLength={50}
-            placeholder={t("funds.form.name_placeholder_group")}
+            placeholder="Ví dụ: Quỹ ăn uống team"
           />
         </div>
 
@@ -195,16 +194,16 @@ export default function GroupTermForm({ wallets = [] }) {
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.current_balance")}</label>
+            <label>Số dư hiện tại của ví</label>
             <input
               type="text"
               disabled
-              placeholder={t("funds.form.auto_balance")}
+              placeholder="Tự động hiển thị sau khi chọn ví"
               value={currentBalanceText}
             />
           </div>
           <div>
-            <label>{t("funds.form.create_date")}</label>
+            <label>Ngày tạo quỹ</label>
             <input
               type="date"
               value={startDate}
@@ -215,46 +214,46 @@ export default function GroupTermForm({ wallets = [] }) {
       </div>
 
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">{t("funds.form.target_legend")}</div>
+        <div className="funds-fieldset__legend">Mục tiêu & tần suất</div>
 
         <div className="funds-field">
           <label>
-            {t("funds.form.target_amount")} {currency && <span>({currency})</span>}
+            Số tiền mục tiêu quỹ {currency && <span>({currency})</span>}
           </label>
           <input
             type="number"
             min={0}
-            placeholder={t("funds.form.target_placeholder")}
+            placeholder="Nhập số tiền mục tiêu"
             value={targetAmount}
             onChange={(e) => setTargetAmount(e.target.value)}
           />
           <div className="funds-hint">
-            {t("funds.form.target_hint")}
+            Phải lớn hơn số dư ví nguồn, cùng đơn vị tiền tệ.
           </div>
           {targetError && <div className="funds-error">{targetError}</div>}
         </div>
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.freq_label")}</label>
+            <label>Tần suất gửi quỹ</label>
             <select value={freq} onChange={(e) => setFreq(e.target.value)}>
-              <option value="day">{t("funds.form.freq_day")}</option>
-              <option value="week">{t("funds.form.freq_week")}</option>
-              <option value="month">{t("funds.form.freq_month")}</option>
-              <option value="year">{t("funds.form.freq_year")}</option>
+              <option value="day">Theo ngày</option>
+              <option value="week">Theo tuần</option>
+              <option value="month">Theo tháng</option>
+              <option value="year">Theo năm</option>
             </select>
           </div>
           <div>
-            <label>{t("funds.form.period_amount")}</label>
+            <label>Số tiền gửi mỗi kỳ</label>
             <input
               type="number"
               min={0}
-              placeholder={t("funds.form.period_placeholder")}
+              placeholder="Nhập số tiền mỗi kỳ"
               value={periodAmount}
               onChange={(e) => setPeriodAmount(e.target.value)}
             />
             <div className="funds-hint">
-              {t("funds.form.period_hint")}
+              Dùng để gợi ý thời gian hoàn thành theo tần suất đã chọn.
             </div>
             {estimateText && (
               <div className="funds-hint funds-hint--strong">
@@ -266,7 +265,7 @@ export default function GroupTermForm({ wallets = [] }) {
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.start_date")}</label>
+            <label>Ngày bắt đầu</label>
             <input
               type="date"
               value={startDate}
@@ -274,7 +273,7 @@ export default function GroupTermForm({ wallets = [] }) {
             />
           </div>
           <div>
-            <label>{t("funds.form.end_date")}</label>
+            <label>Ngày kết thúc</label>
             <input
               type="date"
               value={endDate}
@@ -298,16 +297,19 @@ export default function GroupTermForm({ wallets = [] }) {
       />
 
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">{t("funds.form.members")}</div>
+        <div className="funds-fieldset__legend">Thành viên quỹ</div>
 
-        <div className="funds-hint" dangerouslySetInnerHTML={{ __html: t("funds.form.members_hint") }} />
+        <div className="funds-hint">
+          Thêm thành viên bằng email, gán quyền{" "}
+          <strong>xem</strong> hoặc <strong>sử dụng</strong>.
+        </div>
 
         <div className="funds-members">
           {members.map((m) => (
             <div key={m.id} className="funds-member-row">
               <input
                 type="text"
-                placeholder={t("funds.form.member_name_placeholder")}
+                placeholder="Tên"
                 value={m.name}
                 onChange={(e) =>
                   handleChangeMember(m.id, "name", e.target.value)
@@ -315,7 +317,7 @@ export default function GroupTermForm({ wallets = [] }) {
               />
               <input
                 type="email"
-                placeholder={t("funds.form.member_email_placeholder")}
+                placeholder="Email"
                 value={m.email}
                 onChange={(e) =>
                   handleChangeMember(m.id, "email", e.target.value)
@@ -327,8 +329,8 @@ export default function GroupTermForm({ wallets = [] }) {
                   handleChangeMember(m.id, "role", e.target.value)
                 }
               >
-                <option value="view">{t("funds.detail.role.view")}</option>
-                <option value="use">{t("funds.detail.role.use")}</option>
+                <option value="view">Xem</option>
+                <option value="use">Sử dụng</option>
               </select>
               <button
                 type="button"
@@ -346,15 +348,15 @@ export default function GroupTermForm({ wallets = [] }) {
             onClick={handleAddMember}
           >
             <i className="bi bi-person-plus me-1" />
-            {t("funds.form.add_member")}
+            Thêm thành viên
           </button>
         </div>
       </div>
 
       <div className="funds-fieldset funds-fieldset--full">
         <div className="funds-field">
-          <label>{t("funds.form.note")}</label>
-          <textarea rows={3} placeholder={t("funds.form.note_placeholder_group")} />
+          <label>Ghi chú</label>
+          <textarea rows={3} placeholder="Ghi chú cho quỹ nhóm" />
         </div>
 
         <div className="funds-actions">
@@ -365,14 +367,14 @@ export default function GroupTermForm({ wallets = [] }) {
               console.log("Hủy tạo quỹ nhóm có thời hạn")
             }
           >
-            {t("funds.form.cancel")}
+            Hủy
           </button>
           <button
             type="button"
             className="btn-primary"
             onClick={handleSave}
           >
-            {t("funds.form.save_group")}
+            Lưu quỹ nhóm
           </button>
         </div>
       </div>

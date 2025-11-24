@@ -1,4 +1,3 @@
-// src/components/common/Toast/ToastContext.jsx
 import React, {
   createContext,
   useCallback,
@@ -6,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import SuccessToast from "./SuccessToast";
+import Toast from "./Toast";
 
 const ToastContext = createContext(null);
 
@@ -14,6 +13,7 @@ export function ToastProvider({ children }) {
   const [toast, setToast] = useState({
     open: false,
     message: "",
+    type: "success", // "success" | "error"
     duration: 2500,
     // mặc định bám theo topbar + main của HomeLayout
     topbarSelector: ".home__topbar, .home-topbar, header.home__topbar",
@@ -22,20 +22,23 @@ export function ToastProvider({ children }) {
   });
 
   /**
-   * showToast("Nội dung", { duration, topbarSelector, anchorSelector, offset })
-   * options là optional, có thể bỏ qua.
+   * showToast("Nội dung", "success" | "error")
+   * hoặc showToast("Nội dung", { type: "error", duration: 3000 })
    */
   const showToast = useCallback(
-    (message, options = {}) => {
+    (message, typeOrOptions = "success") => {
+      const options = typeof typeOrOptions === "string" 
+        ? { type: typeOrOptions } 
+        : typeOrOptions;
+      
       setToast((prev) => ({
         ...prev,
         open: true,
         message,
+        type: options.type ?? prev.type ?? "success",
         duration: options.duration ?? prev.duration ?? 2500,
-        topbarSelector:
-          options.topbarSelector ?? prev.topbarSelector,
-        anchorSelector:
-          options.anchorSelector ?? prev.anchorSelector,
+        topbarSelector: options.topbarSelector ?? prev.topbarSelector,
+        anchorSelector: options.anchorSelector ?? prev.anchorSelector,
         offset: options.offset ?? prev.offset,
       }));
     },
@@ -59,9 +62,10 @@ export function ToastProvider({ children }) {
       {children}
 
       {/* ✅ Toast global – luôn nằm ở cuối cây, nhưng chỉ hiện khi open=true */}
-      <SuccessToast
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={toast.duration}
         topbarSelector={toast.topbarSelector}
         anchorSelector={toast.anchorSelector}
@@ -79,3 +83,4 @@ export const useToast = () => {
   }
   return ctx;
 };
+

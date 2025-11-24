@@ -1,6 +1,5 @@
 // src/components/funds/FundDetailView.jsx
 import React, { useEffect, useState } from "react";
-import { useLanguage } from "../../home/store/LanguageContext";
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -12,7 +11,6 @@ const buildFormState = (fund) => ({
 });
 
 export default function FundDetailView({ fund, onBack, onUpdateFund }) {
-  const { t } = useLanguage();
   const isGroup = fund.type === "group";
 
   const [isEditing, setIsEditing] = useState(false);
@@ -90,9 +88,9 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
           <div>
             <h4 className="fund-detail-title mb-1">{fund.name}</h4>
             <div className="fund-detail-chip">
-              {fund.type === "personal" ? t("funds.detail.personal_fund") : t("funds.detail.group_fund")}
+              {fund.type === "personal" ? "Quỹ cá nhân" : "Quỹ nhóm"}
               <span className="mx-1">•</span>
-              {fund.hasTerm ? t("funds.detail.term") : t("funds.detail.no_term")}
+              {fund.hasTerm ? "Có thời hạn" : "Không thời hạn"}
             </div>
           </div>
 
@@ -102,13 +100,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
               className="btn btn-link p-0 small"
               onClick={onBack}
             >
-              ← {t("funds.btn.back")}
+              ← Quay lại danh sách
             </button>
           )}
         </div>
 
         <div className="mt-3">
-          <div className="fund-detail-label">{t("funds.detail.current_balance")}</div>
+          <div className="fund-detail-label">Số dư hiện tại</div>
           <div className="fund-detail-amount">
             {fund.current.toLocaleString("vi-VN")}{" "}
             <span className="fund-detail-currency">
@@ -116,11 +114,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
             </span>
           </div>
 
-          <div className="mt-2 fund-detail-label">{t("funds.detail.target")}</div>
+          <div className="mt-2 fund-detail-label">Mục tiêu</div>
           <div className="fund-detail-text">
             {fund.target
               ? `${fund.target.toLocaleString("vi-VN")} ${fund.currency || "VND"}`
-              : t("funds.detail.no_target")}
+              : "Không thiết lập mục tiêu"}
           </div>
 
           {progress !== null && (
@@ -130,7 +128,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                   <span style={{ width: `${progress}%` }} />
                 </div>
                 <div className="fund-card__progress-text">
-                  {progress}% {t("funds.detail.completed_target")}
+                  {progress}% hoàn thành mục tiêu
                 </div>
               </div>
             </div>
@@ -138,7 +136,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
 
           {fund.description && (
             <>
-              <div className="mt-3 fund-detail-label">{t("funds.detail.note")}</div>
+              <div className="mt-3 fund-detail-label">Ghi chú</div>
               <div className="fund-detail-text">{fund.description}</div>
             </>
           )}
@@ -146,10 +144,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
           {/* QUỸ NHÓM: HIỂN THỊ THÀNH VIÊN THAM GIA */}
           {isGroup && (
             <div className="mt-3">
-              <div className="fund-detail-label mb-1">{t("funds.detail.members")}</div>
+              <div className="fund-detail-label mb-1">Thành viên tham gia</div>
               {members.length === 0 ? (
                 <div className="fund-detail-text">
-                  {t("funds.detail.no_members")}
+                  Chưa có thành viên được thêm.
                 </div>
               ) : (
                 <ul className="fund-detail-members list-unstyled mb-0">
@@ -162,12 +160,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                       •{" "}
                       <span className="text-muted">
                         {m.role === "owner"
-                          ? t("funds.detail.role.owner")
+                          ? "Chủ quỹ"
                           : m.role === "use"
-                          ? t("funds.detail.role.use")
+                          ? "Được sử dụng"
                           : m.role === "manage"
-                          ? t("funds.detail.role.manage")
-                          : t("funds.detail.role.view")}
+                          ? "Quản lý"
+                          : "Chỉ xem"}
                       </span>
                     </li>
                   ))}
@@ -184,7 +182,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                 onClick={() => setIsEditing(true)}
               >
                 <i className="bi bi-pencil-square me-1" />
-                {t("funds.detail.btn.edit")}
+                Sửa quỹ này
               </button>
             )}
           </div>
@@ -193,15 +191,18 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
 
       {/* CỘT PHẢI: FORM CHỈNH SỬA */}
       <div className="fund-detail-form">
-        <h5 className="mb-2">{t("funds.detail.edit_title")}</h5>
+        <h5 className="mb-2">Chỉnh sửa quỹ</h5>
         {!isEditing && (
-          <p className="text-muted small mb-0" dangerouslySetInnerHTML={{ __html: t("funds.detail.edit_hint") }} />
+          <p className="text-muted small mb-0">
+            Bấm nút <strong>Sửa quỹ này</strong> ở bên trái để bật chế độ chỉnh
+            sửa đầy đủ.
+          </p>
         )}
 
         {isEditing && (
           <form onSubmit={handleSubmit} className="mt-2">
             <div className="funds-field">
-              <label>{t("funds.form.name")}</label>
+              <label>Tên quỹ</label>
               <input
                 type="text"
                 value={form.name}
@@ -212,30 +213,30 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
 
             <div className="funds-field funds-field--inline">
               <div>
-                <label>{t("funds.form.type")}</label>
+                <label>Loại quỹ</label>
                 <input
                   type="text"
                   disabled
-                  value={isGroup ? t("funds.detail.group_fund") : t("funds.detail.personal_fund")}
+                  value={isGroup ? "Quỹ nhóm" : "Quỹ cá nhân"}
                 />
               </div>
               <div>
-                <label>{t("funds.form.term")}</label>
+                <label>Thời hạn</label>
                 <select
                   value={form.hasTerm ? "yes" : "no"}
                   onChange={(e) =>
                     handleChange("hasTerm", e.target.value === "yes")
                   }
                 >
-                  <option value="yes">{t("funds.form.term.yes")}</option>
-                  <option value="no">{t("funds.form.term.no")}</option>
+                  <option value="yes">Có thời hạn</option>
+                  <option value="no">Không thời hạn</option>
                 </select>
               </div>
             </div>
 
             <div className="funds-field funds-field--inline">
               <div>
-                <label>{t("funds.form.current")}</label>
+                <label>Số dư hiện tại</label>
                 <input
                   type="number"
                   min="0"
@@ -244,7 +245,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                 />
               </div>
               <div>
-                <label>{t("funds.form.target")}</label>
+                <label>Mục tiêu (có thể bỏ trống)</label>
                 <input
                   type="number"
                   min="0"
@@ -256,7 +257,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
 
             <div className="funds-field funds-field--inline">
               <div>
-                <label>{t("funds.form.currency")}</label>
+                <label>Tiền tệ</label>
                 <input
                   type="text"
                   value={form.currency}
@@ -264,12 +265,12 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                 />
               </div>
               <div>
-                <label>{t("funds.form.note")}</label>
+                <label>Ghi chú</label>
                 <input
                   type="text"
                   value={form.description}
                   onChange={(e) => handleChange("description", e.target.value)}
-                  placeholder={t("funds.form.note_placeholder")}
+                  placeholder="Mục tiêu, ghi chú thêm..."
                 />
               </div>
             </div>
@@ -277,9 +278,9 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
             {/* Nếu là quỹ nhóm thì cho phép sửa danh sách thành viên */}
             {isGroup && (
               <div className="funds-field mt-2">
-                <label>{t("funds.form.members")}</label>
+                <label>Thành viên quỹ</label>
                 <div className="funds-hint mb-1">
-                  {t("funds.form.members_hint")}
+                  Bạn có thể thêm, xoá và cập nhật thông tin thành viên.
                 </div>
 
                 <div className="funds-members">
@@ -287,7 +288,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                     <div key={m.id} className="funds-member-row">
                       <input
                         type="text"
-                        placeholder={t("funds.form.member_name_placeholder")}
+                        placeholder="Tên"
                         value={m.name}
                         onChange={(e) =>
                           handleChangeMember(m.id, "name", e.target.value)
@@ -295,7 +296,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                       />
                       <input
                         type="email"
-                        placeholder={t("funds.form.member_email_placeholder")}
+                        placeholder="Email"
                         value={m.email}
                         onChange={(e) =>
                           handleChangeMember(m.id, "email", e.target.value)
@@ -307,10 +308,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                           handleChangeMember(m.id, "role", e.target.value)
                         }
                       >
-                        <option value="owner">{t("funds.detail.role.owner")}</option>
-                        <option value="manage">{t("funds.detail.role.manage")}</option>
-                        <option value="use">{t("funds.detail.role.use")}</option>
-                        <option value="view">{t("funds.detail.role.view")}</option>
+                        <option value="owner">Chủ quỹ</option>
+                        <option value="manage">Quản lý</option>
+                        <option value="use">Được sử dụng</option>
+                        <option value="view">Chỉ xem</option>
                       </select>
                       <button
                         type="button"
@@ -328,7 +329,7 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                     onClick={handleAddMember}
                   >
                     <i className="bi bi-person-plus me-1" />
-                    {t("funds.form.add_member")}
+                    Thêm thành viên
                   </button>
                 </div>
               </div>
@@ -340,10 +341,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
                 className="btn-secondary"
                 onClick={handleCancelEdit}
               >
-                {t("funds.form.cancel")}
+                Huỷ
               </button>
               <button type="submit" className="btn-primary">
-                {t("funds.form.save")}
+                Lưu thay đổi
               </button>
             </div>
           </form>

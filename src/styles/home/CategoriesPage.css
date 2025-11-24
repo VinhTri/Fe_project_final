@@ -1,15 +1,6 @@
 /* Trang Danh mục – đồng bộ style với các page Home khác */
 .category-page {
-  padding: 24px;
-}
-
-/* Ensure container wrapper is fluid and doesn't cause horizontal scroll */
-.cat-page.container,
-.category-page.container {
-  max-width: 100% !important;
-  padding-left: 12px !important;
-  padding-right: 12px !important;
-  box-sizing: border-box;
+  padding: 18px 24px 32px;
 }
 
 /* Aliases for component classNames (component uses .cat-... names) */
@@ -20,22 +11,21 @@
 /* small alias so header styling doesn't completely vanish if component uses .cat-header */
 .cat-header {
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 18px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 /* Header card – căn trái tiêu đề, phần bên phải nằm sát mép phải (giống hình 2) */
 .category-header-card {
-  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
-  border-radius: 24px;
-  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
-  padding: 16px 20px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  padding: 16px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between; /* trái – phải */
   gap: 24px;
 }
-
 
 /* Nếu phần tiêu đề được bọc trong .category-header-left thì sẽ nằm gọn bên trái */
 .category-header-left {
@@ -55,12 +45,12 @@
 .category-title {
   font-size: 1.8rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #111827;
 }
 
 .category-desc {
   font-size: 0.9rem;
-  color: rgba(255,255,255,0.92);
+  color: #6b7280;
 }
 
 /* Toggle Chi phí / Thu nhập */
@@ -86,73 +76,40 @@
 }
 
 .cat-toggle-btn.active {
-  background: #1d4ed8;
+  background: #14b8a6;
   color: #ffffff;
-  box-shadow: 0 6px 14px rgba(29, 78, 216, 0.35);
+  box-shadow: 0 6px 14px rgba(20, 184, 166, 0.35);
 }
 
 .category-add-header-btn {
   border-radius: 999px;
-  padding: 8px 18px !important;
-  font-weight: 600 !important;
-  background: #2d6df7 !important;
-  color: #ffffff !important;
-  border: 1px solid #2d6df7 !important;
-  box-shadow: 0 6px 14px rgba(29, 78, 216, 0.12) !important;
-  transition: background 0.12s ease, transform 0.06s ease;
-}
-
-.category-add-header-btn:hover,
-.category-add-header-btn:focus {
-  background: #2563eb !important;
-  color: #ffffff !important;
-  transform: translateY(-1px);
 }
 
 /* Card danh sách */
 .category-list-card {
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 18px;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-  display: flex;
-  flex-direction: column;
 }
 
-
-/* Make the inner .table-responsive the scroll container so sticky thead
-   works reliably (sticky elements stick relative to the nearest scrollable ancestor). */
-.category-list-card .card-body {
-  /* keep layout behavior but allow the inner .table-responsive to handle scrolling */
-  max-height: 360px; /* ensures the card doesn't grow too tall */
-  padding: 0; /* we use .table-responsive to hold padding if needed */
-  display: block;
-  flex-grow: 1;
+.cat-table-card {
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
-.category-list-card .card-body .table-responsive {
-  max-height: 360px; /* Show ~6 rows, scroll to see up to 10 */
-  overflow-y: auto;
-  overflow-x: auto;
-  scrollbar-gutter: stable;
+.cat-table-card > .card-body {
+  padding: 0;
 }
 
-/* If category lists are rendered as tables, keep the table header
-   visible while the list body scrolls. Scoped to the card body scroller. */
-
-/* Sticky header scoped to the scrolling .table-responsive container */
-.category-list-card .card-body .table-responsive thead th,
-.category-list-card .card-body .table-responsive table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+.cat-table-card .card-footer {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
 }
 
 /* Hàng danh mục */
 .category-row {
-  padding: 12px 16px;
+  padding: 12px 20px;
   border-bottom: 1px solid #f3f4f6;
 }
 
@@ -221,7 +178,7 @@
   width: 100%;
   max-width: 420px;
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 20px 24px;
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.55);
 }
@@ -291,62 +248,166 @@
   color: #ffffff;
 }
 
-/* Hide the table title + total row above categories list */
-.cat-page .card.border-0.shadow-sm:last-of-type .card-body > .d-flex.justify-content-between.align-items-center.mb-3 {
-  display: none !important;
-}
-.cat-header,
-.header-container,
-.category-header {
-  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%) !important;
-  color: #ffffff !important;
+.category-filter-select {
+  border-radius: 999px;
+  padding-inline: 18px;
 }
 
-/* Ensure header controls are scrollable instead of wrapping unexpectedly when zoomed */
-.category-header-card .category-header-right,
-.category-header-card .category-header-left {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+.category-search-select {
+  position: relative;
 }
 
-/* ======================
-   RESPONSIVE ADJUSTMENTS
-   ====================== */
-@media (max-width: 992px) {
-  .category-page {
-    padding: 16px !important;
-  }
-  
-  /* Target the actual class used in JSX */
-  .cat-header .card-body {
+.category-search-select .form-control {
+  border-radius: 999px;
+  padding-inline: 18px;
+}
+
+.category-search-select .searchable-select-menu {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 6px);
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.15);
+  background: #ffffff;
+  z-index: 40;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.category-search-select .searchable-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 0.95rem;
+}
+
+.category-search-select .searchable-option:hover {
+  background: #f8fafc;
+}
+
+.category-search-select .searchable-option.active {
+  background: #e0f2fe;
+  color: #0c4a6e;
+  font-weight: 600;
+}
+
+.category-search-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.category-search-inline .category-search-select {
+  min-width: 240px;
+}
+
+.category-search-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.category-search-actions .btn {
+  white-space: nowrap;
+}
+
+.category-table-scroll {
+  max-height: 65vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5f5 transparent;
+}
+
+.category-table-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.category-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.8);
+  border-radius: 999px;
+}
+
+.category-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.category-note-cell {
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-pagination-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.category-pagination {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.category-pagination .page-arrow,
+.category-pagination .page-number {
+  border: 1px solid #dbe2ef;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  transition: all 0.2s ease;
+}
+
+.category-pagination .page-arrow:disabled,
+.category-pagination .page-number:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.category-pagination .page-number.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.category-pagination .page-ellipsis {
+  padding-inline: 4px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .category-search-inline {
     flex-direction: column;
-    align-items: flex-start !important;
-    gap: 16px;
   }
 
-  /* Left side */
-  .cat-header .card-body > div:first-child {
-    width: 100%;
-  }
-
-  /* Right side (Controls) */
-  .cat-header .card-body > div:last-child {
+  .category-search-actions {
     width: 100%;
     justify-content: flex-start;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-left: 0;
   }
-  
-  .category-title {
-    font-size: 1.4rem;
+
+  .category-pagination-bar {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
-  /* Mobile card styling */
-  .d-md-none .card {
-    border-radius: 18px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-    border: 1px solid #f1f5f9 !important;
+
+  .category-pagination {
+    justify-content: flex-start;
   }
 }

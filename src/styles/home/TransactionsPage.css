@@ -1,94 +1,52 @@
-/* ======================
-   PAGE WRAPPER
-   ====================== */
-/* alias: some pages use `.tx-page` as root class */
-.transactions-page,
-.tx-page {
-  padding: 24px;
+.transactions-page {
+  padding: 18px 24px 32px;
 }
 
-/* Ensure container doesn't force horizontal scroll like other pages */
-.tx-page.container,
-.transactions-page.container {
-  max-width: 100% !important;
-  padding-left: 12px !important;
-  padding-right: 12px !important;
-  box-sizing: border-box;
-}
-
-/* ======================
-   HEADER
-   ====================== */
+/* Header */
 .page-header-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
-  border-radius: 24px;
+  background: #ffffff;
+  border-radius: 18px;
   padding: 16px 20px;
-  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
   margin-bottom: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
-
 .page-title {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #001c44;
 }
-
 .page-subtitle {
   margin: 4px 0 0;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.92);
+  color: #6b7280;
 }
-
-/* nút "Thêm giao dịch mới" */
 .btn-add-transaction {
   border-radius: 999px;
   padding: 8px 18px;
   font-weight: 600;
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.2);
 }
 
-.btn-add-transaction:hover,
-.btn-add-transaction:focus {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #ffffff;
-  transform: translateY(-1px);
-}
-
-/* ======================
-   FILTERS
-   ====================== */
-/* Card tìm kiếm – bo góc + đổ bóng mạnh giống Danh mục */
+/* Filters */
 .transaction-filters {
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
   padding: 12px 16px;
   margin-bottom: 18px;
-
-  /* bóng mạnh hơn để nổi giống Danh mục */
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-  border: 1px solid #f1f5f9;
 }
-
 .filter-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
-
 .filter-search {
   flex: 1 1 260px;
   position: relative;
 }
-
 .filter-search i {
   position: absolute;
   left: 10px;
@@ -96,143 +54,61 @@
   transform: translateY(-50%);
   color: #9ca3af;
 }
-
 .filter-search .form-control {
   padding-left: 32px;
   border-radius: 999px;
 }
-
 .transaction-filters .form-select {
   min-width: 150px;
   border-radius: 999px;
 }
 
-/* Date range */
+
+/* Date time range */
 .filter-datetime-range {
   display: flex;
   flex-direction: column;
   min-width: 250px;
 }
-
 .filter-datetime-range .filter-label {
   font-size: 0.8rem;
   color: #6b7280;
   margin-bottom: 2px;
 }
-
 .filter-datetime-inputs {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-
 .filter-datetime-inputs .form-control {
   border-radius: 999px;
   font-size: 0.8rem;
   padding-inline: 10px;
 }
-
 .range-separator {
   font-size: 0.9rem;
   color: #6b7280;
 }
 
-/* ======================
-   TABLE
-   ====================== */
-.transaction-table-wrapper,
-.tx-table-card {
+/* Table */
+.transaction-table-wrapper {
   background: #ffffff;
   border-radius: 18px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
   overflow: hidden;
-  padding: 8px 12px !important; /* cho nội dung cách viền */
-  display: flex;
-  flex-direction: column;
 }
-
-.transaction-table-wrapper .table-responsive,
-.tx-table-card .table-responsive {
-  max-height: 360px; /* Show ~6 rows, scroll to see up to 10 */
-  overflow-y: auto;
-  overflow-x: auto;
-  scrollbar-gutter: stable;
-}
-
-.transaction-table-wrapper .card-footer {
-  border-top: 1px solid #e5e7eb;
-  margin-top: auto;
-}
-
 .transaction-table thead th {
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
 }
-
-/* Make the table header sticky inside the scrollable table container
-   so the thead stays visible while the tbody scrolls. Scoped to
-   the table-responsive wrappers used on this page. */
-.transaction-table-wrapper .table-responsive thead th,
-.tx-table-card .table-responsive thead th {
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  background: #f9fafb; /* match the non-sticky header background */
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
-}
-
-/* padding ô giống trang Danh mục – không bị sát viền */
-.transactions-page .transaction-table-wrapper .transaction-table thead th,
-.transactions-page .transaction-table-wrapper .transaction-table tbody td {
-  padding: 0.95rem 1.25rem !important;
-}
-
 .transaction-table tbody td {
   vertical-align: middle;
   font-size: 0.9rem;
 }
-
-/* Make header consistent & responsive */
-.page-header-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
-  color: #ffffff;
-  padding: 16px 20px;
-  border-radius: 24px;
-  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.page-header-card .page-title { font-size: 1.6rem; font-weight:700; margin:0; }
-.page-header-card .header-controls { display:flex; gap:12px; align-items:center; flex-wrap:nowrap; overflow-x:auto; }
-
-/* Make table layout flexible so it scales when viewport/zoom changes */
-.tx-table-card { display:flex; flex-direction:column; }
-.tx-table-card .table-responsive { max-height: 360px; overflow:auto; scrollbar-gutter: stable; }
-.tx-table-card table { width:100%; table-layout: auto; }
-
-/* Make description column able to shrink instead of forcing horizontal scroll */
-.tx-page .description-col,
-.transactions-page .description-col {
-  min-width: 0;
-  width: 30%;
-}
-
-.tx-page .description-cell,
-.transactions-page .description-cell {
-  max-width: 320px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .description-col {
   width: 30%;
 }
-
 .description-cell {
   max-width: 320px;
   white-space: nowrap;
@@ -240,22 +116,17 @@
   text-overflow: ellipsis;
 }
 
-/* ======================
-   AMOUNT COLOR
-   ====================== */
+/* Amount color */
 .amount-positive {
   color: #059669;
   font-weight: 600;
 }
-
 .amount-negative {
   color: #dc2626;
   font-weight: 600;
 }
 
-/* ======================
-   ACTION BUTTONS
-   ====================== */
+/* Action buttons */
 .btn-icon {
   border: none;
   background: transparent;
@@ -264,24 +135,19 @@
   color: #4b5563;
   font-size: 1rem;
 }
-
 .btn-icon:hover {
   background: #e5e7eb;
   color: #111827;
 }
-
 .btn-icon-danger {
   color: #dc2626;
 }
-
 .btn-icon-danger:hover {
   background: #fee2e2;
   color: #b91c1c;
 }
 
-/* ======================
-   PAGINATION
-   ====================== */
+/* Pagination */
 .transaction-pagination {
   display: flex;
   align-items: center;
@@ -289,51 +155,80 @@
   margin-top: 14px;
   font-size: 0.9rem;
 }
-
 .pagination-info {
   color: #6b7280;
 }
-
 .pagination-buttons {
   display: flex;
   gap: 6px;
 }
-
 .page-number-btn {
   border-radius: 999px;
 }
-
 .page-number-btn.active {
   background: #1d4ed8;
   color: #fff;
   border-color: #1d4ed8;
 }
 
-/* ======================
-   MODAL
-   ====================== */
+.tx-pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tx-pagination .page-arrow,
+.tx-pagination .page-number {
+  border: 1px solid #dbe2ef;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  transition: all 0.2s ease;
+}
+
+.tx-pagination .page-arrow:disabled,
+.tx-pagination .page-number:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tx-pagination .page-number.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.tx-pagination .page-ellipsis {
+  padding-inline: 4px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* Modal – viền, khoảng cách đẹp hơn */
 .transaction-modal .modal-content {
   border-radius: 22px;
   border: none;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
 }
-
 .transaction-modal .modal-header,
 .transaction-modal .modal-footer {
   padding: 0.9rem 1.4rem;
 }
-
 .transaction-modal .modal-body {
   padding: 1.1rem 1.4rem 1.2rem;
 }
-
 .transaction-modal .form-control,
 .transaction-modal .form-select,
 .transaction-modal .input-group-text {
   border-radius: 10px;
   font-size: 0.95rem;
 }
-
 .transaction-modal .form-control,
 .transaction-modal .form-select {
   padding: 0.45rem 0.75rem;
@@ -345,12 +240,10 @@
   padding: 0.35rem 0.9rem;
   font-size: 0.9rem;
 }
-
 .btn-type {
   background: #f3f4f6;
   color: #111827;
 }
-
 .btn-type-active {
   background: #1d4ed8;
   color: #ffffff;
@@ -360,7 +253,6 @@
 .searchable-select {
   position: relative;
 }
-
 .searchable-select-menu {
   position: absolute;
   inset-inline: 0;
@@ -374,7 +266,6 @@
   overflow-y: auto;
   z-index: 30;
 }
-
 .searchable-option {
   display: block;
   width: 100%;
@@ -384,11 +275,9 @@
   background: transparent;
   font-size: 0.9rem;
 }
-
 .searchable-option:hover {
   background: #eff6ff;
 }
-
 .searchable-option.active {
   background: #1d4ed8;
   color: #ffffff;
@@ -412,174 +301,258 @@
   border-bottom: 1px dashed #e5e7eb;
   font-size: 0.92rem;
 }
-
 .detail-label {
   color: #6b7280;
   min-width: 110px;
 }
-
 .detail-value {
   font-weight: 600;
 }
-
 .detail-row-image {
   align-items: flex-start;
 }
-
 .detail-image-wrapper img {
   max-width: 220px;
   border-radius: 10px;
 }
 
-/* ======================
-   RESPONSIVE
-   ====================== */
+/* Responsive */
 @media (max-width: 768px) {
   .page-header-card {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-
   .filter-row {
     flex-direction: column;
   }
-
   .filter-datetime-range {
     width: 100%;
   }
 }
-
-@media (max-width: 991.98px) {
-  .tx-header .card-body {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .tx-header .d-flex.align-items-center.gap-2 {
-    width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .tx-header .d-flex.align-items-center.gap-2::-webkit-scrollbar {
-    display: none;
-  }
-
-  .tx-filters .card-body {
-    gap: 10px;
-  }
-
-  .tx-filters .tx-filter-item {
-    width: 100% !important;
-  }
-
-  .tx-filters .tx-filter-item .form-control,
-  .tx-filters .tx-filter-item .form-select {
-    width: 100%;
-  }
-
-  .tx-table-card table td,
-  .tx-table-card table th {
-    padding: 0.55rem 0.6rem;
-    font-size: 0.88rem;
-  }
-
-  .tx-card-list .tx-card .card-body {
-    padding: 0.6rem;
-  }
+/* Icon tiêu đề giao dịch */
+.tx-header-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@media (max-width: 575.98px) {
-  .tx-table-card .table-responsive {
-    overflow-x: auto;
-  }
-}
-/* Bo góc + đổ bóng cho card danh sách giao dịch giống Danh mục */
-.tx-table-card,
-.transaction-table-wrapper {
-  border-radius: 24px !important;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12) !important;
-  overflow: hidden;
-  border: none;
+.tx-header-icon {
+  font-size: 1.4rem;
+  color: #ffffff;
 }
 
-/* ======================
-   MOBILE CARD LIST
-   ====================== */
-.tx-card {
+/* Bo tròn bảng quản lý giao dịch */
+.tx-table-card {
   border-radius: 18px;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  background: #ffffff;
+  overflow: hidden;              /* để góc bảng cũng tròn theo card */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
-.tx-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+.tx-table-card .table-responsive {
+  max-height: 70vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
 }
 
-.tx-card .card-body {
-  padding: 16px;
+.tx-table-card .table-responsive::-webkit-scrollbar {
+  width: 8px;
 }
 
+.tx-table-card .table-responsive::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.8);
+  border-radius: 999px;
+}
+
+.tx-table-card thead th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  z-index: 2;
+}
+
+.tx-table-card table thead tr {
+  background-color: #f1f5f9;
+}
+
+.tx-table-card table thead th {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* màu số tiền */
 .tx-amount-expense {
   color: #dc2626;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .tx-amount-income {
-  color: #059669;
-  font-weight: 700;
+  color: #16a34a;
+  font-weight: 600;
 }
 
 .tx-amount-transfer {
-  color: #2563eb;
-  font-weight: 700;
+  color: #0ea5e9;
+  font-weight: 600;
 }
 
-/* Responsive adjustments */
-@media (max-width: 992px) {
-  .transactions-page, .tx-page {
-    padding: 16px !important;
-  }
-  
-  /* Target the actual class used in JSX */
-  .tx-header .card-body {
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 16px;
-  }
-  
-  /* Left side (Icon + Title) */
-  .tx-header .card-body > div:first-child {
-    width: 100%;
-  }
+.tx-note-cell {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-  /* Right side (Controls) */
-  .tx-header .card-body > div:last-child {
-    width: 100%;
-    justify-content: flex-start;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    flex-wrap: nowrap; /* Keep buttons on one line if possible, scroll if not */
-  }
+/* Scheduled transactions */
+.scheduled-section {
+  border-radius: 18px;
+}
 
-  .page-title {
-    font-size: 1.4rem;
-  }
-  
-  .transaction-filters {
-    padding: 12px;
-  }
+.schedule-tabs {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
 
-  .filter-row {
-    flex-direction: column;
-  }
+.schedule-tab {
+  border: 1px solid #dee2e6;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.4rem 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
 
-  .filter-datetime-range {
-    width: 100%;
-  }
+.schedule-tab.active {
+  border-color: #0d6efd;
+  color: #0d6efd;
+  background: rgba(13, 110, 253, 0.08);
+}
+
+.schedule-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.scheduled-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.schedule-status {
+  border-radius: 999px;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.65rem;
+  font-weight: 600;
+}
+
+.schedule-status--pending {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.schedule-status--running {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.schedule-status--success {
+  background: rgba(34, 197, 94, 0.16);
+  color: #15803d;
+}
+
+.schedule-status--failed {
+  background: rgba(248, 113, 113, 0.18);
+  color: #b91c1c;
+}
+
+.schedule-status--muted {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.schedule-progress {
+  height: 6px;
+  background-color: #f1f5f9;
+}
+
+.schedule-warning {
+  font-size: 0.85rem;
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.12);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+}
+
+.scheduled-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.scheduled-card-actions .btn {
+  font-weight: 500;
+}
+
+/* Scheduled modal helpers */
+.schedule-type-grid {
+  --bs-gutter-x: 0.5rem;
+}
+
+.schedule-type-item {
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  font-weight: 600;
+  color: #475569;
+}
+
+.schedule-type-item.active {
+  border-color: #0d6efd;
+  color: #0d6efd;
+  background: rgba(13, 110, 253, 0.06);
+}
+
+.schedule-detail-box,
+.schedule-history-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.schedule-detail-list li,
+.schedule-log-list li {
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.schedule-detail-list li:last-child,
+.schedule-log-list li:last-child {
+  border-bottom: none;
+}
+
+.schedule-detail-list span {
+  color: #6b7280;
+  min-width: 110px;
+  display: inline-block;
+}
+
+.schedule-log-list strong {
+  font-size: 0.9rem;
 }

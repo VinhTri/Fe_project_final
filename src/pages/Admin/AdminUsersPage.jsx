@@ -3,77 +3,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import "../../styles/admin/AdminUsersPage.css";
 import { ROLES, useAuth } from "../../home/store/AuthContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
-import { useLanguage } from "../../home/store/LanguageContext";
-
-// Mock data demo
-const MOCK_USERS = [
-  {
-    id: 1,
-    fullName: "Nguyễn Văn A",
-    email: "a@example.com",
-    role: ROLES.ADMIN,
-    status: "ACTIVE",
-    lastLogin: "2025-11-10 09:23",
-    createdAt: "2023-05-12 10:20",
-  },
-  {
-    id: 2,
-    fullName: "Trần Thị B",
-    email: "b@example.com",
-    role: ROLES.USER,
-    status: "ACTIVE",
-    lastLogin: "2025-11-11 21:03",
-    createdAt: "2024-01-03 14:55",
-  },
-  {
-    id: 3,
-    fullName: "Phạm Văn C",
-    email: "c@example.com",
-    role: ROLES.VIEWER,
-    status: "LOCKED",
-    lastLogin: "2025-11-09 14:47",
-    createdAt: "2024-08-22 09:12",
-  },
-];
-
-const MOCK_LOGS = {
-  1: [
-    {
-      id: 101,
-      time: "2025-11-12 08:10",
-      action: "LOGIN",
-      detail: "Đăng nhập thành công",
-    },
-    {
-      id: 102,
-      time: "2025-11-12 08:15",
-      action: "CREATE",
-      detail: "Tạo ví 'Ví tiền mặt'",
-    },
-  ],
-  2: [
-    {
-      id: 201,
-      time: "2025-11-11 20:00",
-      action: "LOGIN",
-      detail: "Đăng nhập thành công",
-    },
-    {
-      id: 202,
-      time: "2025-11-11 20:05",
-      action: "UPDATE",
-      detail: "Sửa ngân sách 'Chi tiêu tháng 11'",
-    },
-  ],
-  3: [
-    {
-      id: 301,
-      time: "2025-11-09 14:00",
-      action: "LOGIN_FAIL",
-      detail: "Sai mật khẩu 3 lần",
-    },
-  ],
-};
+import {
+  getAdminUsers,
+  getUserLoginLogs,
+  changeUserRole,
+  lockUser,
+  unlockUser,
+  deleteUser as deleteUserApi,
+} from "../../services/adminUserApi";
 
 // format thời gian dạng "YYYY-MM-DD HH:mm"
 function formatNow() {
@@ -87,15 +24,31 @@ function formatNow() {
   return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
 }
 
+// helper: format ISO từ BE -> "YYYY-MM-DD HH:mm"
+function formatFromIso(isoString) {
+  if (!isoString) return "";
+  try {
+    const d = new Date(isoString);
+    const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+    const yyyy = d.getFullYear();
+    const MM = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mm = pad(d.getMinutes());
+    return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
+  } catch {
+    return isoString;
+  }
+}
+
 export default function AdminUsersPage() {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
-  const { t } = useLanguage();
 
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
 
-  const [logs, setLogs] = useState([]); // nhật ký đăng nhập (mock)
+  const [logs, setLogs] = useState([]); // nhật ký đăng nhập
   const [editHistory, setEditHistory] = useState({}); // lịch sử chỉnh sửa tài khoản
 
   const [filterRole, setFilterRole] = useState("ALL");
@@ -106,7 +59,7 @@ export default function AdminUsersPage() {
   // panel bên phải: "info" | "logs" | "manage" | "history"
   const [activePanel, setActivePanel] = useState("info");
 
-  // helper thêm lịch sử chỉnh sửa
+  // helper thêm lịch sử chỉnh sửa (chỉ lưu trong phiên FE hiện tại)
   const addHistoryEntry = (userId, action, detail) => {
     setEditHistory((prev) => {
       const list = prev[userId] || [];
@@ -123,101 +76,189 @@ export default function AdminUsersPage() {
     });
   };
 
-  // =============== Fake API ===============
+
+  // =============== API calls ===============
+
+  // 1) Lấy danh sách user từ BE
   const fetchUsers = async () => {
     setLoadingUsers(true);
-    await new Promise((res) => setTimeout(res, 300)); // giả delay
-    setUsers(MOCK_USERS);
-    setLoadingUsers(false);
+    try {
+      const res = await getAdminUsers(); // GET /admin/users
+      const mapped = res.data
+        .map((u) => ({
+          id: u.id,
+          fullName: u.fullName,
+          email: u.email,
+          role: u.role, // "USER" | "ADMIN"
+          status: u.locked ? "LOCKED" : "ACTIVE",
+          createdAt: formatFromIso(u.createdAt),
+          lastLogin: null, // tạm, sau này BE có trường lastLogin thì map thêm
+        }))
+        // Ẩn admin hệ thống (email: admin@financeapp.com)
+        .filter((u) => u.email.toLowerCase() !== "admin@financeapp.com");
+      setUsers(mapped);
+    } catch (e) {
+      console.error(e);
+      showToast("Không tải được danh sách người dùng", "error");
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
+  // 2) Lấy login logs theo user
   const fetchUserLogs = async (userId) => {
     setLoadingLogs(true);
-    await new Promise((res) => setTimeout(res, 200));
-    setLogs(MOCK_LOGS[userId] || []);
-    setLoadingLogs(false);
+    try {
+      const res = await getUserLoginLogs(userId); // GET /admin/users/{id}/login-logs
+      const mapped = res.data.map((log) => ({
+        id: log.id,
+        time: formatFromIso(log.loginTime),
+        action: "LOGIN",
+        detail: `IP: ${log.ipAddress} • ${log.userAgent}`,
+      }));
+      setLogs(mapped);
+    } catch (e) {
+      console.error(e);
+      showToast("Không tải được nhật ký đăng nhập", "error");
+      setLogs([]);
+    } finally {
+      setLoadingLogs(false);
+    }
   };
 
+  // 3) Đổi role USER <-> ADMIN
   const updateUserRole = async (userId, newRole) => {
-    // Lấy user hiện tại để lưu lịch sử
+    // Không cho phép thay đổi role của chính mình
+    if (userId === currentUser?.id) {
+      showToast("Không thể thay đổi vai trò của chính mình", "error");
+      return;
+    }
+
     const target = users.find((u) => u.id === userId);
+    
+    // Chỉ admin hệ thống mới có thể thay đổi role của admin khác
+    if (!isSystemAdmin && target?.role === ROLES.ADMIN) {
+      showToast("Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác", "error");
+      return;
+    }
+
     const oldRole = target?.role;
 
-    // TODO: gọi API PUT /admin/users/:id/role
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-    );
+    try {
+      await changeUserRole(userId, newRole); // POST /admin/users/{id}/role
 
-    if (target) {
-      addHistoryEntry(
-        userId,
-        t("admin.users.history.role_change"),
-        t("admin.users.history.role_change_detail")
-          .replace("{old}", oldRole)
-          .replace("{new}", newRole)
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
       );
-      showToast(
-        t("admin.users.toast.role_updated")
-          .replace("{name}", target.fullName)
-          .replace("{role}", newRole)
-      );
-    } else {
-      showToast(t("admin.users.toast.role_updated_generic"));
+
+      if (target) {
+        addHistoryEntry(
+          userId,
+          "Đổi vai trò",
+          `Đổi vai trò từ "${oldRole}" sang "${newRole}".`
+        );
+        showToast(
+          `Đã cập nhật vai trò cho ${target.fullName} thành "${newRole}".`
+        );
+      } else {
+        showToast(`Đã cập nhật vai trò tài khoản.`);
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Đổi vai trò thất bại", "error");
     }
   };
 
+  // 4) Khóa / mở khóa user
   const toggleUserStatus = async (userId) => {
+    // Không cho phép khóa/mở khóa chính mình
+    if (userId === currentUser?.id) {
+      showToast("Không thể khóa/mở khóa chính mình", "error");
+      return;
+    }
+
     const target = users.find((u) => u.id === userId);
-    const oldStatus = target?.status;
+    if (!target) return;
 
-    // TODO: gọi API PATCH /admin/users/:id/status
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId
-          ? { ...u, status: u.status === "ACTIVE" ? "LOCKED" : "ACTIVE" }
-          : u
-      )
-    );
+    // Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác
+    if (!isSystemAdmin && target.role === ROLES.ADMIN) {
+      showToast("Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác", "error");
+      return;
+    }
 
-    if (target) {
-      const newStatus = oldStatus === "ACTIVE" ? "LOCKED" : "ACTIVE";
+    const oldStatus = target.status;
+    const isActive = oldStatus === "ACTIVE";
+
+    try {
+      if (isActive) {
+        await lockUser(userId); // POST /admin/users/{id}/lock
+      } else {
+        await unlockUser(userId); // POST /admin/users/{id}/unlock
+      }
+
+      const newStatus = isActive ? "LOCKED" : "ACTIVE";
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, status: newStatus } : u
+        )
+      );
+
       addHistoryEntry(
         userId,
-        t("admin.users.history.status_change"),
-        t("admin.users.history.status_change_detail")
-          .replace("{old}", oldStatus)
-          .replace("{new}", newStatus)
+        "Cập nhật trạng thái",
+        `Thay đổi trạng thái từ "${oldStatus}" sang "${newStatus}".`
       );
       showToast(
-        oldStatus === "ACTIVE"
-          ? t("admin.users.toast.status_locked").replace("{name}", target.fullName)
-          : t("admin.users.toast.status_unlocked").replace("{name}", target.fullName)
+        isActive
+          ? `Đã khóa tài khoản ${target.fullName}.`
+          : `Đã mở khóa tài khoản ${target.fullName}.`
       );
-    } else {
-      showToast(t("admin.users.toast.status_updated_generic"));
+    } catch (e) {
+      console.error(e);
+      showToast("Cập nhật trạng thái thất bại", "error");
     }
   };
 
+  // 5) Xoá user
   const deleteUser = async (userId) => {
+    // Không cho phép xóa chính mình
+    if (userId === currentUser?.id) {
+      showToast("Không thể xóa chính mình", "error");
+      return;
+    }
+
     const target = users.find((u) => u.id === userId);
+    if (!target) return;
 
-    if (target) {
-      // lưu lịch sử trước khi xóa
-      addHistoryEntry(
-        userId,
-        t("admin.users.history.delete"),
-        t("admin.users.history.delete_detail").replace("{name}", target.fullName)
-      );
+    // Chỉ admin hệ thống mới có thể xóa admin khác
+    if (!isSystemAdmin && target.role === ROLES.ADMIN) {
+      showToast("Chỉ admin hệ thống mới có thể xóa admin khác", "error");
+      return;
     }
 
-    if (selectedUserId === userId) {
-      setSelectedUserId(null);
-      setLogs([]);
-    }
+    try {
+      await deleteUserApi(userId); // DELETE /admin/users/{id}
 
-    // TODO: gọi API DELETE /admin/users/:id
-    setUsers((prev) => prev.filter((u) => u.id !== userId));
-    showToast(t("admin.users.toast.deleted").replace("{name}", target?.fullName || ""));
+      if (target) {
+        addHistoryEntry(
+          userId,
+          "Xóa tài khoản",
+          `Tài khoản "${target.fullName}" đã bị xóa khỏi hệ thống.`
+        );
+      }
+
+      if (selectedUserId === userId) {
+        setSelectedUserId(null);
+        setLogs([]);
+      }
+
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      showToast(`Đã xóa tài khoản ${target?.fullName || ""}.`);
+    } catch (e) {
+      console.error(e);
+      showToast("Xóa tài khoản thất bại", "error");
+    }
   };
 
   // =============== Effects ===============
@@ -250,6 +291,33 @@ export default function AdminUsersPage() {
     [users, selectedUserId]
   );
 
+  // Kiểm tra xem user đang chọn có phải là chính mình không
+  const isCurrentUser = useMemo(
+    () => selectedUser && currentUser && selectedUser.id === currentUser.id,
+    [selectedUser, currentUser]
+  );
+
+  // Kiểm tra xem currentUser có phải là admin hệ thống không
+  const isSystemAdmin = useMemo(
+    () => currentUser?.email?.toLowerCase() === "admin@financeapp.com",
+    [currentUser]
+  );
+
+  // Kiểm tra xem có thể quản lý user này không
+  // - Không thể quản lý chính mình
+  // - Nếu không phải admin hệ thống, không thể quản lý admin khác
+  const canManageUser = useMemo(
+    () => {
+      if (!selectedUser) return false;
+      if (isCurrentUser) return false; // Không thể quản lý chính mình
+      if (!isSystemAdmin && selectedUser.role === ROLES.ADMIN) {
+        return false; // Không phải admin hệ thống thì không thể quản lý admin khác
+      }
+      return true;
+    },
+    [selectedUser, isCurrentUser, isSystemAdmin]
+  );
+
   const accountHistory = useMemo(
     () => (selectedUserId ? editHistory[selectedUserId] || [] : []),
     [editHistory, selectedUserId]
@@ -261,9 +329,9 @@ export default function AdminUsersPage() {
   };
 
   const getStatusLabel = (status) => {
-    if (status === "ACTIVE") return t("admin.users.status.active");
-    if (status === "LOCKED") return t("admin.users.status.locked");
-    return t("admin.users.status.unknown");
+    if (status === "ACTIVE") return "Đang hoạt động";
+    if (status === "LOCKED") return "Đã khóa";
+    return "Không xác định";
   };
 
   // =============== Render ===============
@@ -271,9 +339,11 @@ export default function AdminUsersPage() {
     <div className="admin-users-page">
       <div className="admin-users__header">
         <div>
-          <h1 className="admin-users__title">{t("admin.users.title")}</h1>
+          <h1 className="admin-users__title">Quản lý người dùng</h1>
           <p className="admin-users__subtitle">
-            {t("admin.users.subtitle").replace("{name}", currentUser?.fullName || "Admin")}
+            Xin chào {currentUser?.fullName || "Admin"}, bạn có thể phân quyền,
+            khóa/mở, xóa tài khoản, xem nhật ký đăng nhập và toàn bộ lịch sử
+            chỉnh sửa tài khoản tại đây.
           </p>
         </div>
       </div>
@@ -283,11 +353,11 @@ export default function AdminUsersPage() {
         <div className="admin-users__left">
           <div className="admin-card">
             <div className="admin-card__header">
-              <h2>{t("admin.users.list_title")}</h2>
+              <h2>Danh sách tài khoản</h2>
               <div className="admin-filters">
                 <input
                   type="text"
-                  placeholder={t("admin.users.search_placeholder")}
+                  placeholder="Tìm theo tên hoặc email..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -295,29 +365,30 @@ export default function AdminUsersPage() {
                   value={filterRole}
                   onChange={(e) => setFilterRole(e.target.value)}
                 >
-                  <option value="ALL">{t("admin.users.filter_role_all")}</option>
+                  <option value="ALL">Tất cả vai trò</option>
                   <option value={ROLES.ADMIN}>Admin</option>
                   <option value={ROLES.USER}>User</option>
-                  <option value={ROLES.VIEWER}>Viewer</option>
                 </select>
               </div>
             </div>
 
             {loadingUsers ? (
-              <div className="admin-empty">{t("admin.users.loading")}</div>
+              <div className="admin-empty">
+                Đang tải danh sách người dùng...
+              </div>
             ) : filteredUsers.length === 0 ? (
-              <div className="admin-empty">{t("admin.users.empty")}</div>
+              <div className="admin-empty">Không có người dùng phù hợp.</div>
             ) : (
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>{t("admin.users.table.name")}</th>
-                    <th>{t("admin.users.table.email")}</th>
-                    <th>{t("admin.users.table.role")}</th>
-                    <th>{t("admin.users.table.status")}</th>
-                    <th>{t("admin.users.table.created_at")}</th>
-                    <th>{t("admin.users.table.last_login")}</th>
-                    <th>{t("admin.users.table.action")}</th>
+                    <th>Tên</th>
+                    <th>Email</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày tạo</th>
+                    <th>Đăng nhập gần nhất</th>
+                    <th>Hành động</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -334,14 +405,25 @@ export default function AdminUsersPage() {
                       <td>
                         <select
                           value={u.role}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => {
                             e.stopPropagation();
                             updateUserRole(u.id, e.target.value);
                           }}
+                          disabled={
+                            u.id === currentUser?.id ||
+                            (!isSystemAdmin && u.role === ROLES.ADMIN)
+                          }
+                          title={
+                            u.id === currentUser?.id
+                              ? "Không thể thay đổi vai trò của chính mình"
+                              : !isSystemAdmin && u.role === ROLES.ADMIN
+                              ? "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác"
+                              : ""
+                          }
                         >
                           <option value={ROLES.ADMIN}>Admin</option>
                           <option value={ROLES.USER}>User</option>
-                          <option value={ROLES.VIEWER}>Viewer</option>
                         </select>
                       </td>
                       <td>
@@ -355,8 +437,8 @@ export default function AdminUsersPage() {
                           {getStatusLabel(u.status)}
                         </span>
                       </td>
-                      <td>{u.createdAt}</td>
-                      <td>{u.lastLogin}</td>
+                      <td>{u.createdAt || "Không có dữ liệu"}</td>
+                      <td>{u.lastLogin || "Chưa có dữ liệu"}</td>
                       <td className="admin-actions-cell">
                         <button
                           className="btn-chip btn-chip--ghost"
@@ -364,8 +446,19 @@ export default function AdminUsersPage() {
                             e.stopPropagation();
                             toggleUserStatus(u.id);
                           }}
+                          disabled={
+                            u.id === currentUser?.id ||
+                            (!isSystemAdmin && u.role === ROLES.ADMIN)
+                          }
+                          title={
+                            u.id === currentUser?.id
+                              ? "Không thể khóa/mở khóa chính mình"
+                              : !isSystemAdmin && u.role === ROLES.ADMIN
+                              ? "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác"
+                              : ""
+                          }
                         >
-                          {u.status === "ACTIVE" ? t("admin.users.btn.lock") : t("admin.users.btn.unlock")}
+                          {u.status === "ACTIVE" ? "Khóa" : "Mở khóa"}
                         </button>
                         <button
                           className="btn-chip btn-chip--danger"
@@ -373,8 +466,19 @@ export default function AdminUsersPage() {
                             e.stopPropagation();
                             deleteUser(u.id);
                           }}
+                          disabled={
+                            u.id === currentUser?.id ||
+                            (!isSystemAdmin && u.role === ROLES.ADMIN)
+                          }
+                          title={
+                            u.id === currentUser?.id
+                              ? "Không thể xóa chính mình"
+                              : !isSystemAdmin && u.role === ROLES.ADMIN
+                              ? "Chỉ admin hệ thống mới có thể xóa admin khác"
+                              : ""
+                          }
                         >
-                          {t("admin.users.btn.delete")}
+                          Xóa
                         </button>
                       </td>
                     </tr>
@@ -389,7 +493,7 @@ export default function AdminUsersPage() {
         <div className="admin-users__right">
           {!selectedUser ? (
             <div className="admin-empty admin-empty--border">
-              {t("admin.users.select_hint")}
+              Chọn một người dùng ở bảng bên trái để xem chi tiết & thao tác.
             </div>
           ) : (
             <>
@@ -403,7 +507,7 @@ export default function AdminUsersPage() {
                   }
                   onClick={() => setActivePanel("info")}
                 >
-                  {t("admin.users.tab.info")}
+                  Thông tin
                 </button>
                 <button
                   className={
@@ -413,7 +517,7 @@ export default function AdminUsersPage() {
                   }
                   onClick={() => setActivePanel("logs")}
                 >
-                  {t("admin.users.tab.logs")}
+                  Nhật ký đăng nhập
                 </button>
                 <button
                   className={
@@ -423,7 +527,7 @@ export default function AdminUsersPage() {
                   }
                   onClick={() => setActivePanel("history")}
                 >
-                  {t("admin.users.tab.history")}
+                  Lịch sử chỉnh sửa
                 </button>
                 <button
                   className={
@@ -433,51 +537,51 @@ export default function AdminUsersPage() {
                   }
                   onClick={() => setActivePanel("manage")}
                 >
-                  {t("admin.users.tab.manage")}
+                  Quản lý tài khoản
                 </button>
               </div>
 
               {/* Panel: Thông tin */}
               {activePanel === "info" && (
                 <div className="admin-card admin-panel">
-                  <h2>{t("admin.users.info.title")}</h2>
+                  <h2>Thông tin tài khoản</h2>
                   <div className="admin-detail">
                     <div>
-                      <div className="admin-detail__label">{t("admin.users.info.name")}</div>
+                      <div className="admin-detail__label">Họ tên</div>
                       <div className="admin-detail__value">
                         {selectedUser.fullName}
                       </div>
                     </div>
                     <div>
-                      <div className="admin-detail__label">{t("admin.users.info.email")}</div>
+                      <div className="admin-detail__label">Email</div>
                       <div className="admin-detail__value">
                         {selectedUser.email}
                       </div>
                     </div>
                     <div>
-                      <div className="admin-detail__label">{t("admin.users.info.role")}</div>
+                      <div className="admin-detail__label">Vai trò</div>
                       <div className="admin-detail__value">
                         {selectedUser.role}
                       </div>
                     </div>
                     <div>
-                      <div className="admin-detail__label">{t("admin.users.info.status")}</div>
+                      <div className="admin-detail__label">Trạng thái</div>
                       <div className="admin-detail__value">
                         {getStatusLabel(selectedUser.status)}
                       </div>
                     </div>
                     <div>
                       <div className="admin-detail__label">
-                        {t("admin.users.info.last_login")}
+                        Đăng nhập gần nhất
                       </div>
                       <div className="admin-detail__value">
-                        {selectedUser.lastLogin || t("admin.users.info.no_data")}
+                        {selectedUser.lastLogin || "Chưa có dữ liệu"}
                       </div>
                     </div>
                     <div>
-                      <div className="admin-detail__label">{t("admin.users.info.created_at")}</div>
+                      <div className="admin-detail__label">Ngày tạo</div>
                       <div className="admin-detail__value">
-                        {selectedUser.createdAt || t("admin.users.info.no_data")}
+                        {selectedUser.createdAt || "Không có dữ liệu"}
                       </div>
                     </div>
                   </div>
@@ -488,13 +592,13 @@ export default function AdminUsersPage() {
               {activePanel === "logs" && (
                 <div className="admin-card admin-panel">
                   <div className="admin-card__header">
-                    <h2>{t("admin.users.logs.title")}</h2>
+                    <h2>Nhật ký hoạt động (đăng nhập)</h2>
                   </div>
                   {loadingLogs ? (
-                    <div className="admin-empty">{t("admin.users.logs.loading")}</div>
+                    <div className="admin-empty">Đang tải nhật ký...</div>
                   ) : logs.length === 0 ? (
                     <div className="admin-empty">
-                      {t("admin.users.logs.empty")}
+                      Chưa có nhật ký hoạt động cho người dùng này.
                     </div>
                   ) : (
                     <ul className="admin-log-list">
@@ -518,11 +622,12 @@ export default function AdminUsersPage() {
               {activePanel === "history" && (
                 <div className="admin-card admin-panel">
                   <div className="admin-card__header">
-                    <h2>{t("admin.users.history.title")}</h2>
+                    <h2>Lịch sử chỉnh sửa tài khoản</h2>
                   </div>
                   {accountHistory.length === 0 ? (
                     <div className="admin-empty">
-                      {t("admin.users.history.empty")}
+                      Chưa có thao tác chỉnh sửa nào cho tài khoản này trong
+                      phiên làm việc hiện tại.
                     </div>
                   ) : (
                     <ul className="admin-log-list">
@@ -541,51 +646,104 @@ export default function AdminUsersPage() {
               {/* Panel: Quản lý tài khoản */}
               {activePanel === "manage" && (
                 <div className="admin-card admin-panel">
-                  <h2>{t("admin.users.manage.title")}</h2>
+                  <h2>Quản lý tài khoản</h2>
                   <p className="admin-panel__desc">
-                    {t("admin.users.manage.desc")}
+                    Thực hiện các thao tác quản trị cho tài khoản đã chọn. Mỗi
+                    hành động sẽ hiển thị thông báo thành công và ghi vào lịch
+                    sử chỉnh sửa.
                   </p>
 
                   <div className="admin-manage-grid">
                     <div className="admin-manage-block">
-                      <h3>{t("admin.users.manage.role_title")}</h3>
-                      <p>{t("admin.users.manage.role_desc")}</p>
-                      <select
-                        value={selectedUser.role}
-                        onChange={(e) =>
-                          updateUserRole(selectedUser.id, e.target.value)
-                        }
-                      >
-                        <option value={ROLES.ADMIN}>Admin</option>
-                        <option value={ROLES.USER}>User</option>
-                        <option value={ROLES.VIEWER}>Viewer</option>
-                      </select>
+                      <h3>Vai trò</h3>
+                      <p>Phân quyền cho người dùng.</p>
+                      {!canManageUser ? (
+                        <div className="text-muted">
+                          <select value={selectedUser.role} disabled>
+                            <option value={ROLES.ADMIN}>Admin</option>
+                            <option value={ROLES.USER}>User</option>
+                          </select>
+                          <small className="d-block mt-2 text-warning">
+                            {isCurrentUser
+                              ? "Không thể thay đổi vai trò của chính mình"
+                              : !isSystemAdmin && selectedUser.role === ROLES.ADMIN
+                              ? "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác"
+                              : "Không thể thay đổi vai trò"}
+                          </small>
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedUser.role}
+                          onChange={(e) =>
+                            updateUserRole(selectedUser.id, e.target.value)
+                          }
+                        >
+                          <option value={ROLES.ADMIN}>Admin</option>
+                          <option value={ROLES.USER}>User</option>
+                        </select>
+                      )}
                     </div>
 
                     <div className="admin-manage-block">
-                      <h3>{t("admin.users.manage.status_title")}</h3>
-                      <p>{t("admin.users.manage.status_desc")}</p>
-                      <button
-                        className="btn-primary"
-                        onClick={() => toggleUserStatus(selectedUser.id)}
-                      >
-                        {selectedUser.status === "ACTIVE"
-                          ? t("admin.users.manage.btn_lock")
-                          : t("admin.users.manage.btn_unlock")}
-                      </button>
+                      <h3>Trạng thái</h3>
+                      <p>Khóa hoặc mở khóa tài khoản.</p>
+                      {!canManageUser ? (
+                        <div>
+                          <button className="btn-primary" disabled>
+                            {selectedUser.status === "ACTIVE"
+                              ? "Khóa tài khoản"
+                              : "Mở khóa tài khoản"}
+                          </button>
+                          <small className="d-block mt-2 text-warning">
+                            {isCurrentUser
+                              ? "Không thể khóa/mở khóa chính mình"
+                              : !isSystemAdmin && selectedUser.role === ROLES.ADMIN
+                              ? "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác"
+                              : "Không thể thay đổi trạng thái"}
+                          </small>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn-primary"
+                          onClick={() => toggleUserStatus(selectedUser.id)}
+                        >
+                          {selectedUser.status === "ACTIVE"
+                            ? "Khóa tài khoản"
+                            : "Mở khóa tài khoản"}
+                        </button>
+                      )}
                     </div>
 
                     <div className="admin-manage-block">
-                      <h3>{t("admin.users.manage.delete_title")}</h3>
+                      <h3>Xóa tài khoản</h3>
                       <p>
-                        {t("admin.users.manage.delete_desc")}
+                        Xóa vĩnh viễn tài khoản khỏi hệ thống. Hành động này
+                        không thể hoàn tác.
                       </p>
-                      <button
-                        className="btn-primary btn-primary--outline"
-                        onClick={() => deleteUser(selectedUser.id)}
-                      >
-                        {t("admin.users.manage.btn_delete")}
-                      </button>
+                      {!canManageUser ? (
+                        <div>
+                          <button
+                            className="btn-primary btn-primary--outline"
+                            disabled
+                          >
+                            Xóa tài khoản
+                          </button>
+                          <small className="d-block mt-2 text-warning">
+                            {isCurrentUser
+                              ? "Không thể xóa chính mình"
+                              : !isSystemAdmin && selectedUser.role === ROLES.ADMIN
+                              ? "Chỉ admin hệ thống mới có thể xóa admin khác"
+                              : "Không thể xóa tài khoản"}
+                          </small>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn-primary btn-primary--outline"
+                          onClick={() => deleteUser(selectedUser.id)}
+                        >
+                          Xóa tài khoản
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -597,3 +755,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+

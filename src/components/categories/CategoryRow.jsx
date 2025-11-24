@@ -1,8 +1,6 @@
 import React from "react";
-import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function CategoryRow({ category, onEdit, onDelete }) {
-  const { t } = useLanguage();
   const initial = category.name?.trim()?.charAt(0)?.toUpperCase() || "?";
 
   return (
@@ -19,7 +17,7 @@ export default function CategoryRow({ category, onEdit, onDelete }) {
           type="button"
           className="icon-btn"
           onClick={onEdit}
-          title={t("categories.action.edit_tooltip")}
+          title="Sửa danh mục"
         >
           <i className="bi bi-pencil-square" />
         </button>
@@ -27,7 +25,7 @@ export default function CategoryRow({ category, onEdit, onDelete }) {
           type="button"
           className="icon-btn icon-btn--danger"
           onClick={onDelete}
-          title={t("categories.action.delete_tooltip")}
+          title="Xóa danh mục"
         >
           <i className="bi bi-trash" />
         </button>

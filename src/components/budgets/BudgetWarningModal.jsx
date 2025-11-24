@@ -1,6 +1,5 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
-import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function BudgetWarningModal({
   open,
@@ -13,7 +12,6 @@ export default function BudgetWarningModal({
   onConfirm,
   onCancel,
 }) {
-  const { t } = useLanguage();
   const remaining = budgetLimit - spent;
   const remainingAfterTx = budgetLimit - totalAfterTx;
   const amountOver = transactionAmount - remaining;
@@ -22,12 +20,11 @@ export default function BudgetWarningModal({
   // Determine title and message based on whether exceeding or approaching
   const isAlert = !isExceeding; // approaching but not exceeding
   const title = isAlert 
-    ? t("budgets.warning.title_alert")
-    : t("budgets.warning.title_exceed");
-  
+    ? "⚠️ Nhắc nhở Sắp Quá Hạn mức"
+    : "⛔ Cảnh báo Vượt Hạn mức";
   const message = isAlert
-    ? t("budgets.warning.message_alert").replace("{percent}", Math.round(percentAfterTx))
-    : t("budgets.warning.message_exceed");
+    ? `Giao dịch này sẽ làm chi tiêu đạt ${Math.round(percentAfterTx)}% hạn mức. Vẫn còn 10% nữa là đầy hạn mức!`
+    : `Giao dịch này sẽ vượt quá hạn mức chi tiêu đã đặt cho danh mục.`;
 
   return (
     <Modal open={open} onClose={onCancel} width={500}>
@@ -57,7 +54,7 @@ export default function BudgetWarningModal({
         >
           <div style={{ marginBottom: "1rem" }}>
             <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-              {t("budgets.warning.category")}
+              Danh mục
             </label>
             <p style={{ color: "#212529", fontWeight: 500, margin: 0 }}>{categoryName}</p>
           </div>
@@ -65,7 +62,7 @@ export default function BudgetWarningModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
             <div>
               <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-                {t("budgets.warning.limit")}
+                Hạn mức
               </label>
               <p style={{ color: "#0066cc", fontWeight: 600, margin: 0 }}>
                 {budgetLimit.toLocaleString("vi-VN")} VND
@@ -73,7 +70,7 @@ export default function BudgetWarningModal({
             </div>
             <div>
               <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-                {t("budgets.warning.spent")}
+                Đã chi
               </label>
               <p style={{ color: "#dc3545", fontWeight: 600, margin: 0 }}>
                 {spent.toLocaleString("vi-VN")} VND
@@ -84,7 +81,7 @@ export default function BudgetWarningModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
               <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-                {t("budgets.warning.remaining_before")}
+                Còn lại (trước giao dịch)
               </label>
               <p
                 style={{
@@ -98,7 +95,7 @@ export default function BudgetWarningModal({
             </div>
             <div>
               <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-                {t("budgets.warning.transaction")}
+                Giao dịch này
               </label>
               <p style={{ color: "#0099cc", fontWeight: 600, margin: 0 }}>
                 {transactionAmount.toLocaleString("vi-VN")} VND
@@ -109,7 +106,7 @@ export default function BudgetWarningModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem", paddingTop: "1rem", borderTop: `1px solid ${isAlert ? "#ffc107" : "#dc3545"}` }}>
             <div>
               <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-                {t("budgets.warning.total_after")}
+                Tổng sau giao dịch
               </label>
               <p style={{ color: "#212529", fontWeight: 600, margin: 0 }}>
                 {totalAfterTx.toLocaleString("vi-VN")} VND
@@ -117,7 +114,7 @@ export default function BudgetWarningModal({
             </div>
             <div>
               <label style={{ fontWeight: 500, color: "#6c757d", marginBottom: "0.25rem", display: "block" }}>
-                {t("budgets.warning.remaining_after")}
+                Còn lại (sau giao dịch)
               </label>
               <p
                 style={{
@@ -133,7 +130,7 @@ export default function BudgetWarningModal({
 
           {isExceeding && (
             <div style={{ marginTop: "1rem", padding: "0.75rem", backgroundColor: "#ffcccc", borderRadius: "4px" }}>
-              <strong style={{ color: "#dc3545" }}>{t("budgets.warning.exceed_amount")}</strong>{" "}
+              <strong style={{ color: "#dc3545" }}>Sẽ vượt quá:</strong>{" "}
               <span style={{ color: "#dc3545", fontWeight: 600 }}>
                 {amountOver.toLocaleString("vi-VN")} VND
               </span>
@@ -142,7 +139,7 @@ export default function BudgetWarningModal({
 
           {!isExceeding && (
             <div style={{ marginTop: "1rem", padding: "0.75rem", backgroundColor: "#fffbcc", borderRadius: "4px" }}>
-              <strong style={{ color: "#ffc107" }}>{t("budgets.warning.usage_after")}</strong>{" "}
+              <strong style={{ color: "#ffc107" }}>Mức sử dụng sau giao dịch:</strong>{" "}
               <span style={{ color: "#212529", fontWeight: 600 }}>
                 {Math.round(percentAfterTx)}% / 100%
               </span>
@@ -152,8 +149,8 @@ export default function BudgetWarningModal({
 
         <p style={{ fontSize: "0.875rem", color: "#6c757d", marginBottom: "1.5rem" }}>
           {isAlert
-            ? t("budgets.warning.hint_alert")
-            : t("budgets.warning.hint_exceed")}
+            ? "Bạn vẫn có thể tiếp tục giao dịch nếu ví được chọn còn đủ tiền."
+            : "Giao dịch này sẽ làm tổng chi tiêu vượt quá hạn mức. Bạn có thể tiếp tục nếu ví được chọn còn đủ tiền."}
         </p>
 
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
@@ -162,14 +159,14 @@ export default function BudgetWarningModal({
             className="btn btn-secondary"
             onClick={onCancel}
           >
-            {t("budgets.warning.btn_cancel")}
+            Hủy Giao dịch
           </button>
           <button
             type="button"
             className={`btn ${isAlert ? "btn-warning" : "btn-danger"}`}
             onClick={onConfirm}
           >
-            {t("budgets.warning.btn_continue")}
+            Tiếp tục Giao dịch
           </button>
         </div>
       </div>

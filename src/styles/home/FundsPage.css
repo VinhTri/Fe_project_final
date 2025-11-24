@@ -3,13 +3,13 @@
    ========================= */
 :root {
   --funds-accent: #2d99ae;
-  --funds-accent-soft: rgba(252, 247, 247, 0.08);
+  --funds-accent-soft: rgba(45, 153, 174, 0.08);
   --funds-accent-strong: rgba(45, 153, 174, 0.16);
   --funds-text: #111827;
   --funds-text-muted: #6b7280;
   --funds-border: #e5e7eb;
   --funds-bg-card: #ffffff;
-  --funds-radius-lg: 24px;
+  --funds-radius-lg: 18px;
   --funds-radius-md: 12px;
   --funds-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.12);
   --funds-shadow-subtle: 0 8px 18px rgba(15, 23, 42, 0.08);
@@ -22,55 +22,41 @@
    ========================= */
 .funds-page {
   color: var(--funds-text);
-  padding: 24px;
-}
-
-/* Ensure page container is fluid and doesn't force horizontal scroll at zoom */
-.funds-page.container {
-  max-width: 100% !important;
-  padding-left: 12px !important;
-  padding-right: 12px !important;
-  box-sizing: border-box;
 }
 
 /* HEADER */
 .funds-header {
-  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
+  background: linear-gradient(
+    120deg,
+    rgba(45, 153, 174, 0.06),
+    rgba(255, 255, 255, 0.98)
+  );
   border-radius: var(--funds-radius-lg);
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 8px 26px rgba(12, 87, 118, 0.18);
+  border: 1px solid rgba(45, 153, 174, 0.22);
+  box-shadow: var(--funds-shadow-soft);
 }
 
 .funds-header h3 {
   font-weight: 600;
-  color: #ffffff;
+  color: var(--funds-text);
 }
 
-.funds-header h3 {
-  font-weight: 600;
-  color: #ffffff;
-}
-.funds-header p,
-.funds-header .text-muted {
-  color: #ffffff !important;
+.funds-header p {
+  color: var(--funds-text-muted);
 }
 
+/* =========================
+   FIELDSET / FORM LAYOUT
+   ========================= */
 .funds-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
   gap: 18px;
 }
 
-/* Breakpoint adjustments for tighter screens */
-@media (max-width: 1200px) {
-  .funds-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  }
-}
 @media (max-width: 992px) {
   .funds-grid {
     grid-template-columns: 1fr;
-    gap: 14px;
   }
 }
 
@@ -157,22 +143,6 @@
     grid-template-columns: 1fr;
   }
 }
-
-/* Responsive header controls and alignment to match Wallets header */
-.funds-header {
-  padding: 16px 20px;
-  border-radius: 24px;
-  box-sizing: border-box;
-}
-.funds-header .funds-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.funds-header .funds-title { font-size: 1.6rem; font-weight:700; color:#fff; margin:0; }
 
 /* HINT / ERROR */
 .funds-hint {
@@ -333,7 +303,6 @@
 
 .wallet-source__search {
   /* input đã được style chung ở funds-field */
-  display: flex;
 }
 
 .wallet-source__list {
@@ -416,7 +385,7 @@
 
 .fund-section__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 12px;
 }
 
@@ -442,7 +411,7 @@
   border-color: rgba(45, 153, 174, 0.9);
 }
 
-.fund-card {
+.fund-card__top {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -509,7 +478,7 @@
 
 .funds-member-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 120px 32px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) 120px 32px;
   gap: 6px;
   align-items: center;
 }
@@ -575,7 +544,6 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  flex-wrap: wrap; /* ensure buttons wrap on small screens */
 }
 
 /* Nút custom (nếu không muốn phụ thuộc bootstrap) */
@@ -665,7 +633,7 @@
 ================================ */
 .funds-box {
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 18px;
   border: 1px solid var(--funds-border);
   box-shadow: var(--funds-shadow-subtle);
   overflow: hidden;

@@ -1,34 +1,20 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
-import { useAuth, ROLES } from "../../../home/store/AuthContext";
-import { useLanguage } from "../../../home/store/LanguageContext";
+
+const MENU = [
+  { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
+  { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" }, // ✅ phải có dòng này
+  { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
+  { to: "/home/reports", label: "Báo cáo", icon: "bi-graph-up-arrow" },
+  { to: "/home/accounts", label: "Tài khoản", icon: "bi-credit-card-2-front" },
+ 
+];
 
 export default function HomeSidebar() {
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
-  const { currentUser } = useAuth();
-  const { t } = useLanguage();
-
-  const BASE_MENU = [
-    { to: "/home", label: t("sidebar.overview"), icon: "bi-speedometer2", end: true },
-    { to: "/home/wallets", label: t("sidebar.wallets"), icon: "bi-wallet2" },
-    { to: "/home/budgets", label: t("sidebar.budgets"), icon: "bi-graph-up-arrow" },
-    { to: "/home/reports", label: t("sidebar.reports"), icon: "bi-graph-up-arrow" },
-    { to: "/home/accounts", label: t("sidebar.accounts"), icon: "bi-credit-card-2-front" },
-  ];
-
-  const menuItems = [...BASE_MENU];
-
-  // Chỉ ADMIN mới thấy menu Quản lý người dùng
-  if (currentUser?.role === ROLES.ADMIN) {
-    menuItems.push({
-      to: "/admin/users",
-      label: t("sidebar.user_management"),
-      icon: "bi-people-fill",
-    });
-  }
 
   useEffect(() => {
     document.body.classList.toggle("sb-collapsed", collapsed);
@@ -37,6 +23,7 @@ export default function HomeSidebar() {
 
   return (
     <div className={`sb__container ${collapsed ? "is-collapsed" : ""}`}>
+      {/* Nút 3 gạch – thay thế logo */}
       <button
         className="sb__hamburger"
         onClick={() => setCollapsed((v) => !v)}
@@ -46,8 +33,9 @@ export default function HomeSidebar() {
         <i className="bi bi-list" />
       </button>
 
+      {/* Menu chính */}
       <nav className="sb__nav">
-        {menuItems.map((m) => (
+        {MENU.map((m) => (
           <NavLink
             key={m.to}
             to={m.to}
@@ -65,14 +53,9 @@ export default function HomeSidebar() {
         ))}
       </nav>
 
-      {/* Hiển thị role để dễ debug */}
+      {/* Footer */}
       <div className="sb__footer">
         <div className="sb__leaf" />
-        {currentUser && (
-          <div className="sb__role">
-            <small>{t("sidebar.role")}: {currentUser.role}</small>
-          </div>
-        )}
       </div>
     </div>
   );

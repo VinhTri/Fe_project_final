@@ -1,17 +1,18 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import "../../styles/home/CategoriesPage.css";
-import SuccessToast from "../../components/common/Toast/SuccessToast";
+import Toast from "../../components/common/Toast/Toast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
+import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
-import { useLanguage } from "../../home/store/LanguageContext";
+import useOnClickOutside from "../../hooks/useOnClickOutside";
 
 export default function CategoriesPage() {
-  const { t } = useLanguage();
   const { expenseCategories, incomeCategories, createExpenseCategory, createIncomeCategory, updateExpenseCategory, updateIncomeCategory, deleteExpenseCategory, deleteIncomeCategory } = useCategoryData();
 
   const [activeTab, setActiveTab] = useState("expense"); // expense | income
-  // search inputs (the inline form will be used for search)
-  const [searchText, setSearchText] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectMenuOpen, setSelectMenuOpen] = useState(false);
 
   // modal for create/edit
   const [modalOpen, setModalOpen] = useState(false);
@@ -21,19 +22,47 @@ export default function CategoriesPage() {
   // pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [toast, setToast] = useState({ open: false, message: "" });
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const [confirmDel, setConfirmDel] = useState(null); // Danh mục cần xóa
 
   const currentList =
     activeTab === "expense" ? expenseCategories : incomeCategories;
+  const selectRef = useRef(null);
+  useOnClickOutside(selectRef, () => setSelectMenuOpen(false));
+
+  const filteredOptions = React.useMemo(() => {
+    const keyword = (searchQuery || "").trim().toLowerCase();
+    if (!keyword) return currentList;
+    return currentList.filter((c) => (c.name || "").toLowerCase().includes(keyword));
+  }, [currentList, searchQuery]);
   const displayedList = currentList.filter((c) => {
-    if (!searchText) return true;
-    const lower = searchText.toLowerCase();
-    const nameMatch = (c.name || "").toLowerCase().includes(lower);
-    const descMatch = (c.description || "").toLowerCase().includes(lower);
-    return nameMatch || descMatch;
+    if (!selectedCategoryId) return true;
+    return String(c.id) === selectedCategoryId;
   });
   const totalPages = Math.max(1, Math.ceil(displayedList.length / pageSize));
   const paginatedList = displayedList.slice((page - 1) * pageSize, page * pageSize);
+
+  const paginationRange = React.useMemo(() => {
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    }
+
+    const pages = [];
+    const startPage = Math.max(2, page - 1);
+    const endPage = Math.min(totalPages - 1, page + 1);
+
+    pages.push(1);
+    if (startPage > 2) pages.push("start-ellipsis");
+
+    for (let p = startPage; p <= endPage; p += 1) {
+      pages.push(p);
+    }
+
+    if (endPage < totalPages - 1) pages.push("end-ellipsis");
+    pages.push(totalPages);
+    return pages;
+  }, [page, totalPages]);
 
   // adjust page if current page is out of bounds after filters/changes
   React.useEffect(() => {
@@ -42,14 +71,16 @@ export default function CategoriesPage() {
   }, [page, totalPages, displayedList.length]);
 
   const resetSearch = () => {
-    setSearchText("");
+    setSelectedCategoryId("");
+    setSearchQuery("");
+    setSelectMenuOpen(false);
     setPage(1);
   };
 
   // inline form becomes search; add/edit handled by modal
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    // search is reactive via searchText
+    setPage(1);
   };
 
   const openAddModal = () => {
@@ -60,6 +91,12 @@ export default function CategoriesPage() {
   };
 
   const openEditModal = (cat) => {
+    // Không cho phép sửa danh mục hệ thống
+    const isSystemValue = cat.isSystem !== undefined ? cat.isSystem : (cat.system !== undefined ? cat.system : false);
+    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
+    if (isSystemCategory) {
+      return;
+    }
     setModalMode("edit");
     setModalInitial({ name: cat.name, description: cat.description || "" });
     setModalEditingId(cat.id);
@@ -76,14 +113,14 @@ export default function CategoriesPage() {
       }
       // go to first page to show the new item
       setPage(1);
-      setToast({ open: true, message: t("categories.toast.add_success") });
+      setToast({ open: true, message: "Đã thêm danh mục mới.", type: "success" });
     } else if (modalMode === "edit") {
       if (activeTab === "expense") {
         updateExpenseCategory(modalEditingId, payload);
       } else {
         updateIncomeCategory(modalEditingId, payload);
       }
-      setToast({ open: true, message: t("categories.toast.update_success") });
+      setToast({ open: true, message: "Đã cập nhật danh mục.", type: "success" });
     }
     setModalOpen(false);
     setModalEditingId(null);
@@ -94,18 +131,40 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = (cat) => {
-    if (!window.confirm(t("categories.confirm.delete", { name: cat.name }))) return;
-
-    if (activeTab === "expense") {
-      deleteExpenseCategory(cat.id);
-    } else {
-      deleteIncomeCategory(cat.id);
+    // Không cho phép xóa danh mục hệ thống
+    const isSystemValue = cat.isSystem !== undefined ? cat.isSystem : (cat.system !== undefined ? cat.system : false);
+    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
+    if (isSystemCategory) {
+      return;
     }
+    
+    // Mở modal xác nhận thay vì window.confirm
+    setConfirmDel(cat);
+  };
 
-    setToast({ open: true, message: t("categories.toast.delete_success") });
-    if (modalEditingId === cat.id) {
-      setModalEditingId(null);
-      setModalOpen(false);
+  const doDelete = async () => {
+    if (!confirmDel) return;
+
+    const cat = confirmDel;
+    setConfirmDel(null); // Đóng modal
+
+    try {
+      if (activeTab === "expense") {
+        await deleteExpenseCategory(cat.id);
+      } else {
+        await deleteIncomeCategory(cat.id);
+      }
+
+      setToast({ open: true, message: `Đã xóa danh mục "${cat.name}"`, type: "success" });
+      
+      // Đóng modal edit nếu đang edit danh mục này
+      if (modalEditingId === cat.id) {
+        setModalEditingId(null);
+        setModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Lỗi khi xóa danh mục:", error);
+      setToast({ open: true, message: error.message || "Lỗi khi xóa danh mục", type: "error" });
     }
   };
 
@@ -130,10 +189,11 @@ export default function CategoriesPage() {
             </div>
             <div>
               <h2 className="mb-1" style={{ color: "#ffffff" }}>
-                {t("categories.page.title")}
+                Danh Mục
               </h2>
               <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-                {t("categories.page.subtitle")}
+                Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ
+                đây.
               </p>
             </div>
           
@@ -160,7 +220,7 @@ export default function CategoriesPage() {
                   setPage(1);
                 }}
               >
-                {t("categories.tab.expense")}
+                Chi phí
               </button>
 
               <button
@@ -177,18 +237,17 @@ export default function CategoriesPage() {
                   setPage(1);
                 }}
               >
-                {t("categories.tab.income")}
+                Thu nhập
               </button>
             </div>
             <div className="ms-3">
               <button
                 type="button"
-                className="btn category-add-header-btn d-flex align-items-center"
+                className="btn btn-sm btn-success rounded-pill category-add-header-btn"
                 onClick={openAddModal}
-                aria-label={t("categories.btn.add")}
+                style={{ padding: "6px 14px" }}
               >
-                <i className="bi bi-plus-lg me-2" />
-                {t("categories.btn.add")}
+                Thêm danh mục
               </button>
             </div>
           </div>
@@ -200,18 +259,69 @@ export default function CategoriesPage() {
       {/* FORM THÊM / SỬA */}
       <div className="card border-0 shadow-sm mb-3">
         <div className="card-body">
-          <form className="row g-3 align-items-center" onSubmit={handleSearchSubmit}>
-            <div className="col-12">
-              <div className="input-group">
-                <span className="input-group-text bg-white border-end-0">
-                  <i className="bi bi-search text-muted" />
-                </span>
+          <form className="g-3" onSubmit={handleSearchSubmit}>
+            <label className="form-label fw-semibold">Tìm danh mục</label>
+            <div className="category-search-inline">
+              <div
+                className={`searchable-select category-search-select flex-grow-1 ${selectMenuOpen ? "is-open" : ""}`}
+                ref={selectRef}
+              >
                 <input
-                  className="form-control border-start-0"
-                  placeholder="Tìm kiếm danh mục..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
+                  type="text"
+                  className="form-control"
+                  placeholder="Chọn hoặc nhập tên danh mục"
+                  value={searchQuery}
+                  onFocus={() => setSelectMenuOpen(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSelectedCategoryId("");
+                    setSelectMenuOpen(true);
+                  }}
                 />
+                {selectMenuOpen && (
+                  <div className="searchable-select-menu">
+                    <button
+                      type="button"
+                      className={`searchable-option ${selectedCategoryId === "" ? "active" : ""}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSelectedCategoryId("");
+                        setSearchQuery("");
+                        setSelectMenuOpen(false);
+                      }}
+                    >
+                      Tất cả danh mục
+                    </button>
+                    {filteredOptions.length === 0 ? (
+                      <div className="px-3 py-2 text-muted small">Không tìm thấy danh mục</div>
+                    ) : (
+                      filteredOptions.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          className={`searchable-option ${selectedCategoryId === String(cat.id) ? "active" : ""}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setSelectedCategoryId(String(cat.id));
+                            setSearchQuery(cat.name || "");
+                            setSelectMenuOpen(false);
+                            setPage(1);
+                          }}
+                        >
+                          {cat.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="category-search-actions">
+                <button type="submit" className="btn btn-primary">
+                  Tìm kiếm
+                </button>
+                <button type="button" className="btn btn-outline-secondary" onClick={resetSearch}>
+                  Xóa lọc
+                </button>
               </div>
             </div>
           </form>
@@ -219,19 +329,17 @@ export default function CategoriesPage() {
       </div>
 
       {/* BẢNG DANH MỤC */}
-      <div className="card border-0 shadow-sm category-list-card">
-
+      <div className="card border-0 shadow-sm cat-table-card">
         <div className="card-body p-0">
-          {/* Desktop Table View */}
-          <div className="table-responsive d-none d-lg-block">
+          <div className="table-responsive category-table-scroll">
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th style={{ width: "5%" }}>{t("categories.table.no")}</th>
-                  <th style={{ width: "25%" }}>{t("categories.table.name")}</th>
-                  <th>{t("categories.table.desc")}</th>
+                  <th style={{ width: "5%" }}>STT</th>
+                  <th style={{ width: "25%" }}>Tên danh mục</th>
+                  <th>Mô tả</th>
                   <th className="text-center" style={{ width: "15%" }}>
-                    {t("categories.table.action")}
+                    Hành động
                   </th>
                 </tr>
               </thead>
@@ -239,211 +347,98 @@ export default function CategoriesPage() {
                 {displayedList.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center text-muted py-4">
-                      {t("categories.table.empty")}
+                      Chưa có danh mục nào.
                     </td>
                   </tr>
                 ) : (
-                  paginatedList.map((c, idx) => (
-                    <tr key={c.id}>
-                      <td>{(page - 1) * pageSize + idx + 1}</td>
-                      <td className="fw-semibold">{c.name}</td>
-                      <td>{c.description || "-"}</td>
-                      <td className="text-center">
-                        <div className="dropdown">
-                          <button
-                            className="btn btn-link btn-sm text-muted p-0"
-                            type="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false"
-                            title={t("categories.action.tooltip")}
-                          >
-                            <i className="bi bi-three-dots-vertical" />
-                          </button>
-                          <ul className="dropdown-menu dropdown-menu-end">
-                            <li>
-                              <button
-                                className="dropdown-item"
-                                type="button"
-                                onClick={() => openEditModal(c)}
-                              >
-                                <i className="bi bi-pencil-square me-2" /> {t("categories.action.edit")}
+                  paginatedList.map((c, idx) => {
+                    // Kiểm tra isSystem - hỗ trợ cả boolean và string
+                    // Jackson có thể serialize thành "system" thay vì "isSystem" (đã fix ở backend với @JsonProperty)
+                    const isSystemValue = c.isSystem !== undefined ? c.isSystem : (c.system !== undefined ? c.system : false);
+                    const isSystemCategory = isSystemValue === true || isSystemValue === "true" || String(isSystemValue).toLowerCase() === "true";
+                    
+                    return (
+                      <tr key={c.id}>
+                        <td>{(page - 1) * pageSize + idx + 1}</td>
+                        <td className="fw-semibold">{c.name}</td>
+                        <td className="category-note-cell" title={c.description || "-"}>{c.description || "-"}</td>
+                        <td className="text-center">
+                          {!isSystemCategory ? (
+                            <>
+                              <button className="btn btn-link btn-sm text-muted me-2" type="button" onClick={() => openEditModal(c)} title="Sửa">
+                                <i className="bi bi-pencil-square" />
                               </button>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-                            <li>
                               <button
-                                className="dropdown-item text-danger"
+                                className="btn btn-link btn-sm text-danger"
                                 type="button"
                                 onClick={() => handleDelete(c)}
+                                title="Xóa"
                               >
-                                <i className="bi bi-trash me-2" /> {t("categories.action.delete")}
+                                <i className="bi bi-trash" />
                               </button>
-                            </li>
-                          </ul>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                            </>
+                          ) : (
+                            <span className="text-muted small">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
-
-          {/* Mobile Card View */}
-          <div className="d-lg-none p-3">
-            {displayedList.length === 0 ? (
-              <div className="text-center text-muted py-4">
-                {t("categories.table.empty")}
-              </div>
-            ) : (
-              <div className="d-flex flex-column gap-3">
-                {paginatedList.map((c, idx) => (
-                  <div className="card border shadow-sm" key={c.id} style={{ borderRadius: 16 }}>
-                    <div className="card-body p-3">
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <div className="d-flex align-items-center gap-2">
-                          <span className="badge bg-light text-dark border">
-                            #{(page - 1) * pageSize + idx + 1}
-                          </span>
-                          <h6 className="mb-0 fw-bold text-primary">{c.name}</h6>
-                        </div>
-                        <div className="dropdown">
-                          <button
-                            className="btn btn-link btn-sm text-muted p-0"
-                            type="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false"
-                          >
-                            <i className="bi bi-three-dots-vertical" />
-                          </button>
-                          <ul className="dropdown-menu dropdown-menu-end">
-                            <li>
-                              <button
-                                className="dropdown-item"
-                                type="button"
-                                onClick={() => openEditModal(c)}
-                              >
-                                <i className="bi bi-pencil-square me-2" /> {t("categories.action.edit")}
-                              </button>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-                            <li>
-                              <button
-                                className="dropdown-item text-danger"
-                                type="button"
-                                onClick={() => handleDelete(c)}
-                              >
-                                <i className="bi bi-trash me-2" /> {t("categories.action.delete")}
-                              </button>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                      
-                      <div className="text-muted small">
-                        {c.description ? (
-                          <span>{c.description}</span>
-                        ) : (
-                          <span className="fst-italic opacity-50">{t("categories.table.no_desc")}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
-
-        <div className="card-footer bg-transparent border-0">
-          {/* PAGINATION (buttons left, counter right) */}
-          <div className="d-flex justify-content-between align-items-center mt-3 gap-2">
-            <div className="d-flex align-items-center gap-2">
-              <button
-                className="btn btn-outline-secondary btn-sm"
-                disabled={page === 1}
-                onClick={() => setPage(1)}
-                title="Trang đầu"
-              >
-                «
-              </button>
-              <button
-                className="btn btn-outline-secondary btn-sm"
-                disabled={page === 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                title="Trang trước"
-              >
-                ‹
-              </button>
-              <span className="text-muted small px-2">
-                {totalPages <= 2 ? (
-                  /* Show all page numbers if <= 2 pages */
-                  Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      className={`btn btn-link btn-sm p-0 me-1 ${
-                        p === page ? "text-primary fw-bold" : "text-muted"
-                      }`}
-                      onClick={() => setPage(p)}
-                      style={{ textDecoration: "none" }}
-                    >
-                      {p}
-                    </button>
-                  ))
-                ) : (
-                  /* Show 1,2,...last format if > 2 pages */
-                  <>
-                    <button
-                      className={`btn btn-link btn-sm p-0 me-1 ${
-                        page === 1 ? "text-primary fw-bold" : "text-muted"
-                      }`}
-                      onClick={() => setPage(1)}
-                      style={{ textDecoration: "none" }}
-                    >
-                      1
-                    </button>
-                    <button
-                      className={`btn btn-link btn-sm p-0 me-1 ${
-                        page === 2 ? "text-primary fw-bold" : "text-muted"
-                      }`}
-                      onClick={() => setPage(2)}
-                      style={{ textDecoration: "none" }}
-                    >
-                      2
-                    </button>
-                    <span className="text-muted">...</span>
-                    <button
-                      className={`btn btn-link btn-sm p-0 ms-1 ${
-                        page === totalPages ? "text-primary fw-bold" : "text-muted"
-                      }`}
-                      onClick={() => setPage(totalPages)}
-                      style={{ textDecoration: "none" }}
-                    >
-                      {totalPages}
-                    </button>
-                  </>
-                )}
-              </span>
-              <button
-                className="btn btn-outline-secondary btn-sm"
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                title="Trang sau"
-              >
-                ›
-              </button>
-              <button
-                className="btn btn-outline-secondary btn-sm"
-                disabled={page === totalPages}
-                onClick={() => setPage(totalPages)}
-                title="Trang cuối"
-              >
-                »
-              </button>
-            </div>
-            <span className="text-muted small">
-              {page}/{totalPages}
-            </span>
+        {/* PAGINATION */}
+        <div className="card-footer category-pagination-bar">
+          <span className="text-muted small">Trang {page} / {totalPages}</span>
+          <div className="category-pagination">
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === 1}
+              onClick={() => setPage(1)}
+            >
+              «
+            </button>
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              ‹
+            </button>
+            {paginationRange.map((item, idx) =>
+              typeof item === "string" && item.includes("ellipsis") ? (
+                <span key={item + idx} className="page-ellipsis">…</span>
+              ) : (
+                <button
+                  key={`page-${item}`}
+                  type="button"
+                  className={`page-number ${page === item ? "active" : ""}`}
+                  onClick={() => setPage(item)}
+                >
+                  {item}
+                </button>
+              )
+            )}
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              className="page-arrow"
+              disabled={page === totalPages}
+              onClick={() => setPage(totalPages)}
+            >
+              »
+            </button>
           </div>
         </div>
       </div>
@@ -452,16 +447,27 @@ export default function CategoriesPage() {
         open={modalOpen}
         mode={modalMode}
         initialValue={modalInitial}
-        typeLabel={activeTab === "expense" ? t("categories.type.expense") : t("categories.type.income")}
+        typeLabel={activeTab === "expense" ? "chi phí" : "thu nhập"}
         onSubmit={handleModalSubmit}
         onClose={() => setModalOpen(false)}
       />
 
-      <SuccessToast
+      <ConfirmModal
+        open={!!confirmDel}
+        title="Xóa danh mục"
+        message={confirmDel ? `Xóa danh mục "${confirmDel.name}"?` : ""}
+        okText="Xóa"
+        cancelText="Hủy"
+        onOk={doDelete}
+        onClose={() => setConfirmDel(null)}
+      />
+
+      <Toast
         open={toast.open}
         message={toast.message}
+        type={toast.type}
         duration={2200}
-        onClose={() => setToast({ open: false, message: "" })}
+        onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
     </div>
   );

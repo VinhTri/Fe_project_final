@@ -3,10 +3,8 @@ import React, { useMemo, useState } from "react";
 import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
-import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function GroupNoTermForm({ wallets }) {
-  const { t } = useLanguage();
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
     () => wallets.find((w) => String(w.id) === String(srcWalletId)) || null,
@@ -26,7 +24,7 @@ export default function GroupNoTermForm({ wallets }) {
 
   const handleSave = () => {
     if (!selectedWallet) {
-      alert(t("funds.form.alert_wallet_group"));
+      alert("Vui lòng chọn ví nguồn trước khi lưu quỹ nhóm.");
       return;
     }
     console.log("Lưu quỹ nhóm không thời hạn", {
@@ -38,16 +36,16 @@ export default function GroupNoTermForm({ wallets }) {
   return (
     <div className="funds-grid">
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">{t("funds.form.info_legend_group")}</div>
+        <div className="funds-fieldset__legend">Thông tin quỹ nhóm</div>
 
         <div className="funds-field">
           <label>
-            {t("funds.form.name_group")} <span className="req">*</span>
+            Tên quỹ nhóm <span className="req">*</span>
           </label>
           <input
             type="text"
             maxLength={50}
-            placeholder={t("funds.form.name_placeholder_group")}
+            placeholder="Ví dụ: Quỹ sinh hoạt nhóm"
           />
         </div>
 
@@ -60,37 +58,37 @@ export default function GroupNoTermForm({ wallets }) {
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.current_balance")}</label>
+            <label>Số dư hiện tại của ví</label>
             <input
               type="text"
               disabled
-              placeholder={t("funds.form.auto_balance")}
+              placeholder="Tự động hiển thị sau khi chọn ví"
               value={currentBalanceText}
             />
           </div>
           <div>
-            <label>{t("funds.form.start_date")}</label>
+            <label>Ngày bắt đầu</label>
             <input type="date" />
           </div>
         </div>
       </div>
 
       <div className="funds-fieldset">
-        <div className="funds-fieldset__legend">{t("funds.form.freq_legend_optional")}</div>
+        <div className="funds-fieldset__legend">Tần suất gửi (tuỳ chọn)</div>
 
         <div className="funds-field funds-field--inline">
           <div>
-            <label>{t("funds.form.freq_label")}</label>
+            <label>Tần suất gửi quỹ</label>
             <select value={freq} onChange={(e) => setFreq(e.target.value)}>
-              <option value="day">{t("funds.form.freq_day")}</option>
-              <option value="week">{t("funds.form.freq_week")}</option>
-              <option value="month">{t("funds.form.freq_month")}</option>
-              <option value="year">{t("funds.form.freq_year")}</option>
+              <option value="day">Theo ngày</option>
+              <option value="week">Theo tuần</option>
+              <option value="month">Theo tháng</option>
+              <option value="year">Theo năm</option>
             </select>
           </div>
           <div>
-            <label>{t("funds.form.period_amount")}</label>
-            <input type="number" min={0} placeholder={t("funds.form.period_placeholder_optional")} />
+            <label>Số tiền gửi mỗi kỳ</label>
+            <input type="number" min={0} placeholder="Tuỳ chọn" />
           </div>
         </div>
       </div>
@@ -110,8 +108,8 @@ export default function GroupNoTermForm({ wallets }) {
 
       <div className="funds-fieldset funds-fieldset--full">
         <div className="funds-field">
-          <label>{t("funds.form.note")}</label>
-          <textarea rows={3} placeholder={t("funds.form.note_placeholder_group")} />
+          <label>Ghi chú</label>
+          <textarea rows={3} placeholder="Ghi chú cho quỹ nhóm" />
         </div>
 
         <div className="funds-actions">
@@ -122,14 +120,14 @@ export default function GroupNoTermForm({ wallets }) {
               console.log("Hủy tạo quỹ nhóm không thời hạn")
             }
           >
-            {t("funds.form.cancel")}
+            Hủy
           </button>
           <button
             type="button"
             className="btn-primary"
             onClick={handleSave}
           >
-            {t("funds.form.save_group")}
+            Lưu quỹ nhóm
           </button>
         </div>
       </div>
