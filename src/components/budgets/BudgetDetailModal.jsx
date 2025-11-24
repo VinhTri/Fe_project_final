@@ -1,18 +1,12 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
 import { useDateFormat } from "../../hooks/useDateFormat";
+import { useMoneyFormat } from "../../hooks/useMoneyFormat";
 
 export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit, onRemind }) {
   const { formatDate } = useDateFormat();
+  const { formatMoney } = useMoneyFormat();
   if (!open || !budget) return null;
-
-  const formatCurrency = (value = 0) => {
-    try {
-      return (value || 0).toLocaleString("vi-VN");
-    } catch (error) {
-      return String(value || 0);
-    }
-  };
 
   const statusLabel = {
     healthy: "Đang ổn",
@@ -55,15 +49,15 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
         <div className="budget-detail-grid">
           <div>
             <label>Hạn mức</label>
-            <p>{formatCurrency(limit)} VND</p>
+            <p>{formatMoney(limit)}</p>
           </div>
           <div>
             <label>Đã chi</label>
-            <p className={spent > limit ? "text-danger" : ""}>{formatCurrency(spent)} VND</p>
+            <p className={spent > limit ? "text-danger" : ""}>{formatMoney(spent)}</p>
           </div>
           <div>
             <label>Còn lại</label>
-            <p className={remaining < 0 ? "text-danger" : "text-success"}>{formatCurrency(remaining)} VND</p>
+            <p className={remaining < 0 ? "text-danger" : "text-success"}>{formatMoney(remaining)}</p>
           </div>
           <div>
             <label>Khoảng thời gian</label>

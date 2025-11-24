@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../../styles/home/ReportsPage.css";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import { useLanguage } from "../../home/store/LanguageContext";
+import { useMoneyFormat } from "../../hooks/useMoneyFormat";
 import { transactionAPI } from "../../services/api-client";
 
 const INCOME_COLOR = "#0B63F6";
@@ -115,14 +116,6 @@ const buildChartData = (transactions, range, labelOverrides = {}) => {
   }
 };
 
-const formatCurrency = (value = 0, currency = "VND") => {
-  try {
-    return value.toLocaleString("vi-VN", { style: "currency", currency, maximumFractionDigits: 0 });
-  } catch (error) {
-    return `${value.toLocaleString("vi-VN")} ${currency}`;
-  }
-};
-
 const formatCompactNumber = (value) => {
   if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -133,6 +126,7 @@ const formatCompactNumber = (value) => {
 export default function ReportsPage() {
   const { translate } = useLanguage();
   const t = translate;
+  const { formatMoney } = useMoneyFormat();
   const { wallets, loading: walletsLoading } = useWalletData();
   const [selectedWalletId, setSelectedWalletId] = useState(null);
   const [range, setRange] = useState("week");
@@ -332,7 +326,7 @@ export default function ReportsPage() {
                       </div>
                     </div>
                     <div className="wallet-balance text-end">
-                      <p className="mb-0 fw-semibold">{formatCurrency(Number(wallet.balance) || 0, wallet.currency || "VND")}</p>
+                      <p className="mb-0 fw-semibold">{formatMoney(Number(wallet.balance) || 0, wallet.currency || "VND")}</p>
                       <small className="text-muted">{wallet.currency || "VND"}</small>
                     </div>
                   </button>
@@ -352,15 +346,15 @@ export default function ReportsPage() {
                   <div className="reports-summary-row">
                     <div>
                       <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                      {t("Thu vào", "Money in")}: <strong>{formatCurrency(summary.income, currency)}</strong>
+                      {t("Thu vào", "Money in")}: <strong>{formatMoney(summary.income, currency)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                      {t("Chi ra", "Money out")}: <strong>{formatCurrency(summary.expense, currency)}</strong>
+                      {t("Chi ra", "Money out")}: <strong>{formatMoney(summary.expense, currency)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
-                      {t("Còn lại", "Net")}: <strong>{formatCurrency(net, currency)}</strong>
+                      {t("Còn lại", "Net")}: <strong>{formatMoney(net, currency)}</strong>
                     </div>
                   </div>
                 </div>

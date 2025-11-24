@@ -166,7 +166,7 @@ export default function WalletsPage() {
     loadWallets,
     setDefaultWallet,
   } = useWalletData();
-  const { formatMoney } = useMoneyFormat();
+  const { formatMoney, convertAmount, displayCurrency } = useMoneyFormat();
   const { formatDate } = useDateFormat();
   const formatDateOnly = useCallback(
     (value) => {
@@ -282,9 +282,17 @@ export default function WalletsPage() {
     [sharedByMeWallets, sharedWithMeWallets]
   );
 
-  const sumWalletBalance = useCallback((list) => {
-    return list.reduce((total, wallet) => total + (Number(wallet.balance ?? 0) || 0), 0);
-  }, []);
+  const sumWalletBalance = useCallback(
+    (list, targetCurrency = displayCurrency) => {
+      return list.reduce((total, wallet) => {
+        const amount = Number(wallet.balance ?? wallet.current ?? 0) || 0;
+        const walletCurrency = wallet.currency || "VND";
+        const converted = convertAmount(amount, walletCurrency, targetCurrency);
+        return total + converted;
+      }, 0);
+    },
+    [convertAmount, displayCurrency]
+  );
 
   const personalBalanceTotal = useMemo(() => sumWalletBalance(personalWallets), [personalWallets, sumWalletBalance]);
   const groupBalanceTotal = useMemo(() => sumWalletBalance(groupWallets), [groupWallets, sumWalletBalance]);
@@ -654,58 +662,6 @@ export default function WalletsPage() {
     }
   }, [currentList, selectedId]);
 
-  // Helper function để tính tỷ giá
-  const getRate = (from, to) => {
-    if (!from || !to || from === to) return 1;
-    const rates = {
-      VND: 1,
-      USD: 0.000041, // 1 VND = 0.000041 USD
-      EUR: 0.000038,
-      JPY: 0.0063,
-      GBP: 0.000032,
-      CNY: 0.00030,
-    };
-    if (!rates[from] || !rates[to]) return 1;
-    const fromToVND = 1 / rates[from];
-    const toToVND = 1 / rates[to];
-    return fromToVND / toToVND;
-  };
-
-  // Helper function để chuyển đổi số tiền về VND
-  const convertToVND = (amount, currency) => {
-    const numericAmount = Number(amount) || 0;
-    if (!currency || currency === "VND") return numericAmount;
-    const rate = getRate(currency, "VND");
-    return numericAmount * rate;
-  };
-
-  // Helper function để chuyển đổi từ VND sang currency khác
-  const convertFromVND = (amountVND, targetCurrency) => {
-    const base = Number(amountVND) || 0;
-    if (!targetCurrency || targetCurrency === "VND") return base;
-    const rate = getRate("VND", targetCurrency);
-    const converted = base * rate;
-    // Làm tròn theo số chữ số thập phân của currency đích
-    const decimals = targetCurrency === "VND" ? 0 : 8;
-    return Math.round(converted * Math.pow(10, decimals)) / Math.pow(10, decimals);
-  };
-
-  // Lấy đơn vị tiền tệ mặc định từ localStorage
-  const [displayCurrency, setDisplayCurrency] = useState(() => {
-    return localStorage.getItem("defaultCurrency") || "VND";
-  });
-
-  // Lắng nghe sự kiện thay đổi currency setting
-  useEffect(() => {
-    const handleCurrencyChange = (e) => {
-      setDisplayCurrency(e.detail.currency);
-    };
-    window.addEventListener('currencySettingChanged', handleCurrencyChange);
-    return () => {
-      window.removeEventListener('currencySettingChanged', handleCurrencyChange);
-    };
-  }, []);
-
   useEffect(() => {
     setLocalSharedMap((prev) => {
       let changed = false;
@@ -721,19 +677,18 @@ export default function WalletsPage() {
     });
   }, [wallets]);
 
-  // Tổng số dư: chuyển đổi tất cả về VND, sau đó quy đổi sang displayCurrency
+  // Tổng số dư theo đơn vị người dùng chọn
   const totalBalance = useMemo(
     () => {
-      const totalInVND = wallets
+      return wallets
         .filter((w) => w.includeOverall !== false)
         .reduce((sum, w) => {
-          const balanceInVND = convertToVND(w.balance ?? w.current ?? 0, w.currency || "VND");
-          return sum + balanceInVND;
+          const amount = Number(w.balance ?? w.current ?? 0) || 0;
+          const walletCurrency = w.currency || "VND";
+          return sum + convertAmount(amount, walletCurrency, displayCurrency);
         }, 0);
-      // Quy đổi từ VND sang đơn vị tiền tệ hiển thị
-      return convertFromVND(totalInVND, displayCurrency);
     },
-    [wallets, displayCurrency]
+    [wallets, displayCurrency, convertAmount]
   );
 
   const handleSelectWallet = (id) => {

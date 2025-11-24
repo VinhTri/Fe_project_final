@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const initialMoneyFormat = loadMoneyFormatSettings();
   const [moneyFormatStyle, setMoneyFormatStyle] = useState(initialMoneyFormat.grouping);
   const [moneyFormatDecimals, setMoneyFormatDecimals] = useState(String(initialMoneyFormat.decimalDigits));
+  const [defaultCurrency, setDefaultCurrency] = useState(initialMoneyFormat.defaultCurrency || "VND");
   const initialDateFormat = loadDateFormatSettings();
   const [dateFormatPattern, setDateFormatPattern] = useState(initialDateFormat.pattern);
       useEffect(() => {
@@ -46,6 +47,7 @@ export default function SettingsPage() {
           const next = event?.detail || loadMoneyFormatSettings();
           setMoneyFormatStyle(next.grouping);
           setMoneyFormatDecimals(String(next.decimalDigits));
+          setDefaultCurrency(next.defaultCurrency || "VND");
         };
 
         window.addEventListener(MONEY_FORMAT_EVENT, handleFormatChange);
@@ -84,18 +86,12 @@ export default function SettingsPage() {
       setToast((prev) => ({ ...prev, open: false }));
     };
 
-  const [defaultCurrency, setDefaultCurrency] = useState(() => {
-    // Lấy từ localStorage hoặc mặc định là VND
-    return localStorage.getItem("defaultCurrency") || "VND";
-  });
-
   // Refs cho các input fields
   const fullNameRef = useRef(null);
   const avatarRef = useRef(null);
   const oldPasswordRef = useRef(null);
   const newPasswordRef = useRef(null);
   const confirmPasswordRef = useRef(null);
-  const currencyRef = useRef(null);
 
   // Load profile khi component mount
   useEffect(() => {
@@ -315,6 +311,17 @@ export default function SettingsPage() {
     const message = translate(
       "Đã cập nhật kiểu hiển thị tiền tệ",
       "Number format updated"
+    );
+    setSuccess(message);
+    setTimeout(() => setSuccess(""), 3000);
+    showToast(message, "success");
+  };
+
+  const handleCurrencySave = () => {
+    saveMoneyFormatSettings({ defaultCurrency });
+    const message = translate(
+      "Đã lưu cài đặt đơn vị tiền tệ",
+      "Currency preference saved"
     );
     setSuccess(message);
     setTimeout(() => setSuccess(""), 3000);
@@ -588,27 +595,24 @@ export default function SettingsPage() {
 <div className="settings-form__group">
 <label>{translate("Đơn vị tiền tệ mặc định", "Default currency")}</label>
 <select 
-                ref={currencyRef}
-                defaultValue={defaultCurrency}
+                value={defaultCurrency}
                 onChange={(e) => setDefaultCurrency(e.target.value)}
               >
 <option value="VND">{translate("VND - Việt Nam Đồng", "VND - Vietnamese Dong")}</option>
 <option value="USD">{translate("USD - Đô la Mỹ", "USD - US Dollar")}</option>
 </select>
 </div>
+<p className="settings-form__hint">
+  {translate(
+    "Tỷ giá cố định: 1 USD ≈ 26.380 VND (chỉ dùng để hiển thị)",
+    "Fixed rate: 1 USD ≈ 26,380 VND for display purposes"
+  )}
+</p>
 {error && activeKey === "currency" && <div className="settings-error" style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>{error}</div>}
 {success && activeKey === "currency" && <div className="settings-success" style={{color: 'green', marginBottom: '10px', padding: '10px', backgroundColor: '#e6ffe6', borderRadius: '4px'}}>{success}</div>}
 <button 
               className="settings-btn settings-btn--primary"
-              onClick={() => {
-                const selectedCurrency = currencyRef.current?.value || "VND";
-                localStorage.setItem("defaultCurrency", selectedCurrency);
-                setDefaultCurrency(selectedCurrency);
-                setSuccess(translate("Đã lưu cài đặt đơn vị tiền tệ", "Currency preference saved"));
-                setTimeout(() => setSuccess(""), 3000);
-                // Bắn event để các component khác cập nhật
-                window.dispatchEvent(new CustomEvent('currencySettingChanged', { detail: { currency: selectedCurrency } }));
-              }}
+              onClick={handleCurrencySave}
             >
 
               {translate("Lưu cài đặt", "Save settings")}

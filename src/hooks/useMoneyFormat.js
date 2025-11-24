@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import {
   loadMoneyFormatSettings,
   formatCurrency,
+  convertCurrencyAmount,
   MONEY_FORMAT_EVENT,
   MONEY_FORMAT_STORAGE_KEY,
+  DEFAULT_MONEY_FORMAT,
 } from "../utils/moneyFormatSettings";
 
 export function useMoneyFormat() {
@@ -38,8 +40,18 @@ export function useMoneyFormat() {
     [settings]
   );
 
+  const convertAmount = useCallback(
+    (amount, fromCurrency, toCurrency) => {
+      const target = toCurrency || settings?.defaultCurrency || DEFAULT_MONEY_FORMAT.defaultCurrency;
+      return convertCurrencyAmount(amount, fromCurrency, target);
+    },
+    [settings]
+  );
+
   return {
     formatMoney,
+    convertAmount,
     moneyFormatSettings: settings,
+    displayCurrency: settings?.defaultCurrency || DEFAULT_MONEY_FORMAT.defaultCurrency,
   };
 }
