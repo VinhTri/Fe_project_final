@@ -381,15 +381,7 @@ export default function RegisterPage() {
                 value={form.password}
                 onChange={onChange}
               />
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                <i
-                  className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}
-                ></i>
-              </button>
+              
             </div>
 
             {form.password && (
@@ -417,15 +409,7 @@ export default function RegisterPage() {
                 value={form.confirmPassword}
                 onChange={onChange}
               />
-              <button
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => setShowConfirm(!showConfirm)}
-              >
-                <i
-                  className={showConfirm ? "bi bi-eye-slash" : "bi bi-eye"}
-                ></i>
-              </button>
+              
             </div>
 
             {error && <div className="auth-error">{error}</div>}

@@ -166,7 +166,7 @@ export default function LoginPage() {
           normMsg.includes("không hoạt động 30 ngày")
         ) {
           return setError(
-            "Tài khoản của bạn đã bị xóa hoặc không hoạt động trong 30 ngày. Vui lòng đăng ký lại."
+            "Tài khoản của bạn đã bị xóa vì vi phạm bản quyền."
           );
         }
 
@@ -322,7 +322,7 @@ export default function LoginPage() {
           normMsg.includes("không hoạt động 30 ngày")
         ) {
           return setError(
-            "Tài khoản của bạn đã bị xóa hoặc không hoạt động trong 30 ngày. Vui lòng đăng ký lại."
+            "Tài khoản của bạn đã bị xóa vì vi phạm bản quyền."
           );
         }
 
@@ -393,13 +393,7 @@ export default function LoginPage() {
             onChange={onChange}
             required
           />
-          <button
-            type="button"
-            className="btn btn-outline-secondary"
-            onClick={() => setShowPassword((v) => !v)}
-          >
-            <i className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}></i>
-          </button>
+          
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -419,7 +413,7 @@ export default function LoginPage() {
 
         <div className="d-flex align-items-center my-3">
           <hr className="flex-grow-1" />
-          <span className="mx-2 text-muted">Hoặc đăng nhập bằng</span>
+          <span className="mx-2 text-muted">Hoặc</span>
           <hr className="flex-grow-1" />
         </div>
 
