@@ -32,7 +32,7 @@ apiClient.interceptors.request.use(
 /**
  * Helper function để xử lý response từ axios
  * @param {Object} axiosResponse - Response object từ axios
- * @returns {Object} - { data, response } với format tương tự fetch để component có thể check response.status
+ * @returns {Object} - { data, response }
  */
 const handleAxiosResponse = (axiosResponse) => {
   return {
@@ -45,139 +45,82 @@ const handleAxiosResponse = (axiosResponse) => {
   };
 };
 
+/**
+ * Helper function để xử lý lỗi chung (tránh lặp code)
+ * @param {Object} error - Lỗi từ axios
+ * @param {string} contextMsg - Thông báo ngữ cảnh (ví dụ: "tạo ví")
+ */
+const handleError = (error, contextMsg) => {
+  console.error(`wallet.service: Error during ${contextMsg}:`, error);
+  if (error.response) {
+    return {
+      data: error.response.data || { error: "Đã xảy ra lỗi" },
+      response: {
+        ok: false,
+        status: error.response.status,
+        statusText: error.response.statusText,
+      },
+    };
+  } else if (error.request) {
+    return {
+      response: { ok: false, status: 0 },
+      data: { error: `Lỗi kết nối đến máy chủ khi ${contextMsg}.` },
+    };
+  } else {
+    return {
+      response: { ok: false, status: 0 },
+      data: { error: error.message || "Đã xảy ra lỗi không xác định." },
+    };
+  }
+};
+
 // ========================= CREATE WALLET =========================
 
 /**
  * 📝 TẠO VÍ MỚI
- * @param {Object} createData - Dữ liệu tạo ví
- * @param {string} createData.walletName - Tên ví
- * @param {string} createData.currencyCode - Mã tiền tệ (VND hoặc USD)
- * @param {string} [createData.description] - Mô tả ví (optional)
- * @param {boolean} [createData.setAsDefault] - Đặt làm ví mặc định (optional)
- * @returns {Promise<Object>} - { message: string, wallet: Object } hoặc { error: string }
- * @note Số dư ban đầu luôn mặc định là 0. Để thêm tiền, tạo transaction "Thu nhập" hoặc chuyển từ ví khác.
  */
 export const createWallet = async (createData) => {
   try {
-    console.log(
-      "wallet.service: Calling POST /wallets/create với data:",
-      createData
-    );
     const response = await apiClient.post("/create", createData);
-    console.log("wallet.service: POST /wallets/create response:", {
-      status: response.status,
-      data: response.data,
-    });
     return handleAxiosResponse(response);
   } catch (error) {
-    console.error("wallet.service: POST /wallets/create error:", error);
-    if (error.response) {
-      console.error("wallet.service: Error response:", {
-        status: error.response.status,
-        data: error.response.data,
-      });
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      console.error("wallet.service: No response received:", error.request);
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi tạo ví." },
-      };
-    } else {
-      console.error("wallet.service: Request setup error:", error.message);
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "tạo ví");
   }
 };
 
 // ========================= GET ALL WALLETS =========================
 
 /**
- * 📋 LẤY TẤT CẢ VÍ CỦA NGƯỜI DÙNG
- * @returns {Promise<Object>} - { wallets: Array, total: number } hoặc { error: string }
+ * 📋 LẤY TẤT CẢ VÍ (Đã tham gia/Sở hữu)
  */
 export const getMyWallets = async () => {
   try {
-    console.log("wallet.service: Calling GET /wallets...");
     const response = await apiClient.get("");
-    console.log("wallet.service: GET /wallets response:", {
-      status: response.status,
-      data: response.data,
-    });
     return handleAxiosResponse(response);
   } catch (error) {
-    console.error("wallet.service: GET /wallets error:", error);
-    if (error.response) {
-      console.error("wallet.service: Error response:", {
-        status: error.response.status,
-        data: error.response.data,
-      });
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      console.error("wallet.service: No response received:", error.request);
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi lấy danh sách ví." },
-      };
-    } else {
-      console.error("wallet.service: Request setup error:", error.message);
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "lấy danh sách ví");
   }
+};
+
+/**
+ * 🤝 LẤY DANH SÁCH VÍ MÀ TÔI CÓ QUYỀN TRUY CẬP (Alias cho getMyWallets)
+ * Hàm này cần thiết để sửa lỗi import bên ParticipateManager.jsx
+ */
+export const getAllAccessibleWallets = async () => {
+  return getMyWallets();
 };
 
 // ========================= GET WALLET DETAILS =========================
 
 /**
  * 🔍 LẤY CHI TIẾT VÍ
- * @param {number} walletId - ID của ví
- * @returns {Promise<Object>} - { wallet: Object } hoặc { error: string }
  */
 export const getWalletDetails = async (walletId) => {
   try {
     const response = await apiClient.get(`/${walletId}`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi lấy chi tiết ví." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "lấy chi tiết ví");
   }
 };
 
@@ -185,113 +128,77 @@ export const getWalletDetails = async (walletId) => {
 
 /**
  * ⭐ ĐẶT VÍ MẶC ĐỊNH
- * @param {number} walletId - ID của ví
- * @returns {Promise<Object>} - { message: string } hoặc { error: string }
  */
 export const setDefaultWallet = async (walletId) => {
   try {
     const response = await apiClient.patch(`/${walletId}/set-default`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi đặt ví mặc định." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "đặt ví mặc định");
   }
 };
 
-// ========================= SHARED WALLET ENDPOINTS =========================
+// ========================= INVITATIONS (TÍNH NĂNG MỚI) =========================
 
 /**
- * 🔗 CHIA SẺ VÍ CHO NGƯỜI KHÁC
- * @param {number} walletId - ID của ví
- * @param {string} email - Email của người được chia sẻ
- * @returns {Promise<Object>} - { message: string, member: Object } hoặc { error: string }
+ * 📩 LẤY DANH SÁCH LỜI MỜI THAM GIA VÍ (PENDING)
+ * @returns {Promise<Object>} - { invitations: Array, total: number }
+ */
+export const getInvitations = async () => {
+  try {
+    const response = await apiClient.get("/invitations");
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleError(error, "lấy danh sách lời mời");
+  }
+};
+
+/**
+ * ✅ PHẢN HỒI LỜI MỜI (ĐỒNG Ý / TỪ CHỐI)
+ * @param {number} walletId - ID ví được mời
+ * @param {boolean} accept - true (Đồng ý) | false (Từ chối)
+ */
+export const respondToInvitation = async (walletId, accept) => {
+  try {
+    // Backend nhận tham số qua query param: ?accept=true/false
+    const response = await apiClient.post(`/${walletId}/invitation`, null, {
+      params: { accept },
+    });
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleError(error, "phản hồi lời mời");
+  }
+};
+
+// ========================= MEMBER MANAGEMENT =========================
+
+/**
+ * 🔗 GỬI LỜI MỜI CHO NGƯỜI KHÁC
+ * (Lưu ý: Backend sẽ tạo trạng thái PENDING cho user này)
  */
 export const shareWallet = async (walletId, email) => {
   try {
     const response = await apiClient.post(`/${walletId}/share`, { email });
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi chia sẻ ví." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "chia sẻ ví");
   }
 };
 
 /**
- * 👥 LẤY DANH SÁCH THÀNH VIÊN CỦA VÍ
- * @param {number} walletId - ID của ví
- * @returns {Promise<Object>} - { members: Array, total: number } hoặc { error: string }
+ * 👥 LẤY DANH SÁCH THÀNH VIÊN
  */
 export const getWalletMembers = async (walletId) => {
   try {
     const response = await apiClient.get(`/${walletId}/members`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: {
-          error: "Lỗi kết nối đến máy chủ khi lấy danh sách thành viên.",
-        },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "lấy danh sách thành viên");
   }
 };
 
 /**
- * 🚫 XÓA THÀNH VIÊN KHỎI VÍ
- * @param {number} walletId - ID của ví
- * @param {number} memberUserId - ID của user cần xóa
- * @returns {Promise<Object>} - { message: string } hoặc { error: string }
+ * 🚫 XÓA THÀNH VIÊN
  */
 export const removeMember = async (walletId, memberUserId) => {
   try {
@@ -300,141 +207,61 @@ export const removeMember = async (walletId, memberUserId) => {
     );
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi xóa thành viên." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "xóa thành viên");
   }
 };
 
 /**
- * 🚪 RỜI KHỎI VÍ (nếu không phải chủ ví)
- * @param {number} walletId - ID của ví
- * @returns {Promise<Object>} - { message: string } hoặc { error: string }
+ * 🚪 RỜI KHỎI VÍ
  */
 export const leaveWallet = async (walletId) => {
   try {
     const response = await apiClient.post(`/${walletId}/leave`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi rời khỏi ví." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "rời khỏi ví");
+  }
+};
+
+/**
+ * 👑 CẬP NHẬT QUYỀN THÀNH VIÊN
+ */
+export const updateMemberRole = async (walletId, memberId, newRole) => {
+  try {
+    // Dựa trên Controller Backend: PUT /wallets/{walletId}/members/{memberId}/role?role=EDITOR
+    const response = await apiClient.put(
+      `/${walletId}/members/${memberId}/role`, // Endpoint phải khớp với logic trong WalletServiceImpl -> updateMemberRole
+      null,
+      { params: { role: newRole } }
+    );
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleError(error, "cập nhật quyền thành viên");
   }
 };
 
 // ========================== ACCESS CHECK ==========================
 
-/**
- * 🔐 KIỂM TRA QUYỀN TRUY CẬP VÍ
- * @param {number} walletId - ID của ví
- * @returns {Promise<Object>} - { hasAccess: boolean, isOwner: boolean, role: string } hoặc { error: string }
- */
 export const checkAccess = async (walletId) => {
   try {
     const response = await apiClient.get(`/${walletId}/access`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi kiểm tra quyền truy cập." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "kiểm tra quyền truy cập");
   }
 };
 
 // ========================== MERGE WALLET ==========================
 
-/**
- * 🔀 LẤY DANH SÁCH VÍ CÓ THỂ GỘP
- * @param {number} sourceWalletId - ID của ví nguồn (ví sẽ bị gộp)
- * @returns {Promise<Object>} - { candidateWallets: Array, ineligibleWallets: Array, total: number } hoặc { error: string }
- */
 export const getMergeCandidates = async (sourceWalletId) => {
   try {
     const response = await apiClient.get(`/${sourceWalletId}/merge-candidates`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: {
-          error: "Lỗi kết nối đến máy chủ khi lấy danh sách ví có thể gộp.",
-        },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "lấy danh sách ví gộp");
   }
 };
 
-/**
- * 👁️ XEM TRƯỚC KẾT QUẢ GỘP VÍ
- * @param {number} targetWalletId - ID của ví đích (ví sẽ nhận)
- * @param {number} sourceWalletId - ID của ví nguồn (ví sẽ bị gộp)
- * @param {string} targetCurrency - Mã tiền tệ đích (VND, USD, etc.)
- * @returns {Promise<Object>} - { preview: Object } hoặc { error: string }
- */
 export const previewMerge = async (
   targetWalletId,
   sourceWalletId,
@@ -442,209 +269,59 @@ export const previewMerge = async (
 ) => {
   try {
     const response = await apiClient.get(`/${targetWalletId}/merge-preview`, {
-      params: {
-        sourceWalletId,
-        targetCurrency,
-      },
+      params: { sourceWalletId, targetCurrency },
     });
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi xem trước gộp ví." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "xem trước gộp ví");
   }
 };
 
-/**
- * 🔀 GỘP HAI VÍ LẠI VỚI NHAU
- * @param {number} targetWalletId - ID của ví đích (ví sẽ nhận)
- * @param {Object} mergeData - Dữ liệu gộp ví
- * @param {number} mergeData.sourceWalletId - ID của ví nguồn (ví sẽ bị gộp)
- * @param {string} mergeData.targetCurrency - Mã tiền tệ đích (VND, USD, etc.)
- * @returns {Promise<Object>} - { success: boolean, message: string, result: Object } hoặc { error: string }
- */
 export const mergeWallets = async (targetWalletId, mergeData) => {
   try {
-    console.log(
-      "wallet.service: Calling POST /wallets/" +
-        targetWalletId +
-        "/merge với data:",
-      mergeData
-    );
     const response = await apiClient.post(
       `/${targetWalletId}/merge`,
       mergeData
     );
-    console.log(
-      "wallet.service: POST /wallets/" + targetWalletId + "/merge response:",
-      {
-        status: response.status,
-        data: response.data,
-      }
-    );
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi gộp ví." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "gộp ví");
   }
 };
 
-// ========================== UPDATE WALLET ==========================
+// ========================== UPDATE & DELETE WALLET ==========================
 
-/**
- * ✏️ CẬP NHẬT THÔNG TIN VÍ
- * @param {number} walletId - ID của ví
- * @param {Object} updateData - Dữ liệu cập nhật
- * @param {string} [updateData.walletName] - Tên ví mới (optional)
- * @param {string} [updateData.description] - Mô tả ví mới (optional)
- * @param {string} [updateData.currencyCode] - Mã tiền tệ mới (optional)
- * @returns {Promise<Object>} - { message: string, wallet: Object } hoặc { error: string }
- */
 export const updateWallet = async (walletId, updateData) => {
   try {
     const response = await apiClient.put(`/${walletId}`, updateData);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi cập nhật ví." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "cập nhật ví");
   }
 };
 
-// ========================== DELETE WALLET ==========================
-
-/**
- * 🗑️ XÓA VÍ
- * @param {number} walletId - ID của ví
- * @returns {Promise<Object>} - { message: string, deletedWallet: Object } hoặc { error: string }
- */
 export const deleteWallet = async (walletId) => {
   try {
     const response = await apiClient.delete(`/${walletId}`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi xóa ví." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "xóa ví");
   }
 };
 
 // ========================== TRANSFER MONEY ==========================
 
-/**
- * 💰 LẤY DANH SÁCH VÍ ĐÍCH CÓ THỂ CHUYỂN TIỀN
- * @param {number} walletId - ID của ví nguồn (ví sẽ chuyển tiền)
- * @returns {Promise<Object>} - { sourceWallet: Object, targetWallets: Array, total: number } hoặc { error: string }
- */
 export const getTransferTargets = async (walletId) => {
   try {
     const response = await apiClient.get(`/${walletId}/transfer-targets`);
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi lấy danh sách ví đích." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
+    return handleError(error, "lấy danh sách ví đích");
   }
 };
 
-/**
- * 💸 CHUYỂN TIỀN GIỮA CÁC VÍ
- * @param {Object} transferData - Dữ liệu chuyển tiền
- * @param {number} transferData.fromWalletId - ID của ví nguồn (hoặc sourceWalletId/sourceId)
- * @param {number} transferData.toWalletId - ID của ví đích (hoặc targetWalletId/targetId)
- * @param {number} transferData.amount - Số tiền cần chuyển
- * @param {string} [transferData.note] - Ghi chú giao dịch (optional, hoặc description)
- * @returns {Promise<Object>} - { message: string, transfer: Object } hoặc { error: string }
- */
 export const transferMoney = async (transferData) => {
   try {
-    // Map từ format linh hoạt sang format API
     const fromWalletId =
       transferData.fromWalletId ||
       transferData.sourceWalletId ||
@@ -659,101 +336,41 @@ export const transferMoney = async (transferData) => {
       fromWalletId,
       toWalletId,
       amount: transferData.amount,
-      targetCurrencyCode: transferData.targetCurrencyCode, // Currency của số tiền nhập vào (theo ví gửi)
+      targetCurrencyCode: transferData.targetCurrencyCode,
       note,
     };
 
-    console.log(
-      "wallet.service: Calling POST /wallets/transfer với data:",
-      apiPayload
-    );
     const response = await apiClient.post("/transfer", apiPayload);
-    console.log("wallet.service: POST /wallets/transfer response:", {
-      status: response.status,
-      data: response.data,
-    });
     return handleAxiosResponse(response);
   } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    } else if (error.request) {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi chuyển tiền." },
-      };
-    } else {
-      return {
-        response: { ok: false, status: 0 },
-        data: { error: error.message || "Đã xảy ra lỗi không xác định." },
-      };
-    }
-  }
-};
-// ========================== MEMBER MANAGEMENT (NEW) ==========================
-
-/**
- * 🤝 LẤY DANH SÁCH VÍ MÀ TÔI ĐƯỢC CHIA SẺ (HOẶC THAM GIA)
- */
-export const getAllAccessibleWallets = async () => {
-  try {
-    // API endpoint này phải khớp với Backend Controller
-    const response = await apiClient.get("/shared");
-    return handleAxiosResponse(response);
-  } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    }
-    return {
-      response: { ok: false, status: 0 },
-      data: { error: error.message || "Lỗi kết nối." },
-    };
+    return handleError(error, "chuyển tiền");
   }
 };
 
-/**
- * 👑 CẬP NHẬT QUYỀN CỦA THÀNH VIÊN
- */
-export const updateMemberRole = async (walletId, memberId, newRole) => {
-  try {
-    const response = await apiClient.put(
-      `/${walletId}/members/${memberId}/role`,
-      null,
-      {
-        params: { role: newRole },
-      }
-    );
-    return handleAxiosResponse(response);
-  } catch (error) {
-    if (error.response) {
-      return {
-        data: error.response.data || { error: "Đã xảy ra lỗi" },
-        response: {
-          ok: false,
-          status: error.response.status,
-          statusText: error.response.statusText,
-        },
-      };
-    }
-    return {
-      response: { ok: false, status: 0 },
-      data: { error: error.message || "Lỗi kết nối." },
-    };
-  }
-};
-
-// Export API_BASE_URL để các component khác có thể sử dụng nếu cần
+// Export API_BASE_URL và Default Object
 export { API_BASE_URL };
+
+export default {
+  createWallet,
+  getMyWallets,
+  getAllAccessibleWallets, // <--- ĐÃ THÊM HÀM NÀY ĐỂ FIX LỖI
+  getWalletDetails,
+  setDefaultWallet,
+  // New Invitation Features
+  getInvitations,
+  respondToInvitation,
+  // Existing Features
+  shareWallet,
+  getWalletMembers,
+  removeMember,
+  leaveWallet,
+  updateMemberRole,
+  checkAccess,
+  getMergeCandidates,
+  previewMerge,
+  mergeWallets,
+  updateWallet,
+  deleteWallet,
+  getTransferTargets,
+  transferMoney,
+};

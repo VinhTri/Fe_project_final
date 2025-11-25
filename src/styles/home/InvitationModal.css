@@ -1,0 +1,84 @@
+.invitation-container {
+  padding: 10px 0;
+  min-height: 100px;
+}
+
+.invitation-loading,
+.invitation-empty {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 20px 0;
+}
+
+.invitation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.invitation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  background-color: #fff;
+  transition: background-color 0.2s;
+}
+
+.invitation-item:hover {
+  background-color: #f9f9f9;
+}
+
+.inv-info {
+  flex: 1;
+  margin-right: 15px;
+}
+
+.inv-text {
+  font-size: 15px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.inv-wallet-name {
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.inv-meta {
+  font-size: 13px;
+  color: #888;
+}
+
+.inv-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-inv {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+
+.btn-inv:hover {
+  opacity: 0.9;
+}
+
+.btn-accept {
+  background-color: #28a745; /* Màu xanh lá */
+  color: #fff;
+}
+
+.btn-decline {
+  background-color: #dc3545; /* Màu đỏ */
+  color: #fff;
+}
