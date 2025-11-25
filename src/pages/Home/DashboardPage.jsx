@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useCurrency } from "../../hooks/useCurrency";
+
 import "../../styles/home/DashboardPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 
 const STORAGE_EXTERNAL = "app_external_transactions_v1";
 const DONUT_COLORS = ["#0C5776", "#2D99AE", "#58D3F7", "#BCFEFE"];
 const DONUT_OTHER_COLOR = "#F8DAD0";
+
+
 
 const translations = {
   "dashboard.title": "Tổng quan tài chính",
@@ -69,15 +73,10 @@ const normalizeTransaction = (tx) => {
     .toString()
     .toLowerCase();
   const type = typeSource.includes("thu") || typeSource.includes("income") ? "income" : "expense";
-
-  const amount = Math.abs(parseAmount(tx.amount));
-  const category =
-    tx.category?.categoryName ||
-    tx.categoryName ||
-    tx.category ||
-    (type === "income" ? "Thu nhập" : t("dashboard.other"));
   const walletName = tx.wallet?.walletName || tx.walletName || "";
   const note = tx.note || tx.description || "";
+  const category = tx.category?.categoryName || tx.categoryName || tx.category || "";
+  const amount = tx.amount || 0;
 
   return {
     id: tx.id || tx.transactionId || `${category}-${date.getTime()}`,
@@ -186,12 +185,11 @@ const getPeriodRange = (period) => {
   return { start, end };
 };
 
-const formatAmount = (value = 0, locale = "vi-VN") => {
-  const safe = Number(value) || 0;
-  return safe.toLocaleString(locale);
-};
+
+
 
 export default function DashboardPage() {
+  const { formatCurrency } = useCurrency();
   const { externalTransactionsList = [] } = useBudgetData();
   const [period, setPeriod] = useState("tuan");
   const [localTransactions, setLocalTransactions] = useState([]);
@@ -537,7 +535,7 @@ export default function DashboardPage() {
                 <div className="db-card__kpi">
                   <div>
                     <p className="db-kpi__label">{t("dashboard.total_expense")}</p>
-                    <p className="db-kpi__value">{formatAmount(totalSpending)}đ</p>
+                    <p className="db-kpi__value">{formatCurrency(totalSpending)}</p>
                   </div>
                 </div>
                 <div className="db-line-chart">
@@ -582,7 +580,7 @@ export default function DashboardPage() {
                           <div
                             className="db-bar-chart__bar db-bar-chart__bar--spending"
                             style={{ height: `${height}px` }}
-                            title={`${formatAmount(item.value)}đ`}
+                            title={formatCurrency(item.value)}
                           />
                         </div>
                         <span className="db-bar-chart__label">{item.label}</span>
@@ -706,7 +704,7 @@ export default function DashboardPage() {
                           }
                         >
                           {item.amount >= 0 ? "+" : "-"}
-                          {formatAmount(Math.abs(item.amount))}đ
+                          {formatCurrency(Math.abs(item.amount))}
                         </span>
                       </div>
                       <p className="db-history-item__desc">{item.description}</p>

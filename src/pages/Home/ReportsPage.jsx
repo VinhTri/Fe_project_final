@@ -1,4 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCurrency } from "../../hooks/useCurrency";
+import { useDateFormat } from "../../hooks/useDateFormat";
+
 import { useNavigate } from "react-router-dom";
 import "../../styles/home/ReportsPage.css";
 import { useWalletData } from "../../home/store/WalletDataContext";
@@ -116,22 +119,10 @@ const buildChartData = (transactions, range) => {
   }
 };
 
-const formatCurrency = (value = 0, currency = "VND") => {
-  try {
-    return value.toLocaleString("vi-VN", { style: "currency", currency, maximumFractionDigits: 0 });
-  } catch (error) {
-    return `${value.toLocaleString("vi-VN")} ${currency}`;
-  }
-};
-
-const formatCompactNumber = (value) => {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toFixed(0);
-};
 
 export default function ReportsPage() {
+  const { formatCurrency } = useCurrency();
+  const { formatDate } = useDateFormat();
   const { wallets, loading: walletsLoading } = useWalletData();
   const [selectedWalletId, setSelectedWalletId] = useState(null);
   const [range, setRange] = useState("week");
@@ -177,6 +168,13 @@ export default function ReportsPage() {
     };
   }, []);
 
+  const formatCompactNumber = (value) => {
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    return value.toFixed(0);
+  };
+
   const filteredWallets = useMemo(() => {
     const keyword = walletSearch.trim().toLowerCase();
     if (!keyword) return wallets;
@@ -187,7 +185,6 @@ export default function ReportsPage() {
     () => wallets.find((wallet) => wallet.id === selectedWalletId),
     [wallets, selectedWalletId]
   );
-
   const walletTransactions = useMemo(() => {
     if (!selectedWalletId) return [];
     return transactions.filter((tx) => tx.walletId === Number(selectedWalletId));
@@ -303,7 +300,7 @@ export default function ReportsPage() {
                       </div>
                     </div>
                     <div className="wallet-balance text-end">
-                      <p className="mb-0 fw-semibold">{formatCurrency(Number(wallet.balance) || 0, wallet.currency || "VND")}</p>
+                      <p className="mb-0 fw-semibold">{formatCurrency(Number(wallet.balance) || 0)}</p>
                       <small className="text-muted">{wallet.currency || "VND"}</small>
                     </div>
                   </button>
@@ -323,15 +320,15 @@ export default function ReportsPage() {
                   <div className="reports-summary-row">
                     <div>
                       <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                      Thu vào: <strong>{formatCurrency(summary.income, currency)}</strong>
+                      Thu vào: <strong>{formatCurrency(summary.income)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                      Chi ra: <strong>{formatCurrency(summary.expense, currency)}</strong>
+                      Chi ra: <strong>{formatCurrency(summary.expense)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
-                      Còn lại: <strong>{formatCurrency(net, currency)}</strong>
+                      Còn lại: <strong>{formatCurrency(net)}</strong>
                     </div>
                   </div>
                 </div>
@@ -453,3 +450,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+

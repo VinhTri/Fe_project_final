@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useCurrency } from "../../hooks/useCurrency";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import { walletAPI } from "../../services/api-client";
@@ -112,6 +113,7 @@ export default function WalletDetail(props) {
     return Array.from(merged);
   }, [wallet?.sharedEmails, sharedEmailsOverride]);
   const balance = Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
+  const { currency, formatCurrency } = useCurrency();
 
   const [sharedMembers, setSharedMembers] = useState([]);
   const [sharedMembersLoading, setSharedMembersLoading] = useState(false);
@@ -137,32 +139,7 @@ export default function WalletDetail(props) {
     return safeSharedWithMeOwners[0];
   }, [safeSharedWithMeOwners, selectedSharedOwnerId]);
 
-  // Format số dư để hiển thị (giống với WalletList.jsx)
-  const formatBalance = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      // USD: hiển thị tối đa 8 chữ số thập phân để chính xác
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
-      }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
-    }
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    // Các currency khác: hiển thị tối đa 8 chữ số thập phân
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-  };
+
 
   // Nếu ví đã là ví nhóm mà tab đang là "convert" -> tự về "view"
   useEffect(() => {
@@ -445,7 +422,7 @@ export default function WalletDetail(props) {
                           )}
                         </div>
                         <span className="wallets-shared-owner-wallet__balance">
-                          {formatBalance(balance, sharedWallet.currency || "VND")}
+                          {formatCurrency(sharedWallet.balance)}
                         </span>
                       </div>
                       {sharedWallet.note && (
@@ -551,7 +528,7 @@ export default function WalletDetail(props) {
         <div className="wallets-detail__balance">
           <div className="wallets-detail__balance-label">Số dư</div>
           <div className="wallets-detail__balance-value">
-            {formatBalance(balance, wallet.currency || "VND")}
+            {formatCurrency(balance)}
           </div>
         </div>
       </div>

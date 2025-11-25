@@ -5,7 +5,6 @@ import { getProfile, updateProfile, changePassword } from "../../services/profil
 import "../../styles/home/SettingsPage.css";
 
 export default function SettingsPage() {
-
   const [activeKey, setActiveKey] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -17,6 +16,12 @@ export default function SettingsPage() {
     // Lấy từ localStorage hoặc mặc định là VND
     return localStorage.getItem("defaultCurrency") || "VND";
   });
+  // Move money format state to top-level to avoid hook rules error
+  const [moneyFormat, setMoneyFormat] = useState(() => localStorage.getItem("moneyFormat") || "space");
+  const [moneyDecimalDigits, setMoneyDecimalDigits] = useState(() => localStorage.getItem("moneyDecimalDigits") || "0");
+  // Move date format state to top-level to avoid hook rules error
+  const [dateFormat, setDateFormat] = useState(() => localStorage.getItem("dateFormat") || "dd/MM/yyyy");
+  const [dateSuccess, setDateSuccess] = useState("");
 
   // Refs cho các input fields
   const fullNameRef = useRef(null);
@@ -483,63 +488,61 @@ export default function SettingsPage() {
         );
 
       case "currency-format":
-
         return (
-<div className="settings-detail__body">
-<h4>Định dạng tiền tệ</h4>
-<p className="settings-detail__desc">
-
-              Chọn cách hiển thị số tiền trên ứng dụng.
-</p>
-<div className="settings-form__group">
-<label>Kiểu hiển thị</label>
-<select defaultValue="space">
-<option value="space">
-
-                  1 234 567 (cách nhau bằng khoảng trắng)
-</option>
-<option value="dot">1.234.567 (dấu chấm)</option>
-<option value="comma">1,234,567 (dấu phẩy)</option>
-</select>
-</div>
-<div className="settings-form__group">
-<label>Số chữ số thập phân</label>
-<select defaultValue="0">
-<option value="0">0 (ví dụ: 1.000)</option>
-<option value="2">2 (ví dụ: 1.000,50)</option>
-</select>
-</div>
-<button className="settings-btn settings-btn--primary">
-
+          <div className="settings-detail__body">
+            <h4>Định dạng tiền tệ</h4>
+            <p className="settings-detail__desc">Chọn cách hiển thị số tiền trên ứng dụng.</p>
+            <div className="settings-form__group">
+              <label>Kiểu hiển thị</label>
+              <select value={moneyFormat} onChange={e => setMoneyFormat(e.target.value)}>
+                <option value="space">1 234 567 (cách nhau bằng khoảng trắng)</option>
+                <option value="dot">1.234.567 (dấu chấm)</option>
+                <option value="comma">1,234,567 (dấu phẩy)</option>
+              </select>
+            </div>
+            <div className="settings-form__group">
+              <label>Số chữ số thập phân</label>
+              <select value={moneyDecimalDigits} onChange={e => setMoneyDecimalDigits(e.target.value)}>
+                <option value="0">0 (ví dụ: 1.000)</option>
+                <option value="2">2 (ví dụ: 1.000,50)</option>
+              </select>
+            </div>
+            <button className="settings-btn settings-btn--primary" onClick={() => {
+              localStorage.setItem("moneyFormat", moneyFormat);
+              localStorage.setItem("moneyDecimalDigits", moneyDecimalDigits);
+              window.dispatchEvent(new CustomEvent('moneyFormatChanged', { detail: { moneyFormat, moneyDecimalDigits } }));
+              setSuccess("Đã lưu định dạng tiền tệ");
+              setTimeout(() => setSuccess(""), 2000);
+            }}>
               Lưu định dạng
-</button>
-</div>
-
+            </button>
+            {success && <div className="settings-success" style={{color: 'green', marginTop: 10}}>{success}</div>}
+          </div>
         );
 
       case "date-format":
-
         return (
-<div className="settings-detail__body">
-<h4>Cài đặt định dạng ngày</h4>
-<p className="settings-detail__desc">
-
-              Chọn cách hiển thị ngày tháng trên toàn hệ thống.
-</p>
-<div className="settings-form__group">
-<label>Định dạng</label>
-<select defaultValue="dd/MM/yyyy">
-<option value="dd/MM/yyyy">dd/MM/yyyy (31/12/2025)</option>
-<option value="MM/dd/yyyy">MM/dd/yyyy (12/31/2025)</option>
-<option value="yyyy-MM-dd">yyyy-MM-dd (2025-12-31)</option>
-</select>
-</div>
-<button className="settings-btn settings-btn--primary">
-
+          <div className="settings-detail__body">
+            <h4>Cài đặt định dạng ngày</h4>
+            <p className="settings-detail__desc">Chọn cách hiển thị ngày tháng trên toàn hệ thống.</p>
+            <div className="settings-form__group">
+              <label>Định dạng</label>
+              <select value={dateFormat} onChange={e => setDateFormat(e.target.value)}>
+                <option value="dd/MM/yyyy">dd/MM/yyyy (31/12/2025)</option>
+                <option value="MM/dd/yyyy">MM/dd/yyyy (12/31/2025)</option>
+                <option value="yyyy-MM-dd">yyyy-MM-dd (2025-12-31)</option>
+              </select>
+            </div>
+            <button className="settings-btn settings-btn--primary" onClick={() => {
+              localStorage.setItem("dateFormat", dateFormat);
+              window.dispatchEvent(new CustomEvent('dateFormatChanged', { detail: { dateFormat } }));
+              setDateSuccess("Đã lưu cài đặt ngày");
+              setTimeout(() => setDateSuccess(""), 2000);
+            }}>
               Lưu cài đặt ngày
-</button>
-</div>
-
+            </button>
+            {dateSuccess && <div className="settings-success" style={{color: 'green', marginTop: 10}}>{dateSuccess}</div>}
+          </div>
         );
 
       case "language":

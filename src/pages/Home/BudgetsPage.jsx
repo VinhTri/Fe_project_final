@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { useCurrency } from "../../hooks/useCurrency";
 import "../../styles/home/BudgetsPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
@@ -199,18 +200,8 @@ export default function BudgetsPage() {
     return { overItems, warningItems };
   }, [budgets, budgetUsageMap]);
 
-  const currencyFormatter = useMemo(() => new Intl.NumberFormat("vi-VN"), []);
 
-  const formatCurrency = useCallback((value = 0) => {
-    if (value == null || Number.isNaN(Number(value))) {
-      return "0";
-    }
-    try {
-      return currencyFormatter.format(Number(value));
-    } catch (error) {
-      return String(value ?? 0);
-    }
-  }, [currencyFormatter]);
+  const { formatCurrency } = useCurrency();
 
   const filteredCategories = useMemo(() => {
     if (Array.isArray(expenseCategories) && expenseCategories.length > 0) {
@@ -374,14 +365,14 @@ export default function BudgetsPage() {
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">Tổng hạn mức</span>
-            <div className="budget-metric-value">{formatCurrency(overviewStats.totalLimit)} VND</div>
+            <div className="budget-metric-value">{formatCurrency(overviewStats.totalLimit)}</div>
             <small className="text-muted">{overviewStats.activeBudgets} hạn mức đang hoạt động</small>
           </div>
         </div>
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">Đã sử dụng</span>
-            <div className="budget-metric-value text-primary">{formatCurrency(overviewStats.totalSpent)} VND</div>
+            <div className="budget-metric-value text-primary">{formatCurrency(overviewStats.totalSpent)}</div>
             <small className="text-muted">
               {overviewStats.totalLimit > 0
                 ? `${Math.round((overviewStats.totalSpent / overviewStats.totalLimit) * 100)}% tổng hạn mức`
@@ -392,7 +383,7 @@ export default function BudgetsPage() {
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">Còn lại</span>
-            <div className="budget-metric-value text-success">{formatCurrency(overviewStats.totalRemaining)} VND</div>
+            <div className="budget-metric-value text-success">{formatCurrency(overviewStats.totalRemaining)}</div>
             <small className="text-muted">Theo tất cả hạn mức</small>
           </div>
         </div>
@@ -645,7 +636,7 @@ export default function BudgetsPage() {
                             <small className="text-muted">{formatDateTime(tx.date)}</small>
                           </td>
                           <td className={`fw-semibold ${tx.type === "expense" ? "text-danger" : "text-success"}`}>
-                            {formatCurrency(tx.amount)} {tx.currency || "VND"}
+                            {formatCurrency(tx.amount)}
                           </td>
                         </tr>
                       ))
