@@ -11,7 +11,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import HomeLayout from "./layouts/HomeLayout";
 import DashboardPage from "./pages/Home/DashboardPage";
 import WalletsPage from "./pages/Home/WalletsPage"
-import WalletGroupsPage from "./pages/Home/WalletGroupsPage";
+
 import TransactionsPage from "./pages/Home/TransactionsPage";
 import BudgetsPage from "./pages/Home/BudgetsPage";
 import ReportsPage from "./pages/Home/ReportsPage";
@@ -39,7 +39,7 @@ export default function App() {
   <Route path="/home/*" element={<HomeLayout />}>  {/* thêm /* ở đây */}
     <Route index element={<DashboardPage />} />
     <Route path="wallets" element={<WalletsPage />} />
-    <Route path="wallet-groups" element={<WalletGroupsPage />} />
+ 
     <Route path="transactions" element={<TransactionsPage />} />
   <Route path="categories" element={<CategoriesPage />} />
     <Route path="budgets" element={<BudgetsPage />} />

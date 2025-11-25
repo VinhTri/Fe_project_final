@@ -58,12 +58,12 @@ export default function LoginPage() {
       // Backend trả về { user: { userId, fullName, email, ... } }
       // Hoặc có thể là meRes.data.user hoặc meRes.data
       let me = meRes.data || meRes;
-      
+
       // Nếu có wrap trong { user: {...} }, lấy user ra
       if (me.user) {
         me = me.user;
       }
-      
+
       // Đảm bảo có userId
       if (!me.userId && !me.id) {
         console.warn("Profile response không có userId:", me);
@@ -339,8 +339,8 @@ export default function LoginPage() {
         // 5️⃣ SAI MẬT KHẨU (INVALID_CREDENTIALS) - Hiển thị modal "Sai email hoặc mật khẩu"
         if (
           errorCode === "INVALID_CREDENTIALS" ||
-          (status === 400 && errorCode !== "USER_NOT_FOUND") || // Nếu status 400 nhưng không phải USER_NOT_FOUND, có thể là sai mật khẩu
-          (status === 401 && errorCode !== "USER_NOT_FOUND") // Nếu status 401 nhưng không phải USER_NOT_FOUND, có thể là sai mật khẩu
+          (status === 400 && errorCode !== "USER_NOT_FOUND") || 
+          (status === 401 && errorCode !== "USER_NOT_FOUND") 
         ) {
           return setShowInvalid(true);
         }
@@ -393,7 +393,13 @@ export default function LoginPage() {
             onChange={onChange}
             required
           />
-          
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() => setShowPassword((v) => !v)}
+          >
+            <i className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}></i>
+          </button>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -413,7 +419,7 @@ export default function LoginPage() {
 
         <div className="d-flex align-items-center my-3">
           <hr className="flex-grow-1" />
-          <span className="mx-2 text-muted">Hoặc</span>
+          <span className="mx-2 text-muted">Hoặc đăng nhập bằng</span>
           <hr className="flex-grow-1" />
         </div>
 
