@@ -10,7 +10,7 @@ export default function InvitationModal({ isOpen, onClose }) {
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   const { fetchWallets } = useWalletData();
 
   const fetchInvitations = async () => {
@@ -34,7 +34,7 @@ export default function InvitationModal({ isOpen, onClose }) {
   const handleRespond = async (walletId, isAccepted) => {
     try {
       const res = await walletService.respondToInvitation(walletId, isAccepted);
-      addToast(res.message, isAccepted ? "success" : "info");
+      showToast(res.message, isAccepted ? "success" : "info");
 
       if (isAccepted && fetchWallets) {
         fetchWallets();
@@ -42,12 +42,12 @@ export default function InvitationModal({ isOpen, onClose }) {
       fetchInvitations();
     } catch (error) {
       const msg = error.response?.data?.error || "Có lỗi xảy ra";
-      addToast(msg, "error");
+      showToast(msg, "error");
     }
   };
 
   return (
-    <Modal title="Hộp thư lời mời" Open={isOpen} onClose={onClose}>
+    <Modal title="Hộp thư lời mời" open={isOpen} onClose={onClose}>
       <div className="invitation-container">
         {loading && <div className="invitation-loading">Đang tải...</div>}
 
