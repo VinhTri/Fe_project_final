@@ -36,7 +36,7 @@ export default function HomeTopbar() {
   const checkInvites = async () => {
     try {
       const res = await walletService.getInvitations();
-      if (res && res.invitations) {
+      if (res && res.data && res.data.invitations) {
         setInviteCount(res.data?.invitations.length);
       }
     } catch (e) {

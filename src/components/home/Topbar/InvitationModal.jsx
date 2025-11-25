@@ -4,7 +4,6 @@ import walletService from "../../../services/wallet.service";
 import { useToast } from "../../common/Toast/ToastContext";
 import { useWalletData } from "../../../home/store/WalletDataContext";
 
-// Import CSS
 import "../../../styles/home/InvitationModal.css";
 
 export default function InvitationModal({ isOpen, onClose }) {
@@ -48,7 +47,7 @@ export default function InvitationModal({ isOpen, onClose }) {
   };
 
   return (
-    <Modal title="Hộp thư lời mời" isOpen={isOpen} onClose={onClose}>
+    <Modal title="Hộp thư lời mời" Open={isOpen} onClose={onClose}>
       <div className="invitation-container">
         {loading && <div className="invitation-loading">Đang tải...</div>}
 
