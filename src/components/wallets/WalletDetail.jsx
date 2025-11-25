@@ -963,12 +963,18 @@ function DetailViewTab({
             member.memberId || member.userId || member.email || member.fullName;
           const name =
             member.fullName || member.name || member.email || "Không rõ tên";
+
+          const role = member.role || "";
+          const status = member.status || "ACCEPTED"; // Mặc định ACCEPTED nếu ko có
+          const isPending = status === "PENDING";
+
           const detail =
             member.email && member.email !== name
               ? member.email
-              : member.role && member.role !== "OWNER"
-              ? member.role
+              : role && role !== "OWNER"
+              ? role
               : "";
+
           const memberId =
             member.userId ?? member.memberUserId ?? member.memberId;
           const allowRemove =
@@ -978,11 +984,26 @@ function DetailViewTab({
           const pillClass = allowRemove
             ? "wallet-share-pill"
             : "wallet-share-pill wallet-share-pill--readonly";
+
           const isRemoving = removingMemberId === memberId;
+
           return (
             <span key={key || name} className={pillClass}>
               <span className="wallet-share-pill__info">
                 {name}
+                {/* HIỂN THỊ LABEL PENDING */}
+                {isPending && (
+                  <span
+                    style={{
+                      color: "#d35400",
+                      fontSize: "10px",
+                      marginLeft: "4px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    (Chờ xác nhận)
+                  </span>
+                )}
                 {detail && <small>{detail}</small>}
               </span>
               {allowRemove && (
@@ -1232,6 +1253,21 @@ function ManageMembersTab({
                     <div>
                       <div className="wallets-manage__name">
                         {member.fullName || member.name || member.email}
+                        {/* THÊM ĐOẠN NÀY VÀO SAU TÊN */}
+                        {member.status === "PENDING" && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "#e67e22",
+                              background: "#fff3cd",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              marginLeft: "8px",
+                            }}
+                          >
+                            Chờ xác nhận
+                          </span>
+                        )}
                       </div>
                       <div className="wallets-manage__meta">
                         {member.email && <span>{member.email}</span>}

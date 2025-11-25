@@ -37,7 +37,7 @@ export default function HomeTopbar() {
     try {
       const res = await walletService.getInvitations();
       if (res && res.invitations) {
-        setInviteCount(res.invitations.length);
+        setInviteCount(res.data?.invitations.length);
       }
     } catch (e) {
       console.warn("Không thể lấy số lượng lời mời:", e);

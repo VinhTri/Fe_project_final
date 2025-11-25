@@ -18,7 +18,7 @@ export default function InvitationModal({ isOpen, onClose }) {
     try {
       setLoading(true);
       const res = await walletService.getInvitations();
-      setInvitations(res.invitations || []);
+      setInvitations(res.data?.invitations || []);
     } catch (error) {
       console.error("Lỗi tải lời mời:", error);
     } finally {
