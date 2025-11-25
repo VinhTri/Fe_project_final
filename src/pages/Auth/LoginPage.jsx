@@ -1,9 +1,10 @@
 // src/pages/Auth/LoginPage.jsx
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
+import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import "../../styles/AuthForms.css";
 
 // API
@@ -18,7 +19,8 @@ const GOOGLE_CLIENT_ID =
   "418846497154-r9s0e5pgls2ucrnulgjeuk3v3uja1a6u.apps.googleusercontent.com";
 
 export default function LoginPage() {
-  const { login: authLogin } = useAuth();
+  const { login: authLogin, logout } = useAuth();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -27,6 +29,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [redirectPath, setRedirectPath] = useState("/home");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -218,6 +221,35 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  // Check nếu đã đăng nhập thì hiển thị modal xác nhận đăng xuất
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken") || localStorage.getItem("auth_token");
+    if (token) {
+      setShowLogoutConfirm(true);
+    }
+  }, []);
+
+  // Xử lý đăng xuất khi user chọn "Có"
+  const handleConfirmLogout = () => {
+    logout();
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("auth_user");
+    setShowLogoutConfirm(false);
+  };
+
+  // Xử lý khi user chọn "Không" - quay lại trang trước đó
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
+    // Quay lại trang trước đó trong history, nếu không có thì về home
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/home");
+    }
+  };
 
   // Load Google Identity Script
   useEffect(() => {
@@ -443,6 +475,17 @@ export default function LoginPage() {
         seconds={3}
         title="Đăng nhập"
         message="Sai email hoặc mật khẩu!"
+      />
+
+      <ConfirmModal
+        open={showLogoutConfirm}
+        title="Xác nhận đăng xuất"
+        message="Bạn đã đăng nhập. Bạn có muốn đăng xuất để tiếp tục?"
+        okText="Có, đăng xuất"
+        cancelText="Không, quay lại"
+        danger={false}
+        onOk={handleConfirmLogout}
+        onClose={handleCancelLogout}
       />
     </AuthLayout>
   );
