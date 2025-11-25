@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
 import { loginLogAPI } from "../../services/api-client";
+import { triggerBackup, getBackupHistory } from "../../services/backup.service";
+import Toast from "../../components/common/Toast/Toast";
 import "../../styles/home/SettingsPage.css";
 
 export default function SettingsPage() {
@@ -21,6 +23,11 @@ export default function SettingsPage() {
   const [loginLogs, setLoginLogs] = useState([]);
   const [loginLogsLoading, setLoginLogsLoading] = useState(false);
   const [loginLogsError, setLoginLogsError] = useState("");
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupHistory, setBackupHistory] = useState([]);
+  const [backupHistoryLoading, setBackupHistoryLoading] = useState(false);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
 
   // Refs cho các input fields
   const fullNameRef = useRef(null);
@@ -41,6 +48,88 @@ export default function SettingsPage() {
       loadLoginLogs();
     }
   }, [activeKey]);
+
+  // Load backup history khi mở tab backup
+  useEffect(() => {
+    if (activeKey === "backup" && backupHistory.length === 0 && !backupHistoryLoading) {
+      loadBackupHistory();
+    }
+  }, [activeKey]);
+
+  const loadBackupHistory = async () => {
+    try {
+      setBackupHistoryLoading(true);
+      const { response, data } = await getBackupHistory();
+      if (response?.ok && data?.backups) {
+        setBackupHistory(data.backups || []);
+      } else {
+        // Nếu lỗi liên quan đến cloud config, không hiển thị lỗi (chỉ để trống)
+        const errorMsg = data?.error || "";
+        if (errorMsg.includes("cloud") || errorMsg.includes("aws") || errorMsg.includes("cấu hình")) {
+          setBackupHistory([]);
+        } else {
+          console.error("Error loading backup history:", errorMsg);
+          setBackupHistory([]);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading backup history:", error);
+      setBackupHistory([]);
+    } finally {
+      setBackupHistoryLoading(false);
+    }
+  };
+
+  const handleTriggerBackup = async () => {
+    try {
+      setBackupLoading(true);
+      const { response, data } = await triggerBackup();
+      if (response?.ok) {
+        setToast({
+          open: true,
+          message: data.message || "Sao lưu thành công!",
+          type: "success",
+        });
+        // Reload backup history sau khi backup thành công
+        await loadBackupHistory();
+      } else {
+        // Xử lý lỗi từ backend
+        const errorMsg = data?.error || "Sao lưu thất bại. Vui lòng thử lại.";
+        let displayMessage = errorMsg;
+        
+        // Kiểm tra nếu lỗi liên quan đến cloud configuration
+        if (errorMsg.includes("cloud") || errorMsg.includes("aws") || errorMsg.includes("cấu hình")) {
+          displayMessage = "Chức năng sao lưu cloud chưa được cấu hình. Vui lòng liên hệ quản trị viên để được hỗ trợ.";
+        }
+        
+        setToast({
+          open: true,
+          message: displayMessage,
+          type: "error",
+        });
+      }
+    } catch (error) {
+      setToast({
+        open: true,
+        message: "Có lỗi xảy ra khi sao lưu. Vui lòng thử lại.",
+        type: "error",
+      });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleToggleAutoSync = async () => {
+    // TODO: Implement API call to enable/disable auto sync when backend supports it
+    setAutoSyncEnabled((prev) => !prev);
+    setToast({
+      open: true,
+      message: autoSyncEnabled
+        ? "Đã tắt đồng bộ tự động"
+        : "Đã bật đồng bộ tự động",
+      type: "success",
+    });
+  };
 
   const loadLoginLogs = async () => {
     try {
@@ -85,6 +174,23 @@ export default function SettingsPage() {
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
+      });
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
       });
     } catch (error) {
       return dateString;
@@ -669,30 +775,105 @@ export default function SettingsPage() {
         );
 
       case "backup":
-
         return (
-<div className="settings-detail__body">
-<h4>Sao lưu & đồng bộ</h4>
-<p className="settings-detail__desc">
-
+          <div className="settings-detail__body">
+            <h4>Sao lưu & đồng bộ</h4>
+            <p className="settings-detail__desc">
               Đảm bảo dữ liệu ví của bạn luôn được an toàn và có thể khôi phục.
-</p>
-<ul className="settings-detail__list">
-<li>Sao lưu thủ công dữ liệu hiện tại.</li>
-<li>Bật đồng bộ tự động với tài khoản của bạn.</li>
-</ul>
-<div className="settings-form__actions">
-<button className="settings-btn settings-btn--primary">
+            </p>
+            <ul className="settings-detail__list">
+              <li>Sao lưu thủ công dữ liệu hiện tại.</li>
+              <li>Bật đồng bộ tự động với tài khoản của bạn.</li>
+            </ul>
+            <div
+              className="alert alert-info"
+              style={{
+                marginTop: "1rem",
+                padding: "0.75rem 1rem",
+                borderRadius: "8px",
+                backgroundColor: "#e7f3ff",
+                border: "1px solid #b3d9ff",
+                color: "#004085",
+                fontSize: "0.875rem",
+              }}
+            >
+              <strong>Lưu ý:</strong> Tính năng sao lưu cloud cần được cấu hình bởi quản trị viên hệ thống. 
+              Nếu gặp lỗi khi sao lưu, vui lòng liên hệ hỗ trợ.
+            </div>
+            <div className="settings-form__actions">
+              <button
+                className="settings-btn settings-btn--primary"
+                onClick={handleTriggerBackup}
+                disabled={backupLoading}
+              >
+                {backupLoading ? "Đang sao lưu..." : "Sao lưu ngay"}
+              </button>
+              <button
+                className={`settings-btn ${autoSyncEnabled ? "settings-btn--primary" : ""}`}
+                onClick={handleToggleAutoSync}
+              >
+                {autoSyncEnabled ? "Tắt đồng bộ tự động" : "Bật đồng bộ tự động"}
+              </button>
+            </div>
 
-                Sao lưu ngay
-</button>
-<button className="settings-btn">
+            {/* Lịch sử backup */}
+            {backupHistory.length > 0 && (
+              <div className="settings-backup-history" style={{ marginTop: "2rem" }}>
+                <h5 style={{ marginBottom: "1rem" }}>Lịch sử sao lưu</h5>
+                <div className="settings-backup-list">
+                  {backupHistory.map((backup) => (
+                    <div
+                      key={backup.backupId || backup.id}
+                      className="settings-backup-item"
+                      style={{
+                        padding: "0.75rem",
+                        border: "1px solid #e0e0e0",
+                        borderRadius: "8px",
+                        marginBottom: "0.5rem",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: "500" }}>
+                          {backup.status === "SUCCESS"
+                            ? "✅ Sao lưu thành công"
+                            : backup.status === "PENDING"
+                            ? "⏳ Đang xử lý"
+                            : "❌ Sao lưu thất bại"}
+                        </div>
+                        <small style={{ color: "#666" }}>
+                          {backup.createdAt
+                            ? formatDateTime(backup.createdAt)
+                            : "Không rõ thời gian"}
+                        </small>
+                      </div>
+                      <div>
+                        {backup.fileSize && (
+                          <span style={{ fontSize: "0.875rem", color: "#666" }}>
+                            {(backup.fileSize / 1024).toFixed(2)} KB
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                Bật đồng bộ tự động
-</button>
-</div>
-</div>
+            {backupHistoryLoading && (
+              <div style={{ textAlign: "center", padding: "1rem", color: "#666" }}>
+                Đang tải lịch sử sao lưu...
+              </div>
+            )}
 
+            {!backupHistoryLoading && backupHistory.length === 0 && (
+              <div style={{ textAlign: "center", padding: "1rem", color: "#666" }}>
+                Chưa có lịch sử sao lưu
+              </div>
+            )}
+          </div>
         );
 
       default:
@@ -734,12 +915,12 @@ export default function SettingsPage() {
   ];
 
   return (
-<div className="settings-page">
-<h1 className="settings-title">Cài đặt</h1>
-<p className="settings-subtitle">
-
-        Quản lý bảo mật và cài đặt hệ thống cho tài khoản của bạn.
-</p>
+    <>
+      <div className="settings-page">
+        <h1 className="settings-title">Cài đặt</h1>
+        <p className="settings-subtitle">
+          Quản lý bảo mật và cài đặt hệ thống cho tài khoản của bạn.
+        </p>
 
       {/* ===== PROFILE HEADER NẰM NGOÀI BẢO MẬT ===== */}
 <div className="settings-profile-header">
@@ -821,10 +1002,16 @@ export default function SettingsPage() {
 </div>
 
           ))}
-</div>
-</div>
-</div>
-
+        </div>
+      </div>
+      </div>
+      <Toast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, open: false })}
+      />
+    </>
   );
 
 }

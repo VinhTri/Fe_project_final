@@ -6,7 +6,7 @@ import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { calcEstimateDate } from "./fundUtils";
 
-export default function GroupTermForm({ wallets = [], onSubmit, onCancel }) {
+export default function GroupTermForm({ wallets = [], onSubmit, onCancel, onError }) {
   // ... (GIỮ nguyên đúng y code GroupTermForm mình gửi ở tin trước)
 
 
@@ -151,31 +151,31 @@ export default function GroupTermForm({ wallets = [], onSubmit, onCancel }) {
 
   const handleSave = async () => {
     if (!selectedWallet) {
-      alert("Vui lòng chọn ví đích trước khi lưu quỹ nhóm.");
+      onError?.("Vui lòng chọn ví đích trước khi lưu quỹ nhóm.");
       return;
     }
     if (!fundName.trim()) {
-      alert("Vui lòng nhập tên quỹ nhóm.");
+      onError?.("Vui lòng nhập tên quỹ nhóm.");
       return;
     }
     if (!targetAmount) {
-      alert("Vui lòng nhập số tiền mục tiêu quỹ.");
+      onError?.("Vui lòng nhập số tiền mục tiêu quỹ.");
       return;
     }
     if (targetError) {
-      alert("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.");
+      onError?.("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.");
       return;
     }
     if (!startDate) {
-      alert("Vui lòng chọn ngày bắt đầu.");
+      onError?.("Vui lòng chọn ngày bắt đầu.");
       return;
     }
     if (!endDate) {
-      alert("Vui lòng chọn ngày kết thúc.");
+      onError?.("Vui lòng chọn ngày kết thúc.");
       return;
     }
     if (members.length === 0) {
-      alert("Quỹ nhóm phải có ít nhất 1 thành viên ngoài chủ quỹ.");
+      onError?.("Quỹ nhóm phải có ít nhất 1 thành viên ngoài chủ quỹ.");
       return;
     }
 
@@ -201,8 +201,10 @@ export default function GroupTermForm({ wallets = [], onSubmit, onCancel }) {
         reminderEnabled: true,
         reminderType,
         reminderTime: reminderData.time ? `${reminderData.time}:00` : "20:00:00",
-        reminderDayOfWeek: reminderData.dayOfWeek,
-        reminderDayOfMonth: reminderData.dayOfMonth,
+        reminderDayOfWeek: reminderData.dayOfWeek, // Cho WEEKLY
+        reminderDayOfMonth: reminderData.dayOfMonth, // Cho MONTHLY
+        reminderMonth: reminderData.month, // Cho YEARLY (nếu có trong tương lai)
+        reminderDay: reminderData.day, // Cho YEARLY (nếu có trong tương lai)
       };
     }
 
@@ -242,7 +244,7 @@ export default function GroupTermForm({ wallets = [], onSubmit, onCancel }) {
       }));
 
     if (apiMembers.length === 0) {
-      alert("Vui lòng thêm ít nhất 1 thành viên với email hợp lệ.");
+      onError?.("Vui lòng thêm ít nhất 1 thành viên với email hợp lệ.");
       return;
     }
 

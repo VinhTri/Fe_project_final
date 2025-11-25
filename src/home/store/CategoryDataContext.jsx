@@ -135,6 +135,11 @@ export function CategoryDataProvider({ children }) {
         const incomeList = [];
 
         categories.forEach((category) => {
+          // Filter out soft-deleted categories
+          if (category.deletedAt || category.isDeleted || category.status === "DELETED") {
+            return;
+          }
+
           const typeName = category.transactionType?.typeName || "";
           // Jackson có thể serialize isSystem() thành "system" thay vì "isSystem"
           const isSystemValue =
@@ -283,6 +288,11 @@ export function CategoryDataProvider({ children }) {
         const incomeList = [];
 
         response.forEach((category) => {
+          // Filter out soft-deleted categories
+          if (category.deletedAt || category.isDeleted || category.status === "DELETED") {
+            return;
+          }
+
           const typeName = category.transactionType?.typeName || "";
           // Jackson có thể serialize isSystem() thành "system" thay vì "isSystem"
           const isSystemValue =

@@ -13,7 +13,7 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
   };
 
   const statusLabel = {
-    healthy: "Đang ổn",
+    healthy: "Đang hoạt động",
     warning: "Sắp đạt ngưỡng",
     over: "Đã vượt hạn mức",
   };
@@ -67,8 +67,36 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
         <div className="budget-detail-body">
           <div className="budget-detail-chart">
             <div className="budget-detail-chart-ring">
-              <span>{Math.min(percent, 999)}%</span>
-              <small>Đã dùng</small>
+              <svg className="budget-detail-chart-svg" viewBox="0 0 100 100">
+                {/* Background circle */}
+                <circle
+                  className="budget-detail-chart-bg"
+                  cx="50"
+                  cy="50"
+                  r="44"
+                  fill="none"
+                  stroke="rgba(13, 110, 253, 0.15)"
+                  strokeWidth="8"
+                />
+                {/* Progress circle */}
+                <circle
+                  className="budget-detail-chart-progress"
+                  cx="50"
+                  cy="50"
+                  r="44"
+                  fill="none"
+                  stroke="#0d6efd"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 44}`}
+                  strokeDashoffset={`${2 * Math.PI * 44 * (1 - Math.min(percent, 100) / 100)}`}
+                  transform="rotate(-90 50 50)"
+                />
+              </svg>
+              <div className="budget-detail-chart-content">
+                <span>{Math.min(percent, 999)}%</span>
+                <small>Đã dùng</small>
+              </div>
             </div>
           </div>
           <div className="budget-detail-info">

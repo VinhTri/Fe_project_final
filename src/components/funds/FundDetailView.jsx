@@ -1,5 +1,7 @@
 // src/components/funds/FundDetailView.jsx
 import React, { useEffect, useState } from "react";
+import ConfirmModal from "../common/Modal/ConfirmModal";
+import Modal from "../common/Modal/Modal";
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -10,7 +12,7 @@ const buildFormState = (fund) => ({
   description: fund.description || "",
 });
 
-export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFund, onDepositFund, onWithdrawFund }) {
+export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFund, onDepositFund, onWithdrawFund, onCloseFund, onError }) {
   const isGroup = fund.type === "group";
 
   const [isEditing, setIsEditing] = useState(false);
@@ -18,6 +20,9 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
   const [members, setMembers] = useState(() =>
     Array.isArray(fund.members) ? [...fund.members] : []
   );
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [inputModal, setInputModal] = useState({ open: false, type: null, value: "" });
 
   // Khi chọn quỹ khác thì reset form + tắt chế độ sửa
   useEffect(() => {
@@ -75,9 +80,18 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
       reminderEnabled: fund.reminderEnabled || false,
       reminderType: fund.reminderType || "MONTHLY",
       reminderTime: fund.reminderTime || "20:00:00",
-      reminderDayOfMonth: fund.reminderDayOfMonth,
+      reminderDayOfWeek: fund.reminderDayOfWeek, // Cho WEEKLY
+      reminderDayOfMonth: fund.reminderDayOfMonth, // Cho MONTHLY
+      reminderMonth: fund.reminderMonth, // Cho YEARLY
+      reminderDay: fund.reminderDay, // Cho YEARLY
       autoDepositEnabled: fund.autoDepositEnabled || false,
       autoDepositType: fund.autoDepositType || "FOLLOW_REMINDER",
+      sourceWalletId: fund.sourceWalletId, // Cho auto deposit
+      autoDepositScheduleType: fund.autoDepositScheduleType, // Cho CUSTOM_SCHEDULE
+      autoDepositTime: fund.autoDepositTime, // Cho CUSTOM_SCHEDULE
+      autoDepositDayOfWeek: fund.autoDepositDayOfWeek, // Cho WEEKLY auto deposit
+      autoDepositDayOfMonth: fund.autoDepositDayOfMonth, // Cho MONTHLY auto deposit
+      autoDepositAmount: fund.autoDepositAmount, // Cho CUSTOM_SCHEDULE
     };
 
     // If group fund, include members
@@ -100,9 +114,11 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
 
   const handleDelete = async () => {
     if (!onDeleteFund) return;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa quỹ "${fund.name}"?`)) {
-      return;
-    }
+    setConfirmDelete(true);
+  };
+
+  const confirmDeleteAction = async () => {
+    setConfirmDelete(false);
     try {
       await onDeleteFund(fund.fundId || fund.id);
     } catch (err) {
@@ -110,32 +126,50 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
     }
   };
 
-  const handleDeposit = async () => {
-    const amount = prompt("Nhập số tiền muốn nạp vào quỹ:");
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      return;
-    }
-    if (onDepositFund) {
-      try {
-        await onDepositFund(fund.fundId || fund.id, Number(amount));
-      } catch (err) {
-        console.error("Error depositing to fund:", err);
-      }
+  const handleClose = async () => {
+    if (!onCloseFund) return;
+    setConfirmClose(true);
+  };
+
+  const confirmCloseAction = async () => {
+    setConfirmClose(false);
+    try {
+      await onCloseFund(fund.fundId || fund.id);
+    } catch (err) {
+      console.error("Error closing fund:", err);
     }
   };
 
-  const handleWithdraw = async () => {
+  const handleDeposit = () => {
+    setInputModal({ open: true, type: "deposit", value: "" });
+  };
+
+  const handleWithdraw = () => {
     if (fund.hasTerm) {
-      alert("Quỹ có thời hạn không thể rút tiền.");
+      onError?.("Quỹ có thời hạn không thể rút tiền.");
       return;
     }
-    const amount = prompt("Nhập số tiền muốn rút từ quỹ:");
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+    setInputModal({ open: true, type: "withdraw", value: "" });
+  };
+
+  const handleInputSubmit = async () => {
+    const amount = Number(inputModal.value);
+    if (!inputModal.value || isNaN(amount) || amount <= 0) {
+      onError?.("Vui lòng nhập số tiền hợp lệ.");
       return;
     }
-    if (onWithdrawFund) {
+    
+    setInputModal({ open: false, type: null, value: "" });
+    
+    if (inputModal.type === "deposit" && onDepositFund) {
       try {
-        await onWithdrawFund(fund.fundId || fund.id, Number(amount));
+        await onDepositFund(fund.fundId || fund.id, amount);
+      } catch (err) {
+        console.error("Error depositing to fund:", err);
+      }
+    } else if (inputModal.type === "withdraw" && onWithdrawFund) {
+      try {
+        await onWithdrawFund(fund.fundId || fund.id, amount);
       } catch (err) {
         console.error("Error withdrawing from fund:", err);
       }
@@ -252,22 +286,42 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
                   <i className="bi bi-pencil-square me-1" />
                   Sửa quỹ này
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-success"
-                  onClick={handleDeposit}
-                >
-                  <i className="bi bi-plus-circle me-1" />
-                  Nạp tiền
-                </button>
-                {!fund.hasTerm && (
+                {fund.status !== "CLOSED" && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-success"
+                      onClick={handleDeposit}
+                    >
+                      <i className="bi bi-plus-circle me-1" />
+                      Nạp tiền
+                    </button>
+                    {!fund.hasTerm && (
+                      <button
+                        type="button"
+                        className="btn btn-warning"
+                        onClick={handleWithdraw}
+                      >
+                        <i className="bi bi-dash-circle me-1" />
+                        Rút tiền
+                      </button>
+                    )}
+                  </>
+                )}
+                {fund.status === "CLOSED" && (
+                  <div className="alert alert-warning mb-0">
+                    <i className="bi bi-lock me-2" />
+                    Quỹ đã được đóng. Không thể nạp tiền hoặc rút tiền.
+                  </div>
+                )}
+                {fund.status !== "CLOSED" && (
                   <button
                     type="button"
                     className="btn btn-warning"
-                    onClick={handleWithdraw}
+                    onClick={handleClose}
                   >
-                    <i className="bi bi-dash-circle me-1" />
-                    Rút tiền
+                    <i className="bi bi-lock me-1" />
+                    Đóng quỹ
                   </button>
                 )}
                 <button
@@ -314,18 +368,16 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
                   disabled
                   value={isGroup ? "Quỹ nhóm" : "Quỹ cá nhân"}
                 />
+                <div className="funds-hint">Không thể thay đổi</div>
               </div>
               <div>
                 <label>Thời hạn</label>
-                <select
-                  value={form.hasTerm ? "yes" : "no"}
-                  onChange={(e) =>
-                    handleChange("hasTerm", e.target.value === "yes")
-                  }
-                >
-                  <option value="yes">Có thời hạn</option>
-                  <option value="no">Không thời hạn</option>
-                </select>
+                <input
+                  type="text"
+                  disabled
+                  value={form.hasTerm ? "Có thời hạn" : "Không thời hạn"}
+                />
+                <div className="funds-hint">Không thể thay đổi</div>
               </div>
             </div>
 
@@ -333,20 +385,20 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
               <div>
                 <label>Số dư hiện tại</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={form.current}
-                  onChange={(e) => handleChange("current", e.target.value)}
+                  type="text"
+                  disabled
+                  value={`${form.current.toLocaleString("vi-VN")} ${form.currency}`}
                 />
+                <div className="funds-hint">Không thể thay đổi trực tiếp. Dùng nút Nạp tiền / Rút tiền.</div>
               </div>
               <div>
-                <label>Mục tiêu (có thể bỏ trống)</label>
+                <label>Mục tiêu</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={form.target}
-                  onChange={(e) => handleChange("target", e.target.value)}
+                  type="text"
+                  disabled
+                  value={form.target ? `${form.target.toLocaleString("vi-VN")} ${form.currency}` : "Không thiết lập"}
                 />
+                <div className="funds-hint">Không thể thay đổi</div>
               </div>
             </div>
 
@@ -355,9 +407,10 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
                 <label>Tiền tệ</label>
                 <input
                   type="text"
+                  disabled
                   value={form.currency}
-                  onChange={(e) => handleChange("currency", e.target.value)}
                 />
+                <div className="funds-hint">Không thể thay đổi</div>
               </div>
               <div>
                 <label>Ghi chú</label>
@@ -445,6 +498,68 @@ export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFun
           </form>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmDelete}
+        title="Xóa quỹ"
+        message={`Bạn có chắc chắn muốn xóa quỹ "${fund.name}"? Hành động này không thể hoàn tác.`}
+        okText="Xóa"
+        cancelText="Hủy"
+        danger={true}
+        onOk={confirmDeleteAction}
+        onClose={() => setConfirmDelete(false)}
+      />
+
+      <ConfirmModal
+        open={confirmClose}
+        title="Đóng quỹ"
+        message={`Bạn có chắc chắn muốn đóng quỹ "${fund.name}"? Quỹ đóng sẽ không thể nạp tiền hoặc rút tiền.`}
+        okText="Đóng quỹ"
+        cancelText="Hủy"
+        onOk={confirmCloseAction}
+        onClose={() => setConfirmClose(false)}
+      />
+
+      <Modal
+        open={inputModal.open}
+        onClose={() => setInputModal({ open: false, type: null, value: "" })}
+        width={400}
+      >
+        <div style={{ padding: "1.5rem" }}>
+          <h5 className="mb-3">
+            {inputModal.type === "deposit" ? "Nạp tiền vào quỹ" : "Rút tiền từ quỹ"}
+          </h5>
+          <div className="mb-3">
+            <label className="form-label">Số tiền ({fund.currency || "VND"})</label>
+            <input
+              type="number"
+              className="form-control"
+              min="0"
+              step="0.01"
+              value={inputModal.value}
+              onChange={(e) => setInputModal({ ...inputModal, value: e.target.value })}
+              placeholder="Nhập số tiền"
+              autoFocus
+            />
+          </div>
+          <div className="d-flex gap-2 justify-content-end">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setInputModal({ open: false, type: null, value: "" })}
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleInputSubmit}
+            >
+              Xác nhận
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

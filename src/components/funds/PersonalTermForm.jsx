@@ -6,7 +6,7 @@ import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { calcEstimateDate } from "./fundUtils";
 
-export default function PersonalTermForm({ wallets, onSubmit, onCancel }) {
+export default function PersonalTermForm({ wallets, onSubmit, onCancel, onError }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
     () => wallets.find((w) => String(w.walletId || w.id) === String(srcWalletId)) || null,
@@ -130,27 +130,27 @@ export default function PersonalTermForm({ wallets, onSubmit, onCancel }) {
 
   const handleSave = async () => {
     if (!selectedWallet) {
-      alert("Vui lòng chọn ví đích trước khi lưu quỹ.");
+      onError?.("Vui lòng chọn ví đích trước khi lưu quỹ.");
       return;
     }
     if (!fundName.trim()) {
-      alert("Vui lòng nhập tên quỹ.");
+      onError?.("Vui lòng nhập tên quỹ.");
       return;
     }
     if (!targetAmount) {
-      alert("Vui lòng nhập số tiền mục tiêu quỹ.");
+      onError?.("Vui lòng nhập số tiền mục tiêu quỹ.");
       return;
     }
     if (targetError) {
-      alert("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.");
+      onError?.("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.");
       return;
     }
     if (!startDate) {
-      alert("Vui lòng chọn ngày bắt đầu.");
+      onError?.("Vui lòng chọn ngày bắt đầu.");
       return;
     }
     if (!endDate) {
-      alert("Vui lòng chọn ngày kết thúc.");
+      onError?.("Vui lòng chọn ngày kết thúc.");
       return;
     }
 
@@ -178,8 +178,10 @@ export default function PersonalTermForm({ wallets, onSubmit, onCancel }) {
         reminderEnabled: true,
         reminderType,
         reminderTime: reminderData.time ? `${reminderData.time}:00` : "20:00:00",
-        reminderDayOfWeek: reminderData.dayOfWeek,
-        reminderDayOfMonth: reminderData.dayOfMonth,
+        reminderDayOfWeek: reminderData.dayOfWeek, // Cho WEEKLY
+        reminderDayOfMonth: reminderData.dayOfMonth, // Cho MONTHLY
+        reminderMonth: reminderData.month, // Cho YEARLY (nếu có trong tương lai)
+        reminderDay: reminderData.day, // Cho YEARLY (nếu có trong tương lai)
       };
     }
 

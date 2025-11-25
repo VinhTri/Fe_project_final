@@ -13,8 +13,10 @@ import {
   closeFund,
   depositToFund,
   withdrawFromFund,
+  checkWalletUsed,
 } from "../../services/fund.service";
 import Toast from "../../components/common/Toast/Toast";
+import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import "../../styles/home/FundsPage.css";
 
 import FundSection from "../../components/funds/FundSection";
@@ -41,6 +43,7 @@ export default function FundsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   // Map API fund data to frontend format
   const mapFundToFrontend = useCallback((apiFund) => {
@@ -70,7 +73,21 @@ export default function FundsPage() {
       startDate: apiFund.startDate,
       endDate: apiFund.endDate,
       reminderEnabled: apiFund.reminderEnabled,
+      reminderType: apiFund.reminderType,
+      reminderTime: apiFund.reminderTime,
+      reminderDayOfWeek: apiFund.reminderDayOfWeek,
+      reminderDayOfMonth: apiFund.reminderDayOfMonth,
+      reminderMonth: apiFund.reminderMonth,
+      reminderDay: apiFund.reminderDay,
       autoDepositEnabled: apiFund.autoDepositEnabled,
+      autoDepositType: apiFund.autoDepositType,
+      sourceWalletId: apiFund.sourceWalletId,
+      sourceWalletName: apiFund.sourceWalletName,
+      autoDepositScheduleType: apiFund.autoDepositScheduleType,
+      autoDepositTime: apiFund.autoDepositTime,
+      autoDepositDayOfWeek: apiFund.autoDepositDayOfWeek,
+      autoDepositDayOfMonth: apiFund.autoDepositDayOfMonth,
+      autoDepositAmount: apiFund.autoDepositAmount,
       createdAt: apiFund.createdAt,
       updatedAt: apiFund.updatedAt,
     };
@@ -92,21 +109,30 @@ export default function FundsPage() {
 
       const allFunds = [];
       
-      // Process personal funds (owner)
+      // Process personal funds (owner) - filter out soft-deleted
       if (personalFundsRes.response?.ok && personalFundsRes.data?.funds) {
-        const personalFunds = personalFundsRes.data.funds.map(mapFundToFrontend);
+        const activePersonalFunds = personalFundsRes.data.funds.filter(
+          (fund) => !fund.deletedAt && !fund.isDeleted && fund.status !== "DELETED"
+        );
+        const personalFunds = activePersonalFunds.map(mapFundToFrontend);
         allFunds.push(...personalFunds);
       }
 
-      // Process group funds (owner)
+      // Process group funds (owner) - filter out soft-deleted
       if (groupFundsRes.response?.ok && groupFundsRes.data?.funds) {
-        const groupFunds = groupFundsRes.data.funds.map(mapFundToFrontend);
+        const activeGroupFunds = groupFundsRes.data.funds.filter(
+          (fund) => !fund.deletedAt && !fund.isDeleted && fund.status !== "DELETED"
+        );
+        const groupFunds = activeGroupFunds.map(mapFundToFrontend);
         allFunds.push(...groupFunds);
       }
 
-      // Process participated funds (view/manage role)
+      // Process participated funds (view/manage role) - filter out soft-deleted
       if (participatedFundsRes.response?.ok && participatedFundsRes.data?.funds) {
-        const participatedFunds = participatedFundsRes.data.funds.map((apiFund) => {
+        const activeParticipatedFunds = participatedFundsRes.data.funds.filter(
+          (fund) => !fund.deletedAt && !fund.isDeleted && fund.status !== "DELETED"
+        );
+        const participatedFunds = activeParticipatedFunds.map((apiFund) => {
           const fund = mapFundToFrontend(apiFund);
           // Determine role from API (need to check API response structure)
           fund.role = "view"; // Default, should be determined from API
@@ -170,25 +196,72 @@ export default function FundsPage() {
   const [personalTab, setPersonalTab] = useState("term");
   const [groupTab, setGroupTab] = useState("term");
   const [activeFund, setActiveFund] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const handleSelectFund = (fund) => {
-    setActiveFund(fund);
-    setViewMode("detail");
+  const handleSelectFund = async (fund) => {
+    // Load chi tiết quỹ từ API để đảm bảo dữ liệu mới nhất
+    setLoadingDetail(true);
+    try {
+      const { response, data } = await getFundDetails(fund.id || fund.fundId);
+      if (response?.ok && data?.fund) {
+        const mappedFund = mapFundToFrontend(data.fund);
+        setActiveFund(mappedFund);
+        setViewMode("detail");
+      } else {
+        // Nếu không load được chi tiết, dùng dữ liệu hiện có
+        setActiveFund(fund);
+        setViewMode("detail");
+      }
+    } catch (err) {
+      console.error("Error loading fund details:", err);
+      // Nếu có lỗi, vẫn hiển thị với dữ liệu hiện có
+      setActiveFund(fund);
+      setViewMode("detail");
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const handleUpdateFund = async (updatedFund) => {
     try {
-      const { response, data } = await updateFund(updatedFund.fundId || updatedFund.id, {
+      // Chuẩn bị đầy đủ các field theo API documentation
+      const updatePayload = {
         fundName: updatedFund.name || updatedFund.fundName,
-        frequency: updatedFund.frequency,
-        amountPerPeriod: updatedFund.amountPerPeriod,
+        frequency: updatedFund.frequency || "MONTHLY",
+        amountPerPeriod: updatedFund.amountPerPeriod || 0,
         startDate: updatedFund.startDate,
-        endDate: updatedFund.endDate,
-        note: updatedFund.description || updatedFund.note,
-        reminderEnabled: updatedFund.reminderEnabled,
-        autoDepositEnabled: updatedFund.autoDepositEnabled,
-        // Add other fields as needed
-      });
+        endDate: updatedFund.endDate || undefined,
+        note: updatedFund.description || updatedFund.note || null,
+        // Reminder fields
+        reminderEnabled: updatedFund.reminderEnabled || false,
+        reminderType: updatedFund.reminderType || "MONTHLY",
+        reminderTime: updatedFund.reminderTime || "20:00:00",
+        reminderDayOfWeek: updatedFund.reminderDayOfWeek,
+        reminderDayOfMonth: updatedFund.reminderDayOfMonth,
+        reminderMonth: updatedFund.reminderMonth,
+        reminderDay: updatedFund.reminderDay,
+        // Auto deposit fields
+        autoDepositEnabled: updatedFund.autoDepositEnabled || false,
+        autoDepositType: updatedFund.autoDepositType || "FOLLOW_REMINDER",
+        sourceWalletId: updatedFund.sourceWalletId,
+        autoDepositScheduleType: updatedFund.autoDepositScheduleType,
+        autoDepositTime: updatedFund.autoDepositTime,
+        autoDepositDayOfWeek: updatedFund.autoDepositDayOfWeek,
+        autoDepositDayOfMonth: updatedFund.autoDepositDayOfMonth,
+        autoDepositAmount: updatedFund.autoDepositAmount,
+      };
+
+      // Nếu là quỹ nhóm, thêm members
+      if (updatedFund.type === "group" && updatedFund.members) {
+        updatePayload.members = updatedFund.members
+          .filter((m) => m.email && m.email.trim())
+          .map((m) => ({
+            email: m.email.trim(),
+            role: m.role === "owner" ? "OWNER" : m.role === "use" || m.role === "manage" ? "CONTRIBUTOR" : "CONTRIBUTOR",
+          }));
+      }
+
+      const { response, data } = await updateFund(updatedFund.fundId || updatedFund.id, updatePayload);
 
       if (response?.ok && data?.fund) {
         const mappedFund = mapFundToFrontend(data.fund);
@@ -196,7 +269,7 @@ export default function FundsPage() {
           prev.map((f) => (f.id === mappedFund.id ? mappedFund : f))
         );
         setActiveFund(mappedFund);
-        setToast({ open: true, message: "Cập nhật quỹ thành công", type: "success" });
+        setToast({ open: true, message: data.message || "Cập nhật quỹ thành công", type: "success" });
       } else {
         setToast({ open: true, message: data?.error || "Cập nhật quỹ thất bại", type: "error" });
       }
@@ -208,6 +281,43 @@ export default function FundsPage() {
 
   const handleCreateFund = async (fundData) => {
     try {
+      // Kiểm tra ví đích có đang được sử dụng không (theo API documentation)
+      if (fundData.targetWalletId) {
+        const checkTargetResponse = await checkWalletUsed(fundData.targetWalletId);
+        if (checkTargetResponse.response?.ok && checkTargetResponse.data?.isUsed === true) {
+          setToast({
+            open: true,
+            message: "Ví đích đang được sử dụng cho quỹ hoặc ngân sách khác. Vui lòng chọn ví khác.",
+            type: "error",
+          });
+          return;
+        }
+      }
+
+      // Kiểm tra ví nguồn có đang được sử dụng không (theo API documentation - validation rule mới)
+      if (fundData.autoDepositEnabled && fundData.sourceWalletId) {
+        // Kiểm tra ví nguồn không được trùng với ví đích
+        if (fundData.sourceWalletId === fundData.targetWalletId) {
+          setToast({
+            open: true,
+            message: "Ví nguồn không được trùng với ví quỹ. Vui lòng chọn ví khác.",
+            type: "error",
+          });
+          return;
+        }
+
+        // Kiểm tra ví nguồn có đang được sử dụng không
+        const checkSourceResponse = await checkWalletUsed(fundData.sourceWalletId);
+        if (checkSourceResponse.response?.ok && checkSourceResponse.data?.isUsed === true) {
+          setToast({
+            open: true,
+            message: "Ví nguồn đang được sử dụng cho quỹ hoặc ngân sách khác. Vui lòng chọn ví khác.",
+            type: "error",
+          });
+          return;
+        }
+      }
+
       const { response, data } = await createFund(fundData);
       if (response?.ok && data?.fund) {
         setToast({ open: true, message: data.message || "Tạo quỹ thành công", type: "success" });
@@ -225,9 +335,14 @@ export default function FundsPage() {
   };
 
   const handleDeleteFund = async (fundId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa quỹ này?")) {
-      return;
-    }
+    setConfirmDelete(fundId);
+  };
+
+  const confirmDeleteFund = async () => {
+    const fundId = confirmDelete;
+    setConfirmDelete(null);
+    if (!fundId) return;
+    
     try {
       const { response, data } = await deleteFund(fundId);
       if (response?.ok) {
@@ -281,6 +396,32 @@ export default function FundsPage() {
     } catch (err) {
       console.error("Error withdrawing from fund:", err);
       setToast({ open: true, message: "Lỗi kết nối khi rút tiền", type: "error" });
+    }
+  };
+
+  const handleCloseFund = async (fundId) => {
+    try {
+      const { response, data } = await closeFund(fundId);
+      if (response?.ok) {
+        setToast({ open: true, message: data.message || "Đóng quỹ thành công", type: "success" });
+        await loadFunds();
+        if (activeFund?.id === fundId) {
+          // Reload fund details
+          const { response: detailResponse, data: detailData } = await getFundDetails(fundId);
+          if (detailResponse?.ok && detailData?.fund) {
+            const updatedFund = mapFundToFrontend(detailData.fund);
+            setActiveFund(updatedFund);
+          } else {
+            setViewMode("overview");
+            setActiveFund(null);
+          }
+        }
+      } else {
+        setToast({ open: true, message: data?.error || "Đóng quỹ thất bại", type: "error" });
+      }
+    } catch (err) {
+      console.error("Error closing fund:", err);
+      setToast({ open: true, message: "Lỗi kết nối khi đóng quỹ", type: "error" });
     }
   };
 
@@ -446,6 +587,8 @@ export default function FundsPage() {
             onDeleteFund={handleDeleteFund}
             onDepositFund={handleDepositFund}
             onWithdrawFund={handleWithdrawFund}
+            onCloseFund={handleCloseFund}
+            onError={(message) => setToast({ open: true, message, type: "error" })}
           />
         </div>
       )}
@@ -483,6 +626,7 @@ export default function FundsPage() {
                 setViewMode("overview");
                 setPersonalTab("term");
               }}
+              onError={(message) => setToast({ open: true, message, type: "error" })}
             />
           ) : (
             <PersonalNoTermForm
@@ -492,6 +636,7 @@ export default function FundsPage() {
                 setViewMode("overview");
                 setPersonalTab("term");
               }}
+              onError={(message) => setToast({ open: true, message, type: "error" })}
             />
           )}
         </div>
@@ -529,6 +674,7 @@ export default function FundsPage() {
                 setViewMode("overview");
                 setGroupTab("term");
               }}
+              onError={(message) => setToast({ open: true, message, type: "error" })}
             />
           ) : (
             <GroupNoTermForm
@@ -538,6 +684,7 @@ export default function FundsPage() {
                 setViewMode("overview");
                 setGroupTab("term");
               }}
+              onError={(message) => setToast({ open: true, message, type: "error" })}
             />
           )}
         </div>
@@ -548,6 +695,7 @@ export default function FundsPage() {
           <ParticipateManager
             viewFunds={participateViewFunds}
             useFunds={participateUseFunds}
+            onError={(message) => setToast({ open: true, message, type: "error" })}
           />
         </div>
       )}
@@ -558,6 +706,16 @@ export default function FundsPage() {
         type={toast.type}
         duration={3000}
         onClose={() => setToast({ open: false, message: "", type: "success" })}
+      />
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Xóa quỹ"
+        message="Bạn có chắc chắn muốn xóa quỹ này?"
+        okText="Xóa"
+        cancelText="Hủy"
+        onOk={confirmDeleteFund}
+        onClose={() => setConfirmDelete(null)}
       />
     </div>
   );

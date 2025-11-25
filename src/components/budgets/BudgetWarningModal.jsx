@@ -11,20 +11,31 @@ export default function BudgetWarningModal({
   isExceeding,
   onConfirm,
   onCancel,
+  // Additional props from API
+  remainingBeforeTransaction,
+  remainingAfterTransaction,
+  usagePercentageAfterTransaction,
+  exceededAmount,
+  message,
 }) {
-  const remaining = budgetLimit - spent;
-  const remainingAfterTx = budgetLimit - totalAfterTx;
-  const amountOver = transactionAmount - remaining;
-  const percentAfterTx = totalAfterTx && budgetLimit ? (totalAfterTx / budgetLimit) * 100 : 0;
+  // Use API data if available, otherwise calculate from props
+  const remaining = remainingBeforeTransaction !== undefined ? remainingBeforeTransaction : (budgetLimit - spent);
+  const remainingAfterTx = remainingAfterTransaction !== undefined ? remainingAfterTransaction : (budgetLimit - totalAfterTx);
+  const amountOver = exceededAmount !== undefined ? exceededAmount : (transactionAmount - remaining);
+  const percentAfterTx = usagePercentageAfterTransaction !== undefined ? usagePercentageAfterTransaction : (totalAfterTx && budgetLimit ? (totalAfterTx / budgetLimit) * 100 : 0);
 
   // Determine title and message based on whether exceeding or approaching
   const isAlert = !isExceeding; // approaching but not exceeding
   const title = isAlert 
     ? "⚠️ Nhắc nhở Sắp Quá Hạn mức"
     : "⛔ Cảnh báo Vượt Hạn mức";
-  const message = isAlert
-    ? `Giao dịch này sẽ làm chi tiêu đạt ${Math.round(percentAfterTx)}% hạn mức. Vẫn còn 10% nữa là đầy hạn mức!`
-    : `Giao dịch này sẽ vượt quá hạn mức chi tiêu đã đặt cho danh mục.`;
+  
+  // Use message from API if available, otherwise generate from calculated values
+  const displayMessage = message || (
+    isAlert
+      ? `Giao dịch này sẽ làm chi tiêu đạt ${Math.round(percentAfterTx)}% hạn mức. Vẫn còn 10% nữa là đầy hạn mức!`
+      : `Giao dịch này sẽ vượt quá hạn mức chi tiêu đã đặt cho danh mục.`
+  );
 
   return (
     <Modal open={open} onClose={onCancel} width={500}>
@@ -39,7 +50,7 @@ export default function BudgetWarningModal({
             {title}
           </h4>
           <p style={{ color: "#6c757d", fontSize: "0.95rem", margin: 0 }}>
-            {message}
+            {displayMessage}
           </p>
         </div>
 

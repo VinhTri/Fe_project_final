@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "../common/Modal/Modal";
+import { previewScheduledTransaction } from "../../services/scheduled-transaction.service";
 
 const SCHEDULE_TYPES = [
   { value: "ONE_TIME", label: "Một lần", tooltip: "Chỉ thực hiện một lần vào ngày đã chọn" },
@@ -18,6 +19,10 @@ const DEFAULT_FORM = {
   scheduleType: "MONTHLY",
   firstRun: "",
   endDate: "",
+  dayOfWeek: "",
+  dayOfMonth: "",
+  month: "",
+  day: "",
 };
 
 export default function ScheduledTransactionModal({
@@ -30,6 +35,8 @@ export default function ScheduledTransactionModal({
 }) {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [errors, setErrors] = useState({});
+  const [previewData, setPreviewData] = useState({ message: "Chưa chọn thời điểm chạy.", hasPreview: false });
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -47,50 +54,163 @@ export default function ScheduledTransactionModal({
     [form.transactionType, expenseCategories, incomeCategories]
   );
 
+  // Map scheduleType từ frontend sang backend
+  const mapScheduleTypeToBackend = (type) => {
+    const mapping = {
+      ONE_TIME: "ONCE",
+      DAILY: "DAILY",
+      WEEKLY: "WEEKLY",
+      MONTHLY: "MONTHLY",
+      YEARLY: "YEARLY",
+    };
+    return mapping[type] || type;
+  };
+
+  // Parse firstRun để lấy startDate và executionTime
+  // firstRun format: "YYYY-MM-DDTHH:mm" (from datetime-local input)
+  const parseFirstRun = (firstRun) => {
+    if (!firstRun) return { startDate: null, executionTime: null };
+    try {
+      // Parse directly from datetime-local format (YYYY-MM-DDTHH:mm)
+      // This avoids timezone issues
+      const [datePart, timePart] = firstRun.split("T");
+      if (!datePart) return { startDate: null, executionTime: null };
+      
+      // Validate date format
+      const dateMatch = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!dateMatch) return { startDate: null, executionTime: null };
+      
+      const startDate = datePart; // Already in YYYY-MM-DD format
+      
+      // Parse time part (HH:mm or HH:mm:ss)
+      let executionTime = "00:00:00";
+      if (timePart) {
+        const timeMatch = timePart.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+        if (timeMatch) {
+          const hours = timeMatch[1];
+          const minutes = timeMatch[2];
+          const seconds = timeMatch[3] || "00";
+          executionTime = `${hours}:${minutes}:${seconds}`;
+        }
+      }
+      
+      return { startDate, executionTime };
+    } catch (error) {
+      console.error("Error parsing firstRun:", error);
+      return { startDate: null, executionTime: null };
+    }
+  };
+
+  // Gọi preview API khi các field liên quan thay đổi
+  useEffect(() => {
+    const fetchPreview = async () => {
+      // Kiểm tra các field bắt buộc
+      if (!form.walletId || !form.categoryId || !form.amount || !form.firstRun) {
+        setPreviewData({ message: "Chưa chọn thời điểm chạy.", hasPreview: false });
+        return;
+      }
+
+      // Kiểm tra các field bắt buộc theo scheduleType
+      if (form.scheduleType === "WEEKLY" && !form.dayOfWeek) {
+        setPreviewData({ message: "Vui lòng chọn thứ trong tuần.", hasPreview: false });
+        return;
+      }
+      if (form.scheduleType === "MONTHLY" && !form.dayOfMonth) {
+        setPreviewData({ message: "Vui lòng chọn ngày trong tháng.", hasPreview: false });
+        return;
+      }
+      if (form.scheduleType === "YEARLY" && (!form.month || !form.day)) {
+        setPreviewData({ message: "Vui lòng chọn tháng và ngày.", hasPreview: false });
+        return;
+      }
+
+      const { startDate, executionTime } = parseFirstRun(form.firstRun);
+      if (!startDate || !executionTime) {
+        setPreviewData({ message: "Chưa chọn thời điểm chạy.", hasPreview: false });
+        return;
+      }
+
+      setPreviewLoading(true);
+      try {
+        const previewPayload = {
+          walletId: Number(form.walletId),
+          transactionTypeId: form.transactionType === "expense" ? 1 : 2,
+          categoryId: Number(form.categoryId),
+          amount: Number(form.amount),
+          note: form.note || "",
+          scheduleType: mapScheduleTypeToBackend(form.scheduleType),
+          startDate,
+          executionTime,
+          endDate: form.scheduleType === "ONE_TIME" ? null : form.endDate || null,
+        };
+
+        // Thêm các field tùy chọn theo scheduleType
+        if (form.scheduleType === "WEEKLY" && form.dayOfWeek) {
+          previewPayload.dayOfWeek = Number(form.dayOfWeek);
+        }
+        if (form.scheduleType === "MONTHLY" && form.dayOfMonth) {
+          previewPayload.dayOfMonth = Number(form.dayOfMonth);
+        }
+        if (form.scheduleType === "YEARLY") {
+          if (form.month) previewPayload.month = Number(form.month);
+          if (form.day) previewPayload.day = Number(form.day);
+        }
+
+        const response = await previewScheduledTransaction(previewPayload);
+        if (response.response.ok && response.data) {
+          // Check if there's an error message from backend
+          if (response.data.error) {
+            setPreviewData({
+              hasPreview: false,
+              message: response.data.error,
+            });
+          } else {
+            setPreviewData({
+              hasPreview: response.data.hasPreview || false,
+              message: response.data.message || "Chưa chọn thời điểm chạy.",
+              nextExecutionDate: response.data.nextExecutionDate,
+              executionTime: response.data.executionTime,
+            });
+          }
+        } else {
+          // Backend returned an error
+          const errorMessage = response.data?.error || response.data?.message || "Không thể tính toán ngày thực hiện.";
+          setPreviewData({
+            hasPreview: false,
+            message: errorMessage,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching preview:", error);
+        setPreviewData({
+          hasPreview: false,
+          message: "Không thể tính toán ngày thực hiện.",
+        });
+      } finally {
+        setPreviewLoading(false);
+      }
+    };
+
+    // Debounce để tránh gọi API quá nhiều
+    const timeoutId = setTimeout(fetchPreview, 500);
+    return () => clearTimeout(timeoutId);
+  }, [
+    form.walletId,
+    form.categoryId,
+    form.amount,
+    form.scheduleType,
+    form.firstRun,
+    form.endDate,
+    form.dayOfWeek,
+    form.dayOfMonth,
+    form.month,
+    form.day,
+  ]);
+
   const previewText = useMemo(() => {
-    if (!form.firstRun) return "Chưa chọn thời điểm chạy";
-    const start = new Date(form.firstRun);
-    if (Number.isNaN(start.getTime())) return "Chưa chọn thời điểm chạy";
-
-    const startLabel = start.toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    if (form.scheduleType === "ONE_TIME" || !form.endDate) {
-      return `Sẽ chạy từ ${startLabel}`;
-    }
-
-    const end = new Date(form.endDate);
-    if (Number.isNaN(end.getTime()) || end <= start) {
-      return `Bắt đầu ${startLabel}`;
-    }
-
-    const diffDays = Math.max(1, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
-    let estimate = 1;
-    switch (form.scheduleType) {
-      case "DAILY":
-        estimate = diffDays + 1;
-        break;
-      case "WEEKLY":
-        estimate = Math.floor(diffDays / 7) + 1;
-        break;
-      case "MONTHLY":
-        estimate = Math.max(1, Math.round(diffDays / 30)) + 1;
-        break;
-      case "YEARLY":
-        estimate = Math.max(1, Math.round(diffDays / 365)) + 1;
-        break;
-      default:
-        estimate = 1;
-    }
-
-    const endLabel = end.toLocaleDateString("vi-VN");
-    return `Ước tính chạy ${estimate} lần (từ ${startLabel} → ${endLabel})`;
-  }, [form.firstRun, form.endDate, form.scheduleType]);
+    if (previewLoading) return "Đang tính toán...";
+    return previewData.message || "Chưa chọn thời điểm chạy.";
+  }, [previewData, previewLoading]);
 
   const handleChange = (key) => (event) => {
     const value = event.target.value;
@@ -104,8 +224,43 @@ export default function ScheduledTransactionModal({
     if (!form.walletId) nextErrors.walletId = "Vui lòng chọn ví áp dụng";
     if (!form.categoryId) nextErrors.categoryId = "Vui lòng chọn danh mục";
     if (!form.amount || Number(form.amount) <= 0) nextErrors.amount = "Số tiền phải lớn hơn 0";
-    if (!form.firstRun) nextErrors.firstRun = "Vui lòng chọn thời điểm bắt đầu";
+    if (!form.firstRun) {
+      nextErrors.firstRun = "Vui lòng chọn thời điểm bắt đầu";
+    } else {
+      // Validate firstRun không được là quá khứ (cho ONCE)
+      // Parse từ datetime-local format (YYYY-MM-DDTHH:mm) để tránh timezone issues
+      if (form.scheduleType === "ONE_TIME") {
+        try {
+          const [datePart, timePart] = form.firstRun.split("T");
+          if (datePart && timePart) {
+            const [year, month, day] = datePart.split("-").map(Number);
+            const [hours, minutes] = timePart.split(":").map(Number);
+            const firstRunDate = new Date(year, month - 1, day, hours, minutes);
+            const now = new Date();
+            // So sánh với độ chính xác đến phút
+            const nowMinutes = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+            if (firstRunDate < nowMinutes) {
+              nextErrors.firstRun = "Ngày thực hiện không được là ngày trong quá khứ";
+            }
+          }
+        } catch (error) {
+          console.error("Error validating firstRun:", error);
+        }
+      }
+    }
     if (form.scheduleType !== "ONE_TIME" && !form.endDate) nextErrors.endDate = "Vui lòng chọn ngày kết thúc";
+    
+    // Validation cho các field theo scheduleType
+    if (form.scheduleType === "WEEKLY" && !form.dayOfWeek) {
+      nextErrors.dayOfWeek = "Vui lòng chọn thứ trong tuần";
+    }
+    if (form.scheduleType === "MONTHLY" && !form.dayOfMonth) {
+      nextErrors.dayOfMonth = "Vui lòng chọn ngày trong tháng";
+    }
+    if (form.scheduleType === "YEARLY") {
+      if (!form.month) nextErrors.month = "Vui lòng chọn tháng";
+      if (!form.day) nextErrors.day = "Vui lòng chọn ngày";
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
@@ -115,6 +270,9 @@ export default function ScheduledTransactionModal({
     const wallet = wallets.find((w) => String(w.walletId || w.id) === String(form.walletId));
     const category = categoryOptions.find((c) => String(c.categoryId || c.id) === String(form.categoryId));
 
+    // Parse firstRun để lấy startDate và executionTime
+    const { startDate, executionTime } = parseFirstRun(form.firstRun);
+
     onSubmit?.({
       transactionType: form.transactionType,
       walletId: wallet?.walletId || wallet?.id || null,
@@ -123,9 +281,14 @@ export default function ScheduledTransactionModal({
       categoryName: category?.categoryName || category?.name || "",
       amount: Number(form.amount),
       note: form.note.trim(),
-      scheduleType: form.scheduleType,
-      firstRun: form.firstRun,
-      endDate: form.scheduleType === "ONE_TIME" ? null : form.endDate,
+      scheduleType: mapScheduleTypeToBackend(form.scheduleType),
+      startDate,
+      executionTime,
+      endDate: form.scheduleType === "ONE_TIME" ? null : form.endDate || null,
+      dayOfWeek: form.scheduleType === "WEEKLY" ? Number(form.dayOfWeek) : undefined,
+      dayOfMonth: form.scheduleType === "MONTHLY" ? Number(form.dayOfMonth) : undefined,
+      month: form.scheduleType === "YEARLY" ? Number(form.month) : undefined,
+      day: form.scheduleType === "YEARLY" ? Number(form.day) : undefined,
     });
     setForm(DEFAULT_FORM);
   };
@@ -236,7 +399,16 @@ export default function ScheduledTransactionModal({
                     type="button"
                     className={`btn w-100 schedule-type-item ${form.scheduleType === type.value ? "active" : ""}`}
                     title={type.tooltip}
-                    onClick={() => setForm((prev) => ({ ...prev, scheduleType: type.value }))}
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        scheduleType: type.value,
+                        dayOfWeek: "",
+                        dayOfMonth: "",
+                        month: "",
+                        day: "",
+                      }))
+                    }
                   >
                     {type.label}
                   </button>
@@ -269,6 +441,90 @@ export default function ScheduledTransactionModal({
               </div>
             )}
           </div>
+
+          {/* Field cho WEEKLY */}
+          {form.scheduleType === "WEEKLY" && (
+            <div className="row g-3 mt-1">
+              <div className="col-md-6">
+                <label className="form-label">Thứ trong tuần</label>
+                <select
+                  className={`form-select ${errors.dayOfWeek ? "is-invalid" : ""}`}
+                  value={form.dayOfWeek}
+                  onChange={handleChange("dayOfWeek")}
+                >
+                  <option value="">-- Chọn thứ --</option>
+                  <option value="1">Thứ 2</option>
+                  <option value="2">Thứ 3</option>
+                  <option value="3">Thứ 4</option>
+                  <option value="4">Thứ 5</option>
+                  <option value="5">Thứ 6</option>
+                  <option value="6">Thứ 7</option>
+                  <option value="7">Chủ nhật</option>
+                </select>
+                {errors.dayOfWeek && <div className="invalid-feedback d-block">{errors.dayOfWeek}</div>}
+              </div>
+            </div>
+          )}
+
+          {/* Field cho MONTHLY */}
+          {form.scheduleType === "MONTHLY" && (
+            <div className="row g-3 mt-1">
+              <div className="col-md-6">
+                <label className="form-label">Ngày trong tháng</label>
+                <select
+                  className={`form-select ${errors.dayOfMonth ? "is-invalid" : ""}`}
+                  value={form.dayOfMonth}
+                  onChange={handleChange("dayOfMonth")}
+                >
+                  <option value="">-- Chọn ngày --</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    <option key={day} value={day}>
+                      Ngày {day}
+                    </option>
+                  ))}
+                </select>
+                {errors.dayOfMonth && <div className="invalid-feedback d-block">{errors.dayOfMonth}</div>}
+              </div>
+            </div>
+          )}
+
+          {/* Field cho YEARLY */}
+          {form.scheduleType === "YEARLY" && (
+            <div className="row g-3 mt-1">
+              <div className="col-md-6">
+                <label className="form-label">Tháng</label>
+                <select
+                  className={`form-select ${errors.month ? "is-invalid" : ""}`}
+                  value={form.month}
+                  onChange={handleChange("month")}
+                >
+                  <option value="">-- Chọn tháng --</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={month} value={month}>
+                      Tháng {month}
+                    </option>
+                  ))}
+                </select>
+                {errors.month && <div className="invalid-feedback d-block">{errors.month}</div>}
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Ngày</label>
+                <select
+                  className={`form-select ${errors.day ? "is-invalid" : ""}`}
+                  value={form.day}
+                  onChange={handleChange("day")}
+                >
+                  <option value="">-- Chọn ngày --</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    <option key={day} value={day}>
+                      Ngày {day}
+                    </option>
+                  ))}
+                </select>
+                {errors.day && <div className="invalid-feedback d-block">{errors.day}</div>}
+              </div>
+            </div>
+          )}
 
           <div className="alert alert-secondary mt-3" role="alert">
             <strong>Mini preview:</strong> {previewText}.

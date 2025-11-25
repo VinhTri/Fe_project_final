@@ -4,7 +4,7 @@ import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 
-export default function PersonalNoTermForm({ wallets, onSubmit, onCancel }) {
+export default function PersonalNoTermForm({ wallets, onSubmit, onCancel, onError }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
     () => wallets.find((w) => String(w.walletId || w.id) === String(srcWalletId)) || null,
@@ -32,11 +32,11 @@ export default function PersonalNoTermForm({ wallets, onSubmit, onCancel }) {
 
   const handleSave = async () => {
     if (!selectedWallet) {
-      alert("Vui lòng chọn ví đích trước khi lưu quỹ.");
+      onError?.("Vui lòng chọn ví đích trước khi lưu quỹ.");
       return;
     }
     if (!fundName.trim()) {
-      alert("Vui lòng nhập tên quỹ.");
+      onError?.("Vui lòng nhập tên quỹ.");
       return;
     }
 
@@ -62,8 +62,10 @@ export default function PersonalNoTermForm({ wallets, onSubmit, onCancel }) {
         reminderEnabled: true,
         reminderType,
         reminderTime: reminderData.time ? `${reminderData.time}:00` : "20:00:00",
-        reminderDayOfWeek: reminderData.dayOfWeek,
-        reminderDayOfMonth: reminderData.dayOfMonth,
+        reminderDayOfWeek: reminderData.dayOfWeek, // Cho WEEKLY
+        reminderDayOfMonth: reminderData.dayOfMonth, // Cho MONTHLY
+        reminderMonth: reminderData.month, // Cho YEARLY (nếu có trong tương lai)
+        reminderDay: reminderData.day, // Cho YEARLY (nếu có trong tương lai)
       };
     }
 

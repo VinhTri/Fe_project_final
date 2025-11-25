@@ -38,7 +38,7 @@ export default function BudgetsPage() {
   const [detailBudget, setDetailBudget] = useState(null);
   const statusTabs = [
     { value: "all", label: "Tất cả" },
-    { value: "healthy", label: "Đang ổn" },
+    { value: "healthy", label: "Đang hoạt động" },
     { value: "warning", label: "Sắp đạt ngưỡng" },
     { value: "over", label: "Đã vượt" },
   ];
@@ -124,7 +124,7 @@ export default function BudgetsPage() {
   };
 
   const budgetStatusLabel = {
-    healthy: "Đang ổn",
+    healthy: "Đang hoạt động",
     warning: "Sắp đạt",
     over: "Đã vượt",
   };
@@ -311,6 +311,10 @@ export default function BudgetsPage() {
     try {
       if (modalMode === "edit" && editingId != null) {
         await updateBudget(editingId, payload);
+        // Reload budgets from API to get updated data
+        if (reloadBudgets) {
+          await reloadBudgets();
+        }
         setToast({ open: true, message: "Đã cập nhật hạn mức", type: "success" });
       } else {
         await createBudget(payload);
@@ -322,24 +326,29 @@ export default function BudgetsPage() {
       }
     } catch (error) {
       console.error("Failed to save budget", error);
-      setToast({ open: true, message: "Không thể lưu hạn mức. Vui lòng thử lại.", type: "error" });
+      setToast({ open: true, message: error.message || "Không thể lưu hạn mức. Vui lòng thử lại.", type: "error" });
     } finally {
+      setModalOpen(false);
       setEditingId(null);
     }
-  }, [modalMode, editingId, updateBudget, createBudget]);
+  }, [modalMode, editingId, updateBudget, createBudget, reloadBudgets]);
 
   const handleDeleteBudget = useCallback(async () => {
     if (!confirmDel) return;
     try {
       await deleteBudget(confirmDel.id);
+      // Reload budgets from API to refresh list
+      if (reloadBudgets) {
+        await reloadBudgets();
+      }
       setToast({ open: true, message: "Đã xóa hạn mức", type: "success" });
     } catch (error) {
       console.error("Failed to delete budget", error);
-      setToast({ open: true, message: "Không thể xóa hạn mức. Vui lòng thử lại.", type: "error" });
+      setToast({ open: true, message: error.message || "Không thể xóa hạn mức. Vui lòng thử lại.", type: "error" });
     } finally {
       setConfirmDel(null);
     }
-  }, [confirmDel, deleteBudget]);
+  }, [confirmDel, deleteBudget, reloadBudgets]);
 
   return (
     <div className="budget-page container py-4">

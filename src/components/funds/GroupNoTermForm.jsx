@@ -4,7 +4,7 @@ import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 
-export default function GroupNoTermForm({ wallets, onSubmit, onCancel }) {
+export default function GroupNoTermForm({ wallets, onSubmit, onCancel, onError }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
     () => wallets.find((w) => String(w.walletId || w.id) === String(srcWalletId)) || null,
@@ -50,15 +50,15 @@ export default function GroupNoTermForm({ wallets, onSubmit, onCancel }) {
 
   const handleSave = async () => {
     if (!selectedWallet) {
-      alert("Vui lòng chọn ví đích trước khi lưu quỹ nhóm.");
+      onError?.("Vui lòng chọn ví đích trước khi lưu quỹ nhóm.");
       return;
     }
     if (!fundName.trim()) {
-      alert("Vui lòng nhập tên quỹ nhóm.");
+      onError?.("Vui lòng nhập tên quỹ nhóm.");
       return;
     }
     if (members.length === 0) {
-      alert("Quỹ nhóm phải có ít nhất 1 thành viên ngoài chủ quỹ.");
+      onError?.("Quỹ nhóm phải có ít nhất 1 thành viên ngoài chủ quỹ.");
       return;
     }
 
@@ -84,8 +84,10 @@ export default function GroupNoTermForm({ wallets, onSubmit, onCancel }) {
         reminderEnabled: true,
         reminderType,
         reminderTime: reminderData.time ? `${reminderData.time}:00` : "20:00:00",
-        reminderDayOfWeek: reminderData.dayOfWeek,
-        reminderDayOfMonth: reminderData.dayOfMonth,
+        reminderDayOfWeek: reminderData.dayOfWeek, // Cho WEEKLY
+        reminderDayOfMonth: reminderData.dayOfMonth, // Cho MONTHLY
+        reminderMonth: reminderData.month, // Cho YEARLY (nếu có trong tương lai)
+        reminderDay: reminderData.day, // Cho YEARLY (nếu có trong tương lai)
       };
     }
 
@@ -124,7 +126,7 @@ export default function GroupNoTermForm({ wallets, onSubmit, onCancel }) {
       }));
 
     if (apiMembers.length === 0) {
-      alert("Vui lòng thêm ít nhất 1 thành viên với email hợp lệ.");
+      onError?.("Vui lòng thêm ít nhất 1 thành viên với email hợp lệ.");
       return;
     }
 
@@ -245,7 +247,6 @@ export default function GroupNoTermForm({ wallets, onSubmit, onCancel }) {
         onDataChange={setAutoDepositData}
       />
 
-      <div className="funds-fieldset funds-fieldset--full">
       <div className="funds-fieldset">
         <div className="funds-fieldset__legend">Thành viên quỹ</div>
         <div className="funds-hint">

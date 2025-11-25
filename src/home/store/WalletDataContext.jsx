@@ -122,10 +122,14 @@ export function WalletDataProvider({ children }) {
       setLoading(true);
       const { response, data } = await getMyWallets();
       if (response.ok && data.wallets) {
+        // Filter out soft-deleted wallets
+        const activeWallets = data.wallets.filter(
+          (wallet) => !wallet.deletedAt && !wallet.isDeleted && wallet.status !== "DELETED"
+        );
         // Normalize wallets từ API format, giữ lại color từ state cũ
         let normalizedWallets = [];
         setWallets(prev => {
-          normalizedWallets = data.wallets.map(apiWallet => {
+          normalizedWallets = activeWallets.map(apiWallet => {
             const existingWallet = prev.find(w => 
               (w.id === (apiWallet.walletId || apiWallet.id))
             );

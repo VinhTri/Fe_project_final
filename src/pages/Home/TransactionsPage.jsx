@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import "../../styles/home/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
@@ -14,6 +14,7 @@ import { useWalletData } from "../../home/store/WalletDataContext";
 import { transactionAPI, walletAPI } from "../../services/api-client";
 import {
   getAllScheduledTransactions,
+  cancelScheduledTransaction as cancelScheduledTransactionAPI,
   deleteScheduledTransaction as deleteScheduledTransactionAPI,
 } from "../../services/scheduled-transaction.service";
 
@@ -159,6 +160,9 @@ export default function TransactionsPage() {
   const [scheduleFilter, setScheduleFilter] = useState("all");
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  
+  // Lưu completedCounts cũ để so sánh khi reload
+  const previousCompletedCountsRef = useRef(new Map());
 
   // Get shared data from contexts
   const { budgets, getSpentAmount, getSpentForBudget, updateTransactionsByCategory, updateAllExternalTransactions } = useBudgetData();
@@ -236,18 +240,29 @@ export default function TransactionsPage() {
 
     try {
       setScheduledTransactionsLoading(true);
+      
+      // Lưu completedCount cũ từ ref để so sánh
+      const oldCompletedCounts = new Map(previousCompletedCountsRef.current);
+      
       const { response, data } = await getAllScheduledTransactions();
       
       if (response?.ok && data?.scheduledTransactions) {
+        // Filter out soft-deleted scheduled transactions
+        const activeScheduledTransactions = data.scheduledTransactions.filter(
+          (schedule) => !schedule.deletedAt && !schedule.isDeleted && schedule.status !== "DELETED"
+        );
         // Map each scheduled transaction to frontend format
-        const mapped = data.scheduledTransactions.map((apiSchedule) => {
+        const mapped = activeScheduledTransactions.map((apiSchedule) => {
           // Get currency from wallet if available
           const wallet = wallets?.find(w => (w.walletId || w.id) === apiSchedule.walletId);
           const currency = wallet?.currency || wallet?.currencyCode || "VND";
 
           // Calculate totalRuns if possible
           let totalRuns = null;
-          if (apiSchedule.startDate && apiSchedule.endDate) {
+          // For ONCE schedule type, totalRuns is always 1
+          if (apiSchedule.scheduleType === "ONCE") {
+            totalRuns = 1;
+          } else if (apiSchedule.startDate && apiSchedule.endDate) {
             totalRuns = estimateScheduleRuns(
               `${apiSchedule.startDate}T${apiSchedule.executionTime || "00:00:00"}`,
               apiSchedule.endDate,
@@ -269,7 +284,8 @@ export default function TransactionsPage() {
             currency: currency,
             scheduleType: apiSchedule.scheduleType,
             scheduleTypeLabel: SCHEDULE_TYPE_LABELS[apiSchedule.scheduleType] || apiSchedule.scheduleType,
-            status: apiSchedule.status || "PENDING",
+            // Map status from API (uppercase) to match SCHEDULE_STATUS_META keys
+            status: (apiSchedule.status || "PENDING").toUpperCase(),
             firstRun: apiSchedule.startDate ? `${apiSchedule.startDate}T${apiSchedule.executionTime || "00:00:00"}` : null,
             nextRun: apiSchedule.nextExecutionDate ? `${apiSchedule.nextExecutionDate}T${apiSchedule.executionTime || "00:00:00"}` : null,
             endDate: apiSchedule.endDate || null,
@@ -288,7 +304,45 @@ export default function TransactionsPage() {
             updatedAt: apiSchedule.updatedAt,
           };
         });
+        
+        // Kiểm tra xem có scheduled transaction nào vừa được execute không
+        let hasNewExecution = false;
+        const newCompletedCounts = new Map();
+        mapped.forEach((schedule) => {
+          const oldCount = oldCompletedCounts.get(schedule.scheduleId) || 0;
+          newCompletedCounts.set(schedule.scheduleId, schedule.successRuns);
+          if (schedule.successRuns > oldCount) {
+            hasNewExecution = true;
+          }
+        });
+        
+        // Cập nhật ref với completedCounts mới
+        previousCompletedCountsRef.current = newCompletedCounts;
+        
         setScheduledTransactions(mapped);
+        
+        // Nếu có scheduled transaction vừa được execute, reload wallets và transactions
+        if (hasNewExecution) {
+          // Reload wallets để cập nhật số dư
+          await loadWallets();
+          
+          // Reload transactions để hiển thị transaction mới
+          try {
+            const txResponse = await transactionAPI.getAllTransactions();
+            if (txResponse.transactions) {
+              const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+              setExternalTransactions(mapped);
+            }
+            
+            const transferResponse = await walletAPI.getAllTransfers();
+            if (transferResponse.transfers) {
+              const mapped = transferResponse.transfers.map(mapTransferToFrontend);
+              setInternalTransactions(mapped);
+            }
+          } catch (error) {
+            console.error("Error reloading transactions after scheduled execution:", error);
+          }
+        }
       } else {
         console.error("Failed to load scheduled transactions:", data?.error);
         setScheduledTransactions([]);
@@ -299,7 +353,7 @@ export default function TransactionsPage() {
     } finally {
       setScheduledTransactionsLoading(false);
     }
-  }, [wallets]);
+  }, [wallets, loadWallets, mapTransactionToFrontend, mapTransferToFrontend]);
 
   // Load transactions from API
   useEffect(() => {
@@ -446,54 +500,9 @@ export default function TransactionsPage() {
     setCreating(false);
   };
 
-  const handleCreate = async (payload) => {
-    // Check for budget warning if this is an external expense transaction with a category
-    if (activeTab === TABS.EXTERNAL && payload.type === "expense") {
-      const categoryBudget = budgets.find((b) => b.categoryName === payload.category);
-      if (categoryBudget) {
-        // Match budget type:
-        // - If budget is for specific wallet, check only category:walletName transactions
-        // - If budget is for all wallets, check only category:all transactions
-        let shouldCheckBudget = false;
-        
-        if (categoryBudget.walletName === "Tất cả ví") {
-          // Budget applies to all wallets - will track category:all
-          shouldCheckBudget = true;
-        } else if (categoryBudget.walletName === payload.walletName) {
-          // Budget is for this specific wallet
-          shouldCheckBudget = true;
-        }
-
-        if (shouldCheckBudget) {
-          // Get spent amount using date-range-aware calculation
-          const spent = getSpentForBudget ? getSpentForBudget(categoryBudget) : getSpentAmount(payload.category, payload.walletName);
-          const totalAfterTx = spent + payload.amount;
-          const remaining = categoryBudget.limitAmount - spent;
-          const percentAfterTx = (totalAfterTx / categoryBudget.limitAmount) * 100;
-
-          // Show warning if: would exceed budget OR would reach 90% or more (sắp đạt hạn mức)
-          if (payload.amount > remaining || percentAfterTx >= 90) {
-            // Determine if this is an alert (approaching) or a warning (exceeding)
-            const isExceeding = payload.amount > remaining;
-            
-            setBudgetWarning({
-              categoryName: payload.category,
-              budgetLimit: categoryBudget.limitAmount,
-              spent,
-              transactionAmount: payload.amount,
-              totalAfterTx,
-              isExceeding,
-            });
-            setPendingTransaction(payload);
-            setCreating(false);
-            return;
-          }
-        }
-      }
-    }
-
+  const handleCreate = async (payload, skipPreview = false) => {
     try {
-    if (activeTab === TABS.EXTERNAL) {
+      if (activeTab === TABS.EXTERNAL) {
         // Find walletId and categoryId
         const wallet = wallets.find(w => w.walletName === payload.walletName || w.name === payload.walletName);
         if (!wallet) {
@@ -533,7 +542,51 @@ export default function TransactionsPage() {
         
         const transactionDate = payload.date ? new Date(payload.date).toISOString() : new Date().toISOString();
 
-        // Call API
+        // Check for budget warning if this is an external expense transaction and not skipping preview
+        if (payload.type === "expense" && !skipPreview) {
+          try {
+            // Call preview API to check budget warning
+            const previewResponse = await transactionAPI.previewExpense(
+              walletId,
+              categoryId,
+              payload.amount,
+              transactionDate,
+              payload.note || ""
+            );
+
+            // Check if there's a budget warning
+            if (previewResponse?.budgetWarning?.hasWarning) {
+              const warning = previewResponse.budgetWarning;
+              const isExceeding = warning.warningType === "EXCEEDED";
+              
+              // Map API response to BudgetWarningModal format
+              setBudgetWarning({
+                categoryName: warning.budgetName || payload.category,
+                budgetLimit: warning.amountLimit || 0,
+                spent: warning.spentBeforeTransaction || 0,
+                transactionAmount: warning.transactionAmount || payload.amount,
+                totalAfterTx: warning.totalAfterTransaction || (warning.spentBeforeTransaction + payload.amount),
+                isExceeding: isExceeding,
+                // Additional data from API
+                budgetId: warning.budgetId,
+                remainingBeforeTransaction: warning.remainingBeforeTransaction,
+                remainingAfterTransaction: warning.remainingAfterTransaction,
+                usagePercentageAfterTransaction: warning.usagePercentageAfterTransaction,
+                exceededAmount: warning.exceededAmount || 0,
+                message: warning.message,
+              });
+              setPendingTransaction(payload);
+              setCreating(false);
+              return;
+            }
+          } catch (previewError) {
+            // If preview API fails, log but continue with transaction creation
+            console.warn("Failed to preview budget warning:", previewError);
+            // Continue to create transaction anyway
+          }
+        }
+
+        // No warning or preview failed or skipPreview=true - create transaction directly
         if (payload.type === "expense") {
           await transactionAPI.addExpense(
             payload.amount,
@@ -543,7 +596,7 @@ export default function TransactionsPage() {
             payload.note || "",
             payload.attachment || null
           );
-    } else {
+        } else {
           await transactionAPI.addIncome(
             payload.amount,
             transactionDate,
@@ -607,11 +660,23 @@ export default function TransactionsPage() {
   const handleBudgetWarningConfirm = async () => {
     if (!pendingTransaction) return;
 
-    // Create the transaction anyway by calling handleCreate
-    await handleCreate(pendingTransaction);
+    try {
+      // Close modal first
+      setBudgetWarning(null);
+      const transactionPayload = { ...pendingTransaction };
+      setPendingTransaction(null);
 
-    setBudgetWarning(null);
-    setPendingTransaction(null);
+      // Create transaction directly without preview check (skipPreview = true)
+      // handleCreate will handle API call, reload data, and show toast message
+      await handleCreate(transactionPayload, true);
+    } catch (error) {
+      console.error("Error creating transaction after warning confirm:", error);
+      setToast({ 
+        open: true, 
+        message: error.message || "Lỗi khi tạo giao dịch. Vui lòng thử lại.", 
+        type: "error" 
+      });
+    }
   };
 
   // Handle budget warning cancellation
@@ -865,6 +930,103 @@ export default function TransactionsPage() {
 
   const isScheduleView = activeTab === TABS.SCHEDULE;
 
+  // Smart auto-refresh: chỉ reload khi cần thiết (khi có scheduled transaction sắp đến thời điểm)
+  useEffect(() => {
+    if (!isScheduleView || scheduledTransactions.length === 0) return;
+
+    // Tìm scheduled transaction gần nhất sắp đến thời điểm
+    const findNextExecution = () => {
+      const now = new Date();
+      let nextExecution = null;
+      let minTimeUntilExecution = Infinity;
+
+      scheduledTransactions.forEach((schedule) => {
+        if (!schedule.nextRun || schedule.status !== "PENDING") return;
+        
+        try {
+          const nextRunDate = new Date(schedule.nextRun);
+          const timeUntilExecution = nextRunDate.getTime() - now.getTime();
+          
+          // Chỉ xét các scheduled transaction chưa đến thời điểm
+          if (timeUntilExecution > 0 && timeUntilExecution < minTimeUntilExecution) {
+            minTimeUntilExecution = timeUntilExecution;
+            nextExecution = nextRunDate;
+          }
+        } catch (error) {
+          // Ignore invalid dates
+        }
+      });
+
+      return { nextExecution, timeUntilExecution: minTimeUntilExecution };
+    };
+
+    const scheduleRefresh = () => {
+      const { nextExecution, timeUntilExecution } = findNextExecution();
+
+      if (!nextExecution || timeUntilExecution === Infinity) {
+        // Không có scheduled transaction nào sắp đến, không cần reload
+        return;
+      }
+
+      // Nếu scheduled transaction sắp đến trong vòng 2 phút
+      if (timeUntilExecution <= 2 * 60 * 1000) {
+        // Reload sau khi đến thời điểm + 1 phút (để backend có thời gian execute)
+        const reloadDelay = timeUntilExecution + 60000; // 1 phút sau khi đến thời điểm
+        
+        const timeoutId = setTimeout(() => {
+          loadScheduledTransactions();
+          // Sau khi reload, schedule lại để check scheduled transaction tiếp theo
+          scheduleRefresh();
+        }, reloadDelay);
+
+        return () => clearTimeout(timeoutId);
+      } else {
+        // Nếu còn xa, schedule reload trước 2 phút khi đến thời điểm
+        const checkDelay = timeUntilExecution - 2 * 60 * 1000;
+        
+        const timeoutId = setTimeout(() => {
+          scheduleRefresh(); // Check lại khi gần đến thời điểm
+        }, checkDelay);
+
+        return () => clearTimeout(timeoutId);
+      }
+    };
+
+    // Schedule refresh dựa trên scheduled transaction gần nhất
+    const cleanup = scheduleRefresh();
+    return cleanup;
+  }, [isScheduleView, scheduledTransactions, loadScheduledTransactions]);
+
+  // Reload khi chuyển sang tab scheduled transactions
+  useEffect(() => {
+    if (isScheduleView) {
+      loadScheduledTransactions();
+    }
+  }, [isScheduleView, loadScheduledTransactions]);
+
+  // Reload khi tab được focus (user quay lại tab)
+  useEffect(() => {
+    if (!isScheduleView) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadScheduledTransactions();
+      }
+    };
+
+    const handleFocus = () => {
+      loadScheduledTransactions();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [isScheduleView, loadScheduledTransactions]);
+
   const filteredSorted = useMemo(() => {
     let list = currentTransactions.slice();
 
@@ -1059,10 +1221,42 @@ export default function TransactionsPage() {
 
       const apiScheduleType = scheduleTypeMap[payload.scheduleType] || "MONTHLY";
 
-      // Parse firstRun to get startDate and executionTime
-      const firstRunDate = payload.firstRun ? new Date(payload.firstRun) : new Date();
-      const startDate = firstRunDate.toISOString().split("T")[0]; // YYYY-MM-DD
-      const executionTime = firstRunDate.toTimeString().split(" ")[0]; // HH:mm:ss
+      // Use startDate and executionTime from payload (already parsed in modal)
+      // If not provided, fallback to parsing from firstRun or current date
+      let startDate = payload.startDate;
+      let executionTime = payload.executionTime;
+
+      if (!startDate || !executionTime) {
+        // Fallback: parse from firstRun if available
+        if (payload.firstRun) {
+          const firstRunDate = new Date(payload.firstRun);
+          if (!Number.isNaN(firstRunDate.getTime())) {
+            const year = firstRunDate.getFullYear();
+            const month = String(firstRunDate.getMonth() + 1).padStart(2, "0");
+            const day = String(firstRunDate.getDate()).padStart(2, "0");
+            startDate = `${year}-${month}-${day}`;
+            
+            const hours = String(firstRunDate.getHours()).padStart(2, "0");
+            const minutes = String(firstRunDate.getMinutes()).padStart(2, "0");
+            const seconds = String(firstRunDate.getSeconds()).padStart(2, "0");
+            executionTime = `${hours}:${minutes}:${seconds}`;
+          }
+        }
+        
+        // If still not available, use current date/time
+        if (!startDate || !executionTime) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, "0");
+          const day = String(now.getDate()).padStart(2, "0");
+          startDate = `${year}-${month}-${day}`;
+          
+          const hours = String(now.getHours()).padStart(2, "0");
+          const minutes = String(now.getMinutes()).padStart(2, "0");
+          const seconds = String(now.getSeconds()).padStart(2, "0");
+          executionTime = `${hours}:${minutes}:${seconds}`;
+        }
+      }
 
       // Build request data
       const scheduleData = {
@@ -1095,12 +1289,15 @@ export default function TransactionsPage() {
       const { response, data } = result;
 
       if (response?.ok && data?.scheduledTransaction) {
-        const newSchedule = mapScheduledTransactionToFrontend(data.scheduledTransaction);
+        const newSchedule = mapScheduledTransactionToFrontend(data.scheduledTransaction, wallets);
         setScheduledTransactions((prev) => [newSchedule, ...prev]);
         setScheduleModalOpen(false);
         setToast({ open: true, message: data.message || "Đã tạo lịch giao dịch mới.", type: "success" });
       } else {
-        setToast({ open: true, message: data?.error || "Tạo lịch giao dịch thất bại.", type: "error" });
+        // Hiển thị lỗi từ backend
+        const errorMessage = data?.error || data?.message || "Tạo lịch giao dịch thất bại.";
+        console.error("Error creating scheduled transaction:", { response, data });
+        setToast({ open: true, message: errorMessage, type: "error" });
       }
     } catch (error) {
       console.error("Error creating scheduled transaction:", error);
@@ -1108,29 +1305,35 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleScheduleCancel = (scheduleId) => {
-    setScheduledTransactions((prev) =>
-      prev.map((item) => {
-        if (item.id !== scheduleId) return item;
-        return {
-          ...item,
-          status: "CANCELLED",
-          warning: null,
-          logs: [
-            {
-              id: Date.now(),
-              time: new Date().toISOString(),
-              status: "FAILED",
-              message: "Người dùng đã hủy lịch.",
-            },
-            ...item.logs,
-          ],
-        };
-      })
-    );
-
-    setSelectedSchedule((prev) => (prev?.id === scheduleId ? null : prev));
-    setToast({ open: true, message: "Đã hủy lịch giao dịch.", type: "success" });
+  const handleScheduleCancel = async (scheduleId) => {
+    try {
+      const { response, data } = await cancelScheduledTransactionAPI(scheduleId);
+      
+      if (response?.ok) {
+        // Reload scheduled transactions để cập nhật status từ backend
+        await loadScheduledTransactions();
+        
+        // Đóng drawer nếu đang mở
+        setSelectedSchedule((prev) => (prev?.id === scheduleId ? null : prev));
+        
+        setToast({ 
+          open: true, 
+          message: data?.message || "Đã hủy lịch giao dịch.", 
+          type: "success" 
+        });
+      } else {
+        // Hiển thị lỗi từ backend
+        const errorMessage = data?.error || data?.message || "Hủy lịch giao dịch thất bại.";
+        setToast({ open: true, message: errorMessage, type: "error" });
+      }
+    } catch (error) {
+      console.error("Error cancelling scheduled transaction:", error);
+      setToast({ 
+        open: true, 
+        message: error.message || "Lỗi kết nối khi hủy lịch giao dịch.", 
+        type: "error" 
+      });
+    }
   };
 
   return (
@@ -1294,9 +1497,20 @@ export default function TransactionsPage() {
                 <h5 className="mb-1">Lịch giao dịch định kỳ</h5>
                 <p className="text-muted mb-0">Quản lý các khoản thu chi được lập lịch tự động.</p>
               </div>
-              <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
-                <i className="bi bi-plus-lg me-2" />Tạo lịch giao dịch
-              </button>
+              <div className="d-flex gap-2">
+                <button
+                  className="btn btn-outline-secondary"
+                  type="button"
+                  onClick={loadScheduledTransactions}
+                  disabled={scheduledTransactionsLoading}
+                  title="Làm mới danh sách"
+                >
+                  <i className={`bi bi-arrow-clockwise ${scheduledTransactionsLoading ? "spinning" : ""}`} />
+                </button>
+                <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
+                  <i className="bi bi-plus-lg me-2" />Tạo lịch giao dịch
+                </button>
+              </div>
             </div>
 
             <div className="schedule-tabs mb-3">
@@ -1661,6 +1875,11 @@ export default function TransactionsPage() {
         transactionAmount={budgetWarning?.transactionAmount || 0}
         totalAfterTx={budgetWarning?.totalAfterTx || 0}
         isExceeding={budgetWarning?.isExceeding || false}
+        remainingBeforeTransaction={budgetWarning?.remainingBeforeTransaction}
+        remainingAfterTransaction={budgetWarning?.remainingAfterTransaction}
+        usagePercentageAfterTransaction={budgetWarning?.usagePercentageAfterTransaction}
+        exceededAmount={budgetWarning?.exceededAmount}
+        message={budgetWarning?.message}
         onConfirm={handleBudgetWarningConfirm}
         onCancel={handleBudgetWarningCancel}
       />
@@ -1733,7 +1952,8 @@ const SCHEDULE_TABS = [
 
 // Map API scheduled transaction to frontend format
 // Note: Function được định nghĩa sau SCHEDULE_TYPE_LABELS để có thể sử dụng
-const mapScheduledTransactionToFrontend = (apiSchedule) => {
+// Note: This function is not currently used - mapping is done inline in loadScheduledTransactions
+const mapScheduledTransactionToFrontend = (apiSchedule, wallets = []) => {
   // Get currency from wallet if available
   const wallet = wallets?.find(w => (w.walletId || w.id) === apiSchedule.walletId);
   const currency = wallet?.currency || wallet?.currencyCode || "VND";

@@ -28,7 +28,7 @@ export default function BudgetFormModal({
       // Set dates from initialData if available
       setStartDate(initialData.startDate || "");
       setEndDate(initialData.endDate || "");
-      setAlertThreshold(initialData.alertPercentage ?? 90);
+      setAlertThreshold(initialData.alertPercentage ?? 0);
       setNote(initialData.note || "");
     } else {
       setSelectedCategory("");
@@ -36,7 +36,7 @@ export default function BudgetFormModal({
       setLimitAmount("");
       setStartDate("");
       setEndDate("");
-      setAlertThreshold(90);
+      setAlertThreshold(0);
       setNote("");
     }
     setErrors({});
@@ -64,8 +64,11 @@ export default function BudgetFormModal({
     if (!selectedWallet) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
-    if (!limitAmount || limitAmount === "0") {
+    const limitAmountNum = parseInt(limitAmount, 10);
+    if (!limitAmount || limitAmount === "0" || isNaN(limitAmountNum)) {
       newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
+    } else if (limitAmountNum < 1000) {
+      newErrors.limit = "Hạn mức phải tối thiểu 1.000 VND";
     }
     if (!startDate) {
       newErrors.startDate = "Vui lòng chọn ngày bắt đầu";
@@ -76,8 +79,8 @@ export default function BudgetFormModal({
     if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
       newErrors.dateRange = "Ngày kết thúc phải sau ngày bắt đầu";
     }
-    if (alertThreshold < 50 || alertThreshold > 100) {
-      newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 50% - 100%";
+    if (alertThreshold < 0 || alertThreshold > 100) {
+      newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 0% - 100%";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -240,16 +243,14 @@ export default function BudgetFormModal({
             <input
               type="range"
               className="form-range"
-              min="50"
+              min="0"
               max="100"
-              step="5"
+              step="1"
               value={alertThreshold}
               onChange={(e) => setAlertThreshold(Number(e.target.value))}
             />
-            <div className="d-flex justify-content-between small text-muted">
-              <span>50%</span>
-              <span>{alertThreshold}%</span>
-              <span>100%</span>
+            <div className="d-flex justify-content-center small text-muted mt-2">
+              <span className="fw-semibold">{alertThreshold}%</span>
             </div>
             {errors.alertThreshold && (
               <div className="invalid-feedback d-block">{errors.alertThreshold}</div>

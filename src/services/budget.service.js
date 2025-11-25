@@ -74,7 +74,8 @@ const handleAxiosError = (error) => {
  * @param {number} budgetData.amountLimit - Hạn mức chi tiêu (phải ≥ 1.000 VND) (required)
  * @param {string} budgetData.startDate - Ngày bắt đầu (format: YYYY-MM-DD) (required)
  * @param {string} budgetData.endDate - Ngày kết thúc (format: YYYY-MM-DD) (required)
- * @param {string} budgetData.note - Ghi chú (tối đa 255 ký tự) (optional)
+ * @param {number} [budgetData.warningThreshold] - Ngưỡng cảnh báo (%) - từ 0 đến 100, mặc định 80% (optional)
+ * @param {string} [budgetData.note] - Ghi chú (tối đa 255 ký tự) (optional)
  * @returns {Promise<{data: Object, response: Object}>}
  */
 export async function createBudget(budgetData) {
@@ -114,6 +115,42 @@ export async function getBudgetById(budgetId) {
 }
 
 /**
+ * Cập nhật hạn mức chi tiêu
+ * @param {number} budgetId - ID của budget
+ * @param {Object} budgetData - Dữ liệu budget cần cập nhật
+ * @param {number|null} [budgetData.walletId] - ID ví (null = áp dụng cho tất cả ví) (optional)
+ * @param {number} [budgetData.amountLimit] - Hạn mức chi tiêu (phải ≥ 1.000 VND) (optional)
+ * @param {string} [budgetData.startDate] - Ngày bắt đầu (format: YYYY-MM-DD) (optional)
+ * @param {string} [budgetData.endDate] - Ngày kết thúc (format: YYYY-MM-DD) (optional)
+ * @param {number} [budgetData.warningThreshold] - Ngưỡng cảnh báo (%) - từ 0 đến 100, mặc định 80% (optional)
+ * @param {string} [budgetData.note] - Ghi chú (tối đa 255 ký tự) (optional)
+ * @returns {Promise<{data: Object, response: Object}>}
+ * @note Không thể thay đổi categoryId khi cập nhật
+ */
+export async function updateBudget(budgetId, budgetData) {
+  try {
+    const response = await apiClient.put(`/budgets/${budgetId}`, budgetData);
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error);
+  }
+}
+
+/**
+ * Xóa hạn mức chi tiêu
+ * @param {number} budgetId - ID của budget
+ * @returns {Promise<{data: Object, response: Object}>}
+ */
+export async function deleteBudget(budgetId) {
+  try {
+    const response = await apiClient.delete(`/budgets/${budgetId}`);
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error);
+  }
+}
+
+/**
  * Lấy danh sách giao dịch thuộc một hạn mức chi tiêu
  * @param {number} budgetId - ID của budget
  * @returns {Promise<{data: Object, response: Object}>}
@@ -132,6 +169,8 @@ export default {
   createBudget,
   getAllBudgets,
   getBudgetById,
+  updateBudget,
+  deleteBudget,
   getBudgetTransactions,
 };
 

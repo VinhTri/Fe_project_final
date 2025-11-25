@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import FundSection from "./FundSection";
 import { getParticipatedFunds } from "../../services/fund.service";
 
-export default function ParticipateManager({ viewFunds, useFunds, onReload }) {
+export default function ParticipateManager({ viewFunds, useFunds, onReload, onError }) {
   const [selectedFund, setSelectedFund] = useState(null);
   const [members, setMembers] = useState([]);
 
@@ -51,7 +51,7 @@ export default function ParticipateManager({ viewFunds, useFunds, onReload }) {
       fundId: selectedFund.id,
       members,
     });
-    alert("Chỉ chủ quỹ mới có thể cập nhật thành viên. Vui lòng liên hệ chủ quỹ.");
+    onError?.("Chỉ chủ quỹ mới có thể cập nhật thành viên. Vui lòng liên hệ chủ quỹ.");
   };
 
   return (

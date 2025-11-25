@@ -719,6 +719,28 @@ export const transactionAPI = {
   },
 
   /**
+   * Preview cảnh báo budget trước khi tạo giao dịch chi tiêu
+   * @param {number} walletId
+   * @param {number} categoryId
+   * @param {number} amount
+   * @param {string} transactionDate - ISO format
+   * @param {string} note
+   * @returns {Promise<Object>} - { budgetWarning: { hasWarning, warningType, ... } }
+   */
+  previewExpense: async (walletId, categoryId, amount, transactionDate, note) => {
+    return apiCall("/transactions/expense/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        walletId,
+        categoryId,
+        amount,
+        transactionDate,
+        note: note || "",
+      }),
+    });
+  },
+
+  /**
    * Thêm chi tiêu
    * @param {number} amount
    * @param {string} transactionDate - ISO 8601 format: "2024-01-01T10:00:00"

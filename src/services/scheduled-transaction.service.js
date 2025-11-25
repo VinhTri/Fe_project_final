@@ -67,6 +67,33 @@ const handleAxiosError = (error) => {
 };
 
 /**
+ * Preview ngày thực hiện tiếp theo (Mini Preview)
+ * @param {Object} previewData - Dữ liệu để preview
+ * @param {number} previewData.walletId - ID ví (required)
+ * @param {number} previewData.transactionTypeId - 1 = Chi tiêu, 2 = Thu nhập (required)
+ * @param {number} previewData.categoryId - ID danh mục (required)
+ * @param {number} previewData.amount - Số tiền (required)
+ * @param {string} previewData.note - Ghi chú (optional)
+ * @param {string} previewData.scheduleType - ONCE, DAILY, WEEKLY, MONTHLY, YEARLY (required)
+ * @param {string} previewData.startDate - Ngày bắt đầu (format: YYYY-MM-DD) (required)
+ * @param {string} previewData.executionTime - Giờ thực hiện (format: HH:mm:ss) (required)
+ * @param {string|null} previewData.endDate - Ngày kết thúc (optional)
+ * @param {number} previewData.dayOfWeek - Thứ trong tuần (1-7, cho WEEKLY) (optional)
+ * @param {number} previewData.dayOfMonth - Ngày trong tháng (1-31, cho MONTHLY) (optional)
+ * @param {number} previewData.month - Tháng (1-12, cho YEARLY) (optional)
+ * @param {number} previewData.day - Ngày (1-31, cho YEARLY) (optional)
+ * @returns {Promise<{data: Object, response: Object}>}
+ */
+export async function previewScheduledTransaction(previewData) {
+  try {
+    const response = await apiClient.post("/scheduled-transactions/preview", previewData);
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error);
+  }
+}
+
+/**
  * Tạo giao dịch đặt lịch
  * @param {Object} scheduleData - Dữ liệu scheduled transaction
  * @param {number} scheduleData.walletId - ID ví (required)
@@ -121,7 +148,21 @@ export async function getScheduledTransactionById(scheduleId) {
 }
 
 /**
- * Xóa giao dịch đặt lịch
+ * Hủy giao dịch đặt lịch (đổi status thành CANCELLED, không xóa)
+ * @param {number} scheduleId - ID của scheduled transaction
+ * @returns {Promise<{data: Object, response: Object}>}
+ */
+export async function cancelScheduledTransaction(scheduleId) {
+  try {
+    const response = await apiClient.put(`/scheduled-transactions/${scheduleId}/cancel`);
+    return handleAxiosResponse(response);
+  } catch (error) {
+    return handleAxiosError(error);
+  }
+}
+
+/**
+ * Xóa giao dịch đặt lịch (xóa hoàn toàn khỏi database)
  * @param {number} scheduleId - ID của scheduled transaction
  * @returns {Promise<{data: Object, response: Object}>}
  */
@@ -136,9 +177,11 @@ export async function deleteScheduledTransaction(scheduleId) {
 
 // Export default object để dễ import
 export default {
+  previewScheduledTransaction,
   createScheduledTransaction,
   getAllScheduledTransactions,
   getScheduledTransactionById,
+  cancelScheduledTransaction,
   deleteScheduledTransaction,
 };
 

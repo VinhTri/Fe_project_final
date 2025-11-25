@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
-import { createBudget as createBudgetAPI, getAllBudgets } from "../../services/budget.service";
+import { createBudget as createBudgetAPI, getAllBudgets, updateBudget as updateBudgetAPI, deleteBudget as deleteBudgetAPI } from "../../services/budget.service";
+import { transactionAPI } from "../../services/api-client";
 
 const BudgetDataContext = createContext(null);
 
@@ -45,7 +46,7 @@ export function BudgetDataProvider({ children }) {
       month: currentMonth,
       startDate: apiBudget.startDate,
       endDate: apiBudget.endDate,
-      alertPercentage: 90, // Default, có thể tính từ usagePercentage
+      alertPercentage: Number(apiBudget.warningThreshold ?? apiBudget.alertPercentage ?? 80), // Map từ warningThreshold API
       note: apiBudget.note || "",
     };
   }, []);
@@ -58,7 +59,17 @@ export function BudgetDataProvider({ children }) {
       const { response, data } = await getAllBudgets();
       
       if (response?.ok && data?.budgets) {
-        const mappedBudgets = data.budgets.map(mapBudgetToFrontend);
+        // Filter out soft-deleted budgets (if backend returns them)
+        // Backend may already filter soft-deleted, but we check just in case
+        const activeBudgets = data.budgets.filter(
+          (budget) => {
+            // Check for soft delete indicators
+            if (budget.deletedAt || budget.isDeleted === true) return false;
+            // budgetStatus can be "ACTIVE" or "COMPLETED", not "DELETED" (backend handles this)
+            return true;
+          }
+        );
+        const mappedBudgets = activeBudgets.map(mapBudgetToFrontend);
         setBudgets(mappedBudgets);
       } else {
         console.error("Failed to load budgets:", data?.error);
@@ -76,19 +87,93 @@ export function BudgetDataProvider({ children }) {
     }
   }, [mapBudgetToFrontend]);
 
-  // Load budgets when component mounts
+  // Load external transactions from API
+  const loadExternalTransactions = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        setExternalTransactionsList([]);
+        return;
+      }
+
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse?.transactions && Array.isArray(txResponse.transactions)) {
+        // Map transactions to frontend format (simplified version for budget calculation)
+        const mapped = txResponse.transactions.map((tx) => {
+          const typeName = tx.transactionType?.typeName || "";
+          const type = typeName === "Chi tiêu" ? "expense" : "income";
+          
+          return {
+            id: tx.transactionId,
+            type: type,
+            walletName: tx.wallet?.walletName || "Unknown",
+            amount: parseFloat(tx.amount || 0),
+            currency: tx.wallet?.currencyCode || "VND",
+            date: tx.createdAt || tx.transactionDate || new Date().toISOString(),
+            category: tx.category?.categoryName || "Unknown",
+            note: tx.note || "",
+          };
+        });
+        setExternalTransactionsList(mapped);
+      } else {
+        setExternalTransactionsList([]);
+      }
+    } catch (err) {
+      console.error("Error loading external transactions in BudgetDataContext:", err);
+      setExternalTransactionsList([]);
+    }
+  }, []);
+
+  // Load budgets and transactions when component mounts
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (token) {
       loadBudgets();
+      loadExternalTransactions();
     } else {
       setLoading(false);
+      setExternalTransactionsList([]);
     }
-  }, [loadBudgets]);
+
+    // Reload when user changes (login/logout)
+    const handleUserChange = () => {
+      const newToken = localStorage.getItem("accessToken");
+      if (newToken) {
+        loadBudgets();
+        loadExternalTransactions();
+      } else {
+        setBudgets([]);
+        setExternalTransactionsList([]);
+        setLoading(false);
+      }
+    };
+    window.addEventListener("userChanged", handleUserChange);
+
+    // Reload when storage changes (login/logout from another tab)
+    const handleStorageChange = (e) => {
+      if (e.key === "accessToken" || e.key === "user" || e.key === "auth_user") {
+        const newToken = localStorage.getItem("accessToken");
+        if (newToken) {
+          loadBudgets();
+          loadExternalTransactions();
+        } else {
+          setBudgets([]);
+          setExternalTransactionsList([]);
+          setLoading(false);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("userChanged", handleUserChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [loadBudgets, loadExternalTransactions]);
 
   // ====== helpers ======
   const createBudget = useCallback(async (payload) => {
-    // payload: { categoryId, categoryName, categoryType, limitAmount, walletId, walletName, startDate, endDate, note }
+    // payload: { categoryId, categoryName, categoryType, limitAmount, walletId, walletName, startDate, endDate, alertPercentage, note }
     try {
       const budgetData = {
         categoryId: payload.categoryId,
@@ -96,6 +181,7 @@ export function BudgetDataProvider({ children }) {
         amountLimit: Number(payload.limitAmount || payload.amountLimit || 0),
         startDate: payload.startDate,
         endDate: payload.endDate,
+        warningThreshold: Number(payload.alertPercentage ?? payload.warningThreshold ?? 80), // Map alertPercentage to warningThreshold
         note: payload.note || null,
       };
 
@@ -114,19 +200,67 @@ export function BudgetDataProvider({ children }) {
     }
   }, [mapBudgetToFrontend]);
 
-  const updateBudget = useCallback((budgetId, patch) => {
-    // Note: API không có endpoint update budget, nên chỉ update local state
-    // Nếu backend thêm API sau, có thể tích hợp ở đây
-    setBudgets((prev) =>
-      prev.map((b) => (b.id === budgetId || b.budgetId === budgetId ? { ...b, ...patch } : b))
-    );
-    return patch;
-  }, []);
+  const updateBudget = useCallback(async (budgetId, payload) => {
+    // payload: { categoryId, limitAmount, walletId, startDate, endDate, note }
+    // Lưu ý: API không cho phép thay đổi categoryId khi update
+    try {
+      // Map frontend payload to API format
+      // Chỉ gửi các field được phép: walletId, amountLimit, startDate, endDate, warningThreshold, note
+      const budgetData = {
+        walletId: payload.walletId === "ALL" || payload.walletId === null ? null : payload.walletId,
+        amountLimit: Number(payload.limitAmount || payload.amountLimit || 0),
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+        warningThreshold: Number(payload.alertPercentage ?? payload.warningThreshold ?? 80), // Map alertPercentage to warningThreshold
+        note: payload.note || null,
+      };
 
-  const deleteBudget = useCallback((budgetId) => {
-    // Note: API không có endpoint delete budget, nên chỉ xóa local state
-    // Nếu backend thêm API sau, có thể tích hợp ở đây
-    setBudgets((prev) => prev.filter((b) => b.id !== budgetId && b.budgetId !== budgetId));
+      const { response, data } = await updateBudgetAPI(budgetId, budgetData);
+
+      if (response?.ok && data?.budget) {
+        const updatedBudget = mapBudgetToFrontend(data.budget);
+        setBudgets((prev) =>
+          prev.map((b) => (b.id === budgetId || b.budgetId === budgetId ? updatedBudget : b))
+        );
+        return updatedBudget;
+      } else {
+        // Xử lý error message từ API
+        const errorMessage = data?.error || data?.message || "Cập nhật hạn mức chi tiêu thất bại";
+        throw new Error(errorMessage);
+      }
+    } catch (err) {
+      console.error("Error updating budget:", err);
+      // Nếu err đã là Error object với message, throw lại
+      if (err instanceof Error) {
+        throw err;
+      }
+      // Nếu là object khác, wrap thành Error
+      throw new Error(err?.message || err?.error || "Cập nhật hạn mức chi tiêu thất bại");
+    }
+  }, [mapBudgetToFrontend]);
+
+  const deleteBudget = useCallback(async (budgetId) => {
+    try {
+      const { response, data } = await deleteBudgetAPI(budgetId);
+
+      if (response?.ok) {
+        // Xóa khỏi local state
+        setBudgets((prev) => prev.filter((b) => b.id !== budgetId && b.budgetId !== budgetId));
+        return true;
+      } else {
+        // Xử lý error message từ API
+        const errorMessage = data?.error || data?.message || "Xóa hạn mức chi tiêu thất bại";
+        throw new Error(errorMessage);
+      }
+    } catch (err) {
+      console.error("Error deleting budget:", err);
+      // Nếu err đã là Error object với message, throw lại
+      if (err instanceof Error) {
+        throw err;
+      }
+      // Nếu là object khác, wrap thành Error
+      throw new Error(err?.message || err?.error || "Xóa hạn mức chi tiêu thất bại");
+    }
   }, []);
 
   // Compute spent amount for a budget object by scanning externalTransactionsList within the budget's date range
