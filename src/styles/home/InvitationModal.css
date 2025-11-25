@@ -1,6 +1,10 @@
+/* src/styles/home/InvitationModal.css */
+
 .invitation-container {
-  padding: 10px 0;
-  min-height: 100px;
+  padding: 0; /* Bỏ padding để list tràn viền giống notification dropdown */
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
 }
 
 .invitation-loading,
@@ -8,77 +12,126 @@
   text-align: center;
   color: #666;
   font-style: italic;
-  padding: 20px 0;
+  padding: 40px 0;
+  font-size: 14px;
 }
 
+/* Giống .dd__list */
 .invitation-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 400px;
+  max-height: 450px;
   overflow-y: auto;
 }
 
+/* Giống .dd__item */
 .invitation-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  border-bottom: 1px solid #eee;
+  align-items: flex-start; /* Căn hàng theo dòng trên cùng */
+  padding: 12px 20px; /* Padding giống dropdown item */
+  border-bottom: 1px solid #f1f1f1; /* Đường kẻ mờ */
   background-color: #fff;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease;
+  gap: 15px;
 }
 
+.invitation-item:last-child {
+  border-bottom: none;
+}
+
+/* Hiệu ứng Hover giống Notification */
 .invitation-item:hover {
-  background-color: #f9f9f9;
+  background-color: #f8f9fa; /* Màu nền xám nhẹ khi di chuột */
 }
 
-.inv-info {
+.inv-content {
   flex: 1;
-  margin-right: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
+/* Giống .dd__title */
 .inv-text {
-  font-size: 15px;
+  font-size: 14px;
   color: #333;
-  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.inv-highlight {
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .inv-wallet-name {
   font-weight: 700;
-  color: #2c3e50;
+  color: #4a90e2; /* Màu xanh nhẹ tạo điểm nhấn */
 }
 
+/* Giống .dd__time */
 .inv-meta {
-  font-size: 13px;
-  color: #888;
+  font-size: 12px;
+  color: #888; /* Màu xám cho thời gian/role */
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
+/* Badge vai trò nhỏ gọn */
+.inv-role-badge {
+  background-color: #eee;
+  color: #555;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Phần nút bấm hành động */
 .inv-actions {
   display: flex;
-  gap: 10px;
+  flex-direction: row; /* Xếp ngang */
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
 }
 
 .btn-inv {
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
   border: none;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
-  transition: opacity 0.2s;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-inv:hover {
-  opacity: 0.9;
-}
-
+/* Nút Đồng ý: Xanh lá nhưng tinh tế hơn */
 .btn-accept {
-  background-color: #28a745; /* Màu xanh lá */
+  background-color: #e6f4ea; /* Nền xanh rất nhạt */
+  color: #1e7e34; /* Chữ xanh đậm */
+  border: 1px solid transparent;
+}
+
+.btn-accept:hover {
+  background-color: #1e7e34;
   color: #fff;
 }
 
+/* Nút Từ chối: Đỏ nhạt hoặc xám */
 .btn-decline {
-  background-color: #dc3545; /* Màu đỏ */
-  color: #fff;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  color: #666;
+}
+
+.btn-decline:hover {
+  background-color: #fff1f0;
+  color: #e02424;
+  border-color: #e02424;
 }

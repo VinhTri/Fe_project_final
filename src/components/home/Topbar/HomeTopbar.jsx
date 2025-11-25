@@ -2,122 +2,80 @@ import "../../../styles/home/Topbar.css";
 import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
-import InvitationModal from "../../wallets/InvitationModal"; // Import Modal Lời mời
-import walletService from "../../../services/wallet.service"; // Import Service
+import InvitationModal from "./InvitationModal";
+import walletService from "../../../services/wallet.service";
 import { useEffect, useState } from "react";
 
 export default function HomeTopbar() {
-  // === EXISTING STATE ===
   const [userName, setUserName] = useState("Người dùng");
   const [userAvatar, setUserAvatar] = useState(
     "https://www.gravatar.com/avatar/?d=mp&s=40"
   );
-
-  // === NEW STATE FOR INVITATIONS ===
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCount, setInviteCount] = useState(0);
 
-  // 1. Logic load User Profile (Giữ nguyên code cũ của bạn)
+  // ... (Giữ nguyên phần useEffect loadUser và checkInvites) ...
   useEffect(() => {
     const loadUserFromStorage = () => {
-      // console.log("HomeTopbar: Hàm loadUserFromStorage() ĐƯỢC GỌI.");
       try {
         const raw = localStorage.getItem("user");
         if (!raw) return;
-
         const u = JSON.parse(raw) || {};
-        const newFullName = u.fullName || u.username || u.email || "Người dùng";
-
-        const newAvatar =
-          u.avatar || "https://www.gravatar.com/avatar/?d=mp&s=40";
-
-        setUserName(newFullName);
-        setUserAvatar(newAvatar);
+        setUserName(u.fullName || u.username || "Người dùng");
+        setUserAvatar(u.avatar || "https://www.gravatar.com/avatar/?d=mp&s=40");
       } catch (error) {
-        console.error("HomeTopbar: Lỗi khi load user từ localStorage:", error);
+        console.error("HomeTopbar: Lỗi load user", error);
       }
     };
-
     loadUserFromStorage();
     window.addEventListener("storageUpdated", loadUserFromStorage);
-    return () => {
+    return () =>
       window.removeEventListener("storageUpdated", loadUserFromStorage);
-    };
   }, []);
 
-  // 2. Logic Kiểm tra lời mời (New Feature)
   const checkInvites = async () => {
     try {
       const res = await walletService.getInvitations();
-      if (res.invitations) {
+      if (res && res.invitations) {
         setInviteCount(res.invitations.length);
       }
     } catch (e) {
-      // Silent error: Không làm phiền user nếu chỉ lỗi lấy badge
-      console.warn("Failed to fetch invitation count", e);
+      console.warn("Không thể lấy số lượng lời mời:", e);
     }
   };
 
-  // Gọi checkInvites khi mount và mỗi khi đóng modal (để update lại số lượng nếu đã accept/decline)
   useEffect(() => {
     checkInvites();
+    const interval = setInterval(checkInvites, 60000);
+    return () => clearInterval(interval);
   }, [showInviteModal]);
 
   return (
     <header className="tb__wrap" role="banner">
-      {/* Trái: chào người dùng */}
       <div className="tb__left">
         <div className="tb__welcome">Xin chào, {userName}!</div>
       </div>
 
-      {/* Phải: Global Search + actions */}
       <div className="tb__right">
         <GlobalSearch />
 
-        <div className="tb__actions" role="group" aria-label="Tác vụ topbar">
-          {/* === BUTTON LỜI MỜI (NEW) === */}
+        {/* Sử dụng flex gap trong CSS để căn đều */}
+        <div className="tb__actions" role="group">
+          {/* === NÚT LỜI MỜI (Đã sửa gọn gàng) === */}
           <div
-            className="tb__icon-btn"
+            className="tb__icon-btn" // <--- Sử dụng class CSS chung
             onClick={() => setShowInviteModal(true)}
-            title="Lời mời tham gia ví"
-            style={{
-              cursor: "pointer",
-              position: "relative",
-              marginRight: "15px",
-              fontSize: "1.2rem",
-              color: "#555",
-            }}
+            title="Hộp thư lời mời"
           >
-            <i className="fa-solid fa-envelope"></i>
+            <i className="fas fa-envelope" style={{ fontSize: "1.2rem" }}></i>
 
-            {/* Badge đỏ đếm số lượng */}
             {inviteCount > 0 && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: "-8px",
-                  right: "-8px",
-                  backgroundColor: "#e74c3c",
-                  color: "white",
-                  borderRadius: "50%",
-                  width: "18px",
-                  height: "18px",
-                  fontSize: "11px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: "bold",
-                  border: "2px solid white",
-                }}
-              >
-                {inviteCount}
-              </span>
+              <span className="tb__badge">{inviteCount}</span>
             )}
           </div>
-          {/* ============================ */}
+          {/* ===================================== */}
 
-          <div className="tb__divider" aria-hidden="true" />
-
+          {/* NotificationBell cũng nên dùng class tương tự bên trong nó để đồng bộ */}
           <NotificationBell />
 
           <div className="tb__divider" aria-hidden="true" />
@@ -126,7 +84,6 @@ export default function HomeTopbar() {
         </div>
       </div>
 
-      {/* === MODAL LỜI MỜI === */}
       <InvitationModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
