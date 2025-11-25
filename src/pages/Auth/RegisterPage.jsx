@@ -1,10 +1,9 @@
 // src/pages/Auth/RegisterPage.jsx
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import AuthLayout from "../../layouts/AuthLayout";
 import LoginSuccessModal from "../../components/common/Modal/LoginSuccessModal";
 import AccountExistsModal from "../../components/common/Modal/AccountExistsModal";
-import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import "../../styles/AuthForms.css";
 import ReCAPTCHA from "react-google-recaptcha";
 
@@ -14,13 +13,7 @@ import {
   verifyRegisterOtp,
 } from "../../services/auth.service";
 
-// AUTH CONTEXT
-import { useAuth } from "../../home/store/AuthContext";
-
 export default function RegisterPage() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-
   const [step, setStep] = useState(1);
 
   const [form, setForm] = useState({
@@ -35,7 +28,6 @@ export default function RegisterPage() {
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [showExists, setShowExists] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -117,35 +109,6 @@ export default function RegisterPage() {
       return "Mật khẩu nhập lại không khớp!";
     }
     return "";
-  };
-
-  // Check nếu đã đăng nhập thì hiển thị modal xác nhận đăng xuất
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken") || localStorage.getItem("auth_token");
-    if (token) {
-      setShowLogoutConfirm(true);
-    }
-  }, []);
-
-  // Xử lý đăng xuất khi user chọn "Có"
-  const handleConfirmLogout = () => {
-    logout();
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("auth_user");
-    setShowLogoutConfirm(false);
-  };
-
-  // Xử lý khi user chọn "Không" - quay lại trang trước đó
-  const handleCancelLogout = () => {
-    setShowLogoutConfirm(false);
-    // Quay lại trang trước đó trong history, nếu không có thì về home
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/home");
-    }
   };
 
   // =========================
@@ -607,17 +570,6 @@ export default function RegisterPage() {
         title="Đăng ký"
         message="Email đã được sử dụng!"
         redirectUrl="/login"
-      />
-
-      <ConfirmModal
-        open={showLogoutConfirm}
-        title="Xác nhận đăng xuất"
-        message="Bạn đã đăng nhập. Bạn có muốn đăng xuất để tiếp tục đăng ký?"
-        okText="Có, đăng xuất"
-        cancelText="Không, quay lại"
-        danger={false}
-        onOk={handleConfirmLogout}
-        onClose={handleCancelLogout}
       />
     </AuthLayout>
   );

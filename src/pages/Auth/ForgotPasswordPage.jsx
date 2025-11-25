@@ -12,11 +12,7 @@ import {
   resetPassword,
 } from "../../services/auth.service";
 
-// AUTH CONTEXT
-import { useAuth } from "../../home/store/AuthContext";
-
 export default function ForgotPasswordPage() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
@@ -45,8 +41,6 @@ export default function ForgotPasswordPage() {
 
   // ✅ modal xác nhận hủy
   const [openCancelModal, setOpenCancelModal] = useState(false);
-  // ✅ modal xác nhận đăng xuất khi đã đăng nhập
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // ====== Password strength state ======
   const [passwordStrength, setPasswordStrength] = useState({
@@ -78,35 +72,6 @@ export default function ForgotPasswordPage() {
 
     if (name === "newPassword") {
       setPasswordStrength(getPasswordStrength(value));
-    }
-  };
-
-  // Check nếu đã đăng nhập thì hiển thị modal xác nhận đăng xuất
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken") || localStorage.getItem("auth_token");
-    if (token) {
-      setShowLogoutConfirm(true);
-    }
-  }, []);
-
-  // Xử lý đăng xuất khi user chọn "Có"
-  const handleConfirmLogout = () => {
-    logout();
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("auth_user");
-    setShowLogoutConfirm(false);
-  };
-
-  // Xử lý khi user chọn "Không" - quay lại trang trước đó
-  const handleCancelLogout = () => {
-    setShowLogoutConfirm(false);
-    // Quay lại trang trước đó trong history, nếu không có thì về home
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/home");
     }
   };
 
@@ -636,18 +601,6 @@ return (
       danger={true}
       onOk={handleConfirmCancelReset}
       onClose={() => setOpenCancelModal(false)}
-    />
-
-    {/* Logout confirm modal khi đã đăng nhập */}
-    <ConfirmModal
-      open={showLogoutConfirm}
-      title="Xác nhận đăng xuất"
-      message="Bạn đã đăng nhập. Bạn có muốn đăng xuất để tiếp tục quên mật khẩu?"
-      okText="Có, đăng xuất"
-      cancelText="Không, quay lại"
-      danger={false}
-      onOk={handleConfirmLogout}
-      onClose={handleCancelLogout}
     />
   </AuthLayout>
 );
