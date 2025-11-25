@@ -114,10 +114,7 @@ export default function WalletList({
           />
         </div>
         <div className="wallets-list-panel__sort">
-          <select
-            value={sortBy}
-            onChange={(e) => onSortChange(e.target.value)}
-          >
+          <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
             <option value="default">Sắp xếp: Mặc định</option>
             <option value="name_asc">Tên (A → Z)</option>
             <option value="balance_desc">Số dư (cao → thấp)</option>
@@ -194,7 +191,8 @@ export default function WalletList({
                 ))}
               </div>
               <p className="wallets-shared-owner-hint">
-                Chọn một người chia sẻ để xem các ví họ đã chia sẻ cho bạn ở ô chi tiết bên phải.
+                Chọn một người chia sẻ để xem các ví họ đã chia sẻ cho bạn ở ô
+                chi tiết bên phải.
               </p>
             </>
           )}
@@ -250,4 +248,3 @@ export default function WalletList({
     </div>
   );
 }
-

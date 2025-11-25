@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import { walletAPI } from "../../services/api-client";
+import { hasPermission } from "../../utils/permissionUtils";
 
 export default function WalletDetail(props) {
   const {
@@ -95,9 +96,7 @@ export default function WalletDetail(props) {
   const isLoadingTransactions = loadingTransactions || false;
 
   const sharedEmails = useMemo(() => {
-    const base = Array.isArray(wallet?.sharedEmails)
-      ? wallet.sharedEmails
-      : [];
+    const base = Array.isArray(wallet?.sharedEmails) ? wallet.sharedEmails : [];
     if (!sharedEmailsOverride || !sharedEmailsOverride.length) {
       return base;
     }
@@ -119,6 +118,8 @@ export default function WalletDetail(props) {
   const [removingMemberId, setRemovingMemberId] = useState(null);
 
   const isSharedTab = walletTabType === "shared";
+  const currentRole = wallet?.isShared ? wallet.myRole || "VIEWER" : "OWNER";
+  const canEdit = hasPermission(currentRole, "CAN_EDIT_TRANSACTION");
   const canManageSharedMembers = isSharedTab && sharedFilter === "sharedByMe";
   const allowSharedMembersFetch = isSharedTab || forceLoadSharedMembers;
   const isSharedWithMeMode = isSharedTab && sharedFilter === "sharedWithMe";
@@ -143,15 +144,19 @@ export default function WalletDetail(props) {
     if (currency === "USD") {
       // USD: hiển thị tối đa 8 chữ số thập phân để chính xác
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
         });
         return `$${formatted}`;
       }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
       return `$${formatted}`;
     }
     if (currency === "VND") {
@@ -159,9 +164,15 @@ export default function WalletDetail(props) {
     }
     // Các currency khác: hiển thị tối đa 8 chữ số thập phân
     if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
     }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
   };
 
   // Nếu ví đã là ví nhóm mà tab đang là "convert" -> tự về "view"
@@ -191,7 +202,9 @@ export default function WalletDetail(props) {
       } catch (error) {
         if (ignore) return;
         setSharedMembers([]);
-        setSharedMembersError(error.message || "Không thể tải danh sách chia sẻ.");
+        setSharedMembersError(
+          error.message || "Không thể tải danh sách chia sẻ."
+        );
       } finally {
         if (!ignore) {
           setSharedMembersLoading(false);
@@ -219,10 +232,14 @@ export default function WalletDetail(props) {
       setRemovingMemberId(targetId);
       await walletAPI.removeMember(wallet.id, targetId);
       setSharedMembers((prev) =>
-        prev.filter((m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId)
+        prev.filter(
+          (m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId
+        )
       );
     } catch (error) {
-      setSharedMembersError(error.message || "Không thể xóa thành viên khỏi ví.");
+      setSharedMembersError(
+        error.message || "Không thể xóa thành viên khỏi ví."
+      );
     } finally {
       setRemovingMemberId(null);
     }
@@ -249,9 +266,7 @@ export default function WalletDetail(props) {
                   type="text"
                   required
                   value={createForm.name}
-                  onChange={(e) =>
-                    onCreateFieldChange("name", e.target.value)
-                  }
+                  onChange={(e) => onCreateFieldChange("name", e.target.value)}
                   placeholder="Ví tiền mặt, Ví ngân hàng..."
                 />
               </label>
@@ -278,9 +293,7 @@ export default function WalletDetail(props) {
                 <textarea
                   rows={2}
                   value={createForm.note}
-                  onChange={(e) =>
-                    onCreateFieldChange("note", e.target.value)
-                  }
+                  onChange={(e) => onCreateFieldChange("note", e.target.value)}
                   placeholder="Mục đích sử dụng ví này..."
                 />
               </label>
@@ -375,14 +388,16 @@ export default function WalletDetail(props) {
     if (isSharedWithMeMode) {
       const hasOwners = safeSharedWithMeOwners.length > 0;
       const ownerWallets = selectedSharedOwnerGroup?.wallets || [];
-      const ownerName = selectedSharedOwnerGroup?.displayName || "Chưa chọn người chia sẻ";
+      const ownerName =
+        selectedSharedOwnerGroup?.displayName || "Chưa chọn người chia sẻ";
 
       return (
         <div className="wallets-detail-panel wallets-detail-panel--shared-with-me">
           <div className="wallets-shared-detail__header">
             <h2>Ví được chia sẻ cho bạn</h2>
             <p>
-              Chọn một người chia sẻ ở danh sách bên trái để xem các ví mà họ đã cấp quyền sử dụng.
+              Chọn một người chia sẻ ở danh sách bên trái để xem các ví mà họ đã
+              cấp quyền sử dụng.
             </p>
           </div>
 
@@ -402,8 +417,12 @@ export default function WalletDetail(props) {
             <>
               <div className="wallets-shared-detail__owner-card">
                 <div>
-                  <p className="wallets-shared-detail__owner-label">Người chia sẻ</p>
-                  <h3 className="wallets-shared-detail__owner-name">{ownerName}</h3>
+                  <p className="wallets-shared-detail__owner-label">
+                    Người chia sẻ
+                  </p>
+                  <h3 className="wallets-shared-detail__owner-name">
+                    {ownerName}
+                  </h3>
                   {selectedSharedOwnerGroup?.email && (
                     <p className="wallets-shared-detail__owner-email">
                       {selectedSharedOwnerGroup.email}
@@ -419,7 +438,8 @@ export default function WalletDetail(props) {
               <div className="wallets-shared-owner-wallets wallets-shared-owner-wallets--detail">
                 {ownerWallets.map((sharedWallet) => {
                   const balance =
-                    Number(sharedWallet.balance ?? sharedWallet.current ?? 0) || 0;
+                    Number(sharedWallet.balance ?? sharedWallet.current ?? 0) ||
+                    0;
                   const isSelected =
                     selectedSharedOwnerWalletId &&
                     String(selectedSharedOwnerWalletId) ===
@@ -433,7 +453,9 @@ export default function WalletDetail(props) {
                           ? "wallets-shared-owner-wallet wallets-shared-owner-wallet--selected"
                           : "wallets-shared-owner-wallet"
                       }
-                      onClick={() => onSelectSharedOwnerWallet?.(sharedWallet.id)}
+                      onClick={() =>
+                        onSelectSharedOwnerWallet?.(sharedWallet.id)
+                      }
                     >
                       <div className="wallets-shared-owner-wallet__header">
                         <div className="wallets-shared-owner-wallet__title">
@@ -441,11 +463,16 @@ export default function WalletDetail(props) {
                             {sharedWallet.name || "Chưa đặt tên"}
                           </span>
                           {sharedWallet.isDemoShared && (
-                            <span className="wallets-shared-demo-tag">Demo</span>
+                            <span className="wallets-shared-demo-tag">
+                              Demo
+                            </span>
                           )}
                         </div>
                         <span className="wallets-shared-owner-wallet__balance">
-                          {formatBalance(balance, sharedWallet.currency || "VND")}
+                          {formatBalance(
+                            balance,
+                            sharedWallet.currency || "VND"
+                          )}
                         </span>
                       </div>
                       {sharedWallet.note && (
@@ -455,7 +482,9 @@ export default function WalletDetail(props) {
                       )}
                       <div className="wallets-shared-owner-wallet__meta">
                         <span>{sharedWallet.ownerName}</span>
-                        {sharedWallet.ownerEmail && <span>{sharedWallet.ownerEmail}</span>}
+                        {sharedWallet.ownerEmail && (
+                          <span>{sharedWallet.ownerEmail}</span>
+                        )}
                       </div>
                       {isSelected && (
                         <div className="wallets-shared-wallet-actions">
@@ -568,59 +597,61 @@ export default function WalletDetail(props) {
         >
           Xem chi tiết
         </button>
-        <button
-          className={
-            activeDetailTab === "topup"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("topup")}
-        >
-          Nạp ví
-        </button>
-        <button
-          className={
-            activeDetailTab === "withdraw"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("withdraw")}
-        >
-          Rút ví
-        </button>
-        <button
-          className={
-            activeDetailTab === "transfer"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("transfer")}
-        >
-          Chuyển tiền
-        </button>
-        <button
-          className={
-            activeDetailTab === "edit"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("edit")}
-        >
-          Sửa ví
-        </button>
-        <button
-          className={
-            activeDetailTab === "merge"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("merge")}
-        >
-          Gộp ví
-        </button>
-
-        {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
-        {!wallet.isShared && walletTabType === "personal" && (
+        {canEdit && (
+          <>
+            <button
+              className={
+                activeDetailTab === "topup"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("topup")}
+            >
+              Nạp ví
+            </button>
+            <button
+              className={
+                activeDetailTab === "withdraw"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("withdraw")}
+            >
+              Rút ví
+            </button>
+            <button
+              className={
+                activeDetailTab === "transfer"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("transfer")}
+            >
+              Chuyển tiền
+            </button>
+            <button
+              className={
+                activeDetailTab === "edit"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("edit")}
+            >
+              Sửa ví
+            </button>
+            <button
+              className={
+                activeDetailTab === "merge"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("merge")}
+            >
+              Gộp ví
+            </button>
+          </>
+        )}
+        {canEdit && !wallet.isShared && walletTabType === "personal" && (
           <button
             className={
               activeDetailTab === "convert"
@@ -763,7 +794,7 @@ export default function WalletDetail(props) {
 // Helper function để tính tỷ giá (dùng chung cho tất cả components)
 function getRate(from, to) {
   if (!from || !to || from === to) return 1;
-  
+
   // Tỷ giá cố định (theo ExchangeRateServiceImpl)
   // rates[currency] = tỷ giá 1 VND = ? currency
   const ratesToVND = {
@@ -772,9 +803,9 @@ function getRate(from, to) {
     EUR: 0.000038,
     JPY: 0.0063,
     GBP: 0.000032,
-    CNY: 0.00030,
+    CNY: 0.0003,
   };
-  
+
   // Tỷ giá ngược lại: 1 currency = ? VND (để tránh phép chia)
   const ratesFromVND = {
     VND: 1,
@@ -784,9 +815,9 @@ function getRate(from, to) {
     GBP: 31250, // 1 GBP = 31250 VND (1/0.000032)
     CNY: 3333.3333333333335, // 1 CNY = 3333.3333333333335 VND (1/0.00030)
   };
-  
+
   if (!ratesToVND[from] || !ratesToVND[to]) return 1;
-  
+
   // Nếu from là VND, tỷ giá đơn giản là ratesToVND[to]
   if (from === "VND") {
     return ratesToVND[to];
@@ -813,9 +844,9 @@ function formatConvertedBalance(amount = 0, currency = "VND") {
     // Kiểm tra xem có phần thập phân không
     const hasDecimal = numAmount % 1 !== 0;
     if (hasDecimal) {
-      const formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 8 
+      const formatted = numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 8,
       });
       return `${formatted} VND`;
     }
@@ -824,16 +855,16 @@ function formatConvertedBalance(amount = 0, currency = "VND") {
   }
   if (currency === "USD") {
     // USD: hiển thị với 8 chữ số thập phân để khớp với tỷ giá
-    const formatted = numAmount.toLocaleString("en-US", { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 8 
+    const formatted = numAmount.toLocaleString("en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 8,
     });
     return `$${formatted}`;
   }
   // Các currency khác
-  const formatted = numAmount.toLocaleString("vi-VN", { 
-    minimumFractionDigits: 0, 
-    maximumFractionDigits: 8 
+  const formatted = numAmount.toLocaleString("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
   });
   return `${formatted} ${currency}`;
 }
@@ -842,14 +873,14 @@ function formatConvertedBalance(amount = 0, currency = "VND") {
 function formatExchangeRate(rate = 0, toCurrency = "VND") {
   const numRate = Number(rate) || 0;
   if (toCurrency === "USD") {
-    return numRate.toLocaleString("en-US", { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 8 
+    return numRate.toLocaleString("en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 8,
     });
   }
-  return numRate.toLocaleString("vi-VN", { 
-    minimumFractionDigits: 0, 
-    maximumFractionDigits: 8 
+  return numRate.toLocaleString("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
   });
 }
 
@@ -911,7 +942,9 @@ function DetailViewTab({
   const renderShareSection = () => {
     if (sharedMembersLoading) {
       return (
-        <p className="wallets-detail__share-empty">Đang tải danh sách chia sẻ...</p>
+        <p className="wallets-detail__share-empty">
+          Đang tải danh sách chia sẻ...
+        </p>
       );
     }
     if (sharedMembersError) {
@@ -920,22 +953,24 @@ function DetailViewTab({
       );
     }
     if (!displayMembers.length) {
-      return (
-        <p className="wallets-detail__share-empty">{emptyShareMessage}</p>
-      );
+      return <p className="wallets-detail__share-empty">{emptyShareMessage}</p>;
     }
 
     return (
       <div className="wallet-share-list">
         {displayMembers.map((member) => {
-          const key = member.memberId || member.userId || member.email || member.fullName;
-          const name = member.fullName || member.name || member.email || "Không rõ tên";
-          const detail = member.email && member.email !== name
-            ? member.email
-            : member.role && member.role !== "OWNER"
+          const key =
+            member.memberId || member.userId || member.email || member.fullName;
+          const name =
+            member.fullName || member.name || member.email || "Không rõ tên";
+          const detail =
+            member.email && member.email !== name
+              ? member.email
+              : member.role && member.role !== "OWNER"
               ? member.role
               : "";
-          const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+          const memberId =
+            member.userId ?? member.memberUserId ?? member.memberId;
           const allowRemove =
             canManageSharedMembers &&
             memberId &&
@@ -1024,7 +1059,10 @@ function DetailViewTab({
                 )}
               </div>
               {canInviteMembers && showQuickShareForm && (
-                <form className="wallet-share-quick-form" onSubmit={handleQuickShareSubmit}>
+                <form
+                  className="wallet-share-quick-form"
+                  onSubmit={handleQuickShareSubmit}
+                >
                   <input
                     type="email"
                     value={quickShareEmail}
@@ -1040,7 +1078,9 @@ function DetailViewTab({
                 </form>
               )}
               {quickShareMessage && (
-                <p className="wallet-share-quick-message">{quickShareMessage}</p>
+                <p className="wallet-share-quick-message">
+                  {quickShareMessage}
+                </p>
               )}
               {renderShareSection()}
             </div>
@@ -1052,15 +1092,15 @@ function DetailViewTab({
             <div className="wallets-detail-view__card-header">
               <span>Lịch sử giao dịch</span>
               <span className="wallets-detail-view__counter">
-                {isLoadingTransactions ? "Đang tải..." : `${demoTransactions.length} giao dịch`}
+                {isLoadingTransactions
+                  ? "Đang tải..."
+                  : `${demoTransactions.length} giao dịch`}
               </span>
             </div>
 
             <div className="wallets-detail__history-summary">
               <div className="wallet-detail-item wallet-detail-item--inline">
-                <span className="wallet-detail-item__label">
-                  Số giao dịch
-                </span>
+                <span className="wallet-detail-item__label">Số giao dịch</span>
                 <span className="wallet-detail-item__value">
                   {isLoadingTransactions ? "..." : demoTransactions.length}
                 </span>
@@ -1081,18 +1121,18 @@ function DetailViewTab({
                   {demoTransactions.map((tx) => {
                     const txCurrency = tx.currency || wallet?.currency || "VND";
                     const absAmount = Math.abs(tx.amount);
-                    
+
                     // Format số tiền theo currency
                     let formattedAmount = "";
                     if (txCurrency === "USD") {
                       formattedAmount = absAmount.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
-                        maximumFractionDigits: 8
+                        maximumFractionDigits: 8,
                       });
                     } else {
                       formattedAmount = absAmount.toLocaleString("vi-VN");
                     }
-                    
+
                     return (
                       <li key={tx.id} className="wallets-detail__history-item">
                         <div className="wallets-detail__history-main">
@@ -1107,7 +1147,9 @@ function DetailViewTab({
                             }
                           >
                             {tx.amount >= 0 ? "+" : "-"}
-                            {txCurrency === "USD" ? `$${formattedAmount}` : `${formattedAmount} ${txCurrency}`}
+                            {txCurrency === "USD"
+                              ? `$${formattedAmount}`
+                              : `${formattedAmount} ${txCurrency}`}
                           </span>
                         </div>
 
@@ -1166,39 +1208,48 @@ function ManageMembersTab({
             {sharedMembersError}
           </div>
         )}
-        {!sharedMembersLoading && !sharedMembersError && safeMembers.length === 0 && (
-          <div className="wallets-manage__state">
-            Chưa có người dùng nào được chia sẻ.
-          </div>
-        )}
+        {!sharedMembersLoading &&
+          !sharedMembersError &&
+          safeMembers.length === 0 && (
+            <div className="wallets-manage__state">
+              Chưa có người dùng nào được chia sẻ.
+            </div>
+          )}
 
-        {!sharedMembersLoading && !sharedMembersError && safeMembers.length > 0 && (
-          <ul>
-            {safeMembers.map((member) => {
-              const memberId = member.userId ?? member.memberUserId ?? member.memberId;
-              const role = member.role || "";
-              const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(role.toUpperCase());
-              return (
-                <li key={memberId || member.email || role}>
-                  <div>
-                    <div className="wallets-manage__name">{member.fullName || member.name || member.email}</div>
-                    <div className="wallets-manage__meta">
-                      {member.email && <span>{member.email}</span>}
-                      {role && <span>{ownerBadge(role)}</span>}
+        {!sharedMembersLoading &&
+          !sharedMembersError &&
+          safeMembers.length > 0 && (
+            <ul>
+              {safeMembers.map((member) => {
+                const memberId =
+                  member.userId ?? member.memberUserId ?? member.memberId;
+                const role = member.role || "";
+                const isOwner = ["OWNER", "MASTER", "ADMIN"].includes(
+                  role.toUpperCase()
+                );
+                return (
+                  <li key={memberId || member.email || role}>
+                    <div>
+                      <div className="wallets-manage__name">
+                        {member.fullName || member.name || member.email}
+                      </div>
+                      <div className="wallets-manage__meta">
+                        {member.email && <span>{member.email}</span>}
+                        {role && <span>{ownerBadge(role)}</span>}
+                      </div>
                     </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveSharedMember?.(member)}
-                    disabled={isOwner || removingMemberId === memberId}
-                  >
-                    {removingMemberId === memberId ? "Đang xóa..." : "Xóa"}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                    <button
+                      type="button"
+                      onClick={() => onRemoveSharedMember?.(member)}
+                      disabled={isOwner || removingMemberId === memberId}
+                    >
+                      {removingMemberId === memberId ? "Đang xóa..." : "Xóa"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
       </div>
     </div>
   );
@@ -1220,24 +1271,34 @@ function TopupTab({
     const numAmount = Number(amount) || 0;
     if (currency === "USD") {
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
         });
         return `$${formatted}`;
       }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
       return `$${formatted}`;
     }
     if (currency === "VND") {
       return `${numAmount.toLocaleString("vi-VN")} VND`;
     }
     if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
     }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
   };
 
   const currentBalance = Number(wallet?.balance || 0);
@@ -1278,11 +1339,13 @@ function TopupTab({
               placeholder="Nhập số tiền..."
               inputMode="numeric"
             />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
+            <div
+              style={{
+                fontSize: "0.875rem",
+                color: "#6b7280",
+                marginTop: "4px",
+              }}
+            >
               Số dư hiện tại:{" "}
               <strong style={{ color: "#111827" }}>
                 {formatMoney(currentBalance, walletCurrency)}
@@ -1307,12 +1370,26 @@ function TopupTab({
         {topupAmount && (
           <div className="wallet-form__row">
             {!topupCategoryId && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+              <div
+                style={{
+                  color: "#ef4444",
+                  fontSize: "0.875rem",
+                  marginTop: "-10px",
+                  marginBottom: "10px",
+                }}
+              >
                 Vui lòng chọn danh mục.
               </div>
             )}
             {topupCategoryId && (!topupAmount || Number(topupAmount) <= 0) && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+              <div
+                style={{
+                  color: "#ef4444",
+                  fontSize: "0.875rem",
+                  marginTop: "-10px",
+                  marginBottom: "10px",
+                }}
+              >
                 Số tiền không hợp lệ.
               </div>
             )}
@@ -1323,7 +1400,9 @@ function TopupTab({
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={!topupAmount || !topupCategoryId || Number(topupAmount) <= 0}
+            disabled={
+              !topupAmount || !topupCategoryId || Number(topupAmount) <= 0
+            }
           >
             <span style={{ marginRight: "6px" }}>✔</span>
             Xác nhận nạp
@@ -1350,24 +1429,34 @@ function WithdrawTab({
     const numAmount = Number(amount) || 0;
     if (currency === "USD") {
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
         });
         return `$${formatted}`;
       }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
       return `$${formatted}`;
     }
     if (currency === "VND") {
       return `${numAmount.toLocaleString("vi-VN")} VND`;
     }
     if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
     }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
   };
 
   const currentBalance = Number(wallet?.balance || 0);
@@ -1412,11 +1501,13 @@ function WithdrawTab({
               placeholder="Nhập số tiền..."
               inputMode="numeric"
             />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
+            <div
+              style={{
+                fontSize: "0.875rem",
+                color: "#6b7280",
+                marginTop: "4px",
+              }}
+            >
               Số dư hiện tại:{" "}
               <strong style={{ color: "#111827" }}>
                 {formatMoney(currentBalance, walletCurrency)}
@@ -1441,12 +1532,26 @@ function WithdrawTab({
         {withdrawAmount && (
           <div className="wallet-form__row">
             {!withdrawCategoryId && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+              <div
+                style={{
+                  color: "#ef4444",
+                  fontSize: "0.875rem",
+                  marginTop: "-10px",
+                  marginBottom: "10px",
+                }}
+              >
                 Vui lòng chọn danh mục.
               </div>
             )}
             {withdrawCategoryId && Number(withdrawAmount) > currentBalance && (
-              <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+              <div
+                style={{
+                  color: "#ef4444",
+                  fontSize: "0.875rem",
+                  marginTop: "-10px",
+                  marginBottom: "10px",
+                }}
+              >
                 Số tiền không hợp lệ hoặc vượt quá số dư.
               </div>
             )}
@@ -1457,7 +1562,11 @@ function WithdrawTab({
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={!withdrawAmount || !withdrawCategoryId || Number(withdrawAmount) > currentBalance}
+            disabled={
+              !withdrawAmount ||
+              !withdrawCategoryId ||
+              Number(withdrawAmount) > currentBalance
+            }
           >
             <span style={{ marginRight: "6px" }}>✔</span>
             Xác nhận rút
@@ -1487,24 +1596,34 @@ function TransferTab({
     const numAmount = Number(amount) || 0;
     if (currency === "USD") {
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
         });
         return `$${formatted}`;
       }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
       return `$${formatted}`;
     }
     if (currency === "VND") {
       return `${numAmount.toLocaleString("vi-VN")} VND`;
     }
     if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
     }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
   };
 
   // Format số tiền chuyển đổi với độ chính xác cao (giống tỷ giá - 6 chữ số thập phân)
@@ -1512,23 +1631,23 @@ function TransferTab({
     const numAmount = Number(amount) || 0;
     if (currency === "VND") {
       // VND: hiển thị với 6 chữ số thập phân để khớp với tỷ giá
-      const formatted = numAmount.toLocaleString("vi-VN", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 6 
+      const formatted = numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6,
       });
       return `${formatted} VND`;
     }
     if (currency === "USD") {
-      const formatted = numAmount.toLocaleString("en-US", { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 8 
+      const formatted = numAmount.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
       });
       return `$${formatted}`;
     }
     // Các currency khác
-    const formatted = numAmount.toLocaleString("vi-VN", { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 6 
+    const formatted = numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
     });
     return `${formatted} ${currency}`;
   };
@@ -1578,11 +1697,13 @@ function TransferTab({
               value={`${wallet.name || "Ví hiện tại"} (${sourceCurrency})`}
               disabled
             />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
+            <div
+              style={{
+                fontSize: "0.875rem",
+                color: "#6b7280",
+                marginTop: "4px",
+              }}
+            >
               Số dư ví nguồn:{" "}
               <strong style={{ color: "#111827" }}>
                 {formatMoney(sourceBalance, sourceCurrency)}
@@ -1607,14 +1728,19 @@ function TransferTab({
                 ))}
             </select>
             {targetWallet && (
-              <div style={{ 
-                fontSize: "0.875rem", 
-                color: "#6b7280",
-                marginTop: "4px"
-              }}>
+              <div
+                style={{
+                  fontSize: "0.875rem",
+                  color: "#6b7280",
+                  marginTop: "4px",
+                }}
+              >
                 Số dư ví đích:{" "}
                 <strong style={{ color: "#111827" }}>
-                  {formatMoney(Number(targetWallet?.balance || 0), targetCurrency || "VND")}
+                  {formatMoney(
+                    Number(targetWallet?.balance || 0),
+                    targetCurrency || "VND"
+                  )}
                 </strong>
               </div>
             )}
@@ -1635,22 +1761,30 @@ function TransferTab({
             />
             {currencyMismatch && transferAmountNum > 0 && (
               <>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
+                <div
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "#6b7280",
+                    marginTop: "4px",
+                  }}
+                >
                   Tiền chuyển đổi:{" "}
                   <strong style={{ color: "#059669" }}>
                     {formatConvertedAmount(convertedAmount, targetCurrency)}
                   </strong>
                 </div>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tỷ giá: 1 {sourceCurrency} = {exchangeRate.toLocaleString("vi-VN", { maximumFractionDigits: 6 })} {targetCurrency}
+                <div
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "#6b7280",
+                    marginTop: "4px",
+                  }}
+                >
+                  Tỷ giá: 1 {sourceCurrency} ={" "}
+                  {exchangeRate.toLocaleString("vi-VN", {
+                    maximumFractionDigits: 6,
+                  })}{" "}
+                  {targetCurrency}
                 </div>
               </>
             )}
@@ -1672,7 +1806,14 @@ function TransferTab({
         {/* Hiển thị lỗi nếu số tiền không hợp lệ */}
         {transferAmount && transferAmountNum > sourceBalance && (
           <div className="wallet-form__row">
-            <div style={{ color: "#ef4444", fontSize: "0.875rem", marginTop: "-10px", marginBottom: "10px" }}>
+            <div
+              style={{
+                color: "#ef4444",
+                fontSize: "0.875rem",
+                marginTop: "-10px",
+                marginBottom: "10px",
+              }}
+            >
               Số tiền không hợp lệ hoặc vượt quá số dư.
             </div>
           </div>
@@ -1682,7 +1823,12 @@ function TransferTab({
           <button
             type="submit"
             className="wallets-btn wallets-btn--primary"
-            disabled={!transferTargetId || !transferAmount || transferAmountNum > sourceBalance || transferAmountNum <= 0}
+            disabled={
+              !transferTargetId ||
+              !transferAmount ||
+              transferAmountNum > sourceBalance ||
+              transferAmountNum <= 0
+            }
           >
             <span style={{ marginRight: "6px" }}>✔</span>
             Xác nhận chuyển
@@ -1731,24 +1877,28 @@ function EditTab({
     if (currency === "USD") {
       // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
       if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
         });
         return `$${formatted}`;
       }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
       return `$${formatted}`;
     }
     if (currency === "VND") {
       // VND: hiển thị số thập phân nếu có (khi chuyển đổi từ currency khác)
       const hasDecimal = numAmount % 1 !== 0;
       if (hasDecimal) {
-        const formatted = numAmount.toLocaleString("vi-VN", { 
-          minimumFractionDigits: 0, 
-          maximumFractionDigits: 8 
+        const formatted = numAmount.toLocaleString("vi-VN", {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 8,
         });
         return `${formatted} VND`;
       }
@@ -1756,9 +1906,15 @@ function EditTab({
     }
     // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
     if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
     }
-    return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
   };
 
   // Sử dụng các hàm formatConvertedBalance và formatExchangeRate đã được định nghĩa ở top level
@@ -1768,7 +1924,7 @@ function EditTab({
   const newCurrency = editForm.currency;
   const currentBalance = Number(wallet?.balance || 0);
   const currencyChanged = oldCurrency !== newCurrency;
-  
+
   const exchangeRate = useMemo(() => {
     if (!currencyChanged) return 1;
     return getRate(oldCurrency, newCurrency);
@@ -1805,11 +1961,13 @@ function EditTab({
               value={editForm.name}
               onChange={(e) => onEditFieldChange("name", e.target.value)}
             />
-            <div style={{ 
-              fontSize: "0.875rem", 
-              color: "#6b7280",
-              marginTop: "4px"
-            }}>
+            <div
+              style={{
+                fontSize: "0.875rem",
+                color: "#6b7280",
+                marginTop: "4px",
+              }}
+            >
               Số dư hiện tại:{" "}
               <strong style={{ color: "#111827" }}>
                 {formatMoney(currentBalance, oldCurrency)}
@@ -1820,9 +1978,7 @@ function EditTab({
             Tiền tệ
             <select
               value={editForm.currency}
-              onChange={(e) =>
-                onEditFieldChange("currency", e.target.value)
-              }
+              onChange={(e) => onEditFieldChange("currency", e.target.value)}
             >
               {currencies.map((c) => (
                 <option key={c} value={c}>
@@ -1833,28 +1989,33 @@ function EditTab({
             {/* Hiển thị tỷ giá và số dư sau khi chuyển đổi chỉ khi currency thay đổi */}
             {currencyChanged && wallet && (
               <>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#6b7280",
-                  marginTop: "4px"
-                }}>
-                  Tỷ giá: 1 {oldCurrency} = {newCurrency === "USD" 
-                    ? exchangeRate.toLocaleString("en-US", { 
-                        minimumFractionDigits: 0, 
-                        maximumFractionDigits: 8 
+                <div
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "#6b7280",
+                    marginTop: "4px",
+                  }}
+                >
+                  Tỷ giá: 1 {oldCurrency} ={" "}
+                  {newCurrency === "USD"
+                    ? exchangeRate.toLocaleString("en-US", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 8,
                       })
-                    : exchangeRate.toLocaleString("vi-VN", { 
-                        minimumFractionDigits: 0, 
-                        maximumFractionDigits: 8 
-                      })
-                  } {newCurrency}
+                    : exchangeRate.toLocaleString("vi-VN", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 8,
+                      })}{" "}
+                  {newCurrency}
                 </div>
-                <div style={{ 
-                  fontSize: "0.875rem", 
-                  color: "#059669",
-                  marginTop: "4px",
-                  fontWeight: 600
-                }}>
+                <div
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "#059669",
+                    marginTop: "4px",
+                    fontWeight: 600,
+                  }}
+                >
                   Số dư sau khi chuyển đổi:{" "}
                   <strong>
                     {formatConvertedBalance(convertedBalance, newCurrency)}
@@ -1916,15 +2077,18 @@ function EditTab({
 
         {/* Hiển thị thời gian tạo */}
         {createdAt && (
-          <div className="wallet-form__row" style={{ 
-            padding: "10px 12px", 
-            border: "1px dashed #d1d5db",
-            borderRadius: "10px", 
-            display: "flex", 
-            justifyContent: "space-between",
-            color: "#6b7280",
-            marginBottom: "14px"
-          }}>
+          <div
+            className="wallet-form__row"
+            style={{
+              padding: "10px 12px",
+              border: "1px dashed #d1d5db",
+              borderRadius: "10px",
+              display: "flex",
+              justifyContent: "space-between",
+              color: "#6b7280",
+              marginBottom: "14px",
+            }}
+          >
             <span>Thời gian tạo</span>
             <strong style={{ color: "#111827" }}>{createdAt}</strong>
           </div>
@@ -2051,12 +2215,16 @@ function MergeTab({
 
   const sourceWallet = useMemo(() => {
     if (!currentWallet) return null;
-    return direction === "this_into_other" ? currentWallet : selectedWallet || null;
+    return direction === "this_into_other"
+      ? currentWallet
+      : selectedWallet || null;
   }, [currentWallet, direction, selectedWallet]);
 
   const targetWallet = useMemo(() => {
     if (!currentWallet) return null;
-    return direction === "this_into_other" ? selectedWallet || null : currentWallet;
+    return direction === "this_into_other"
+      ? selectedWallet || null
+      : currentWallet;
   }, [currentWallet, direction, selectedWallet]);
 
   const srcCurrency = sourceWallet?.currency || "VND";
@@ -2081,19 +2249,23 @@ function MergeTab({
   const selectedIsDefault = !!selectedWallet?.isDefault;
 
   const sourceIsDefault = useMemo(() => {
-    return (direction === "this_into_other" && currentIsDefault) ||
-      (direction === "other_into_this" && selectedIsDefault);
+    return (
+      (direction === "this_into_other" && currentIsDefault) ||
+      (direction === "other_into_this" && selectedIsDefault)
+    );
   }, [direction, currentIsDefault, selectedIsDefault]);
 
   const targetIsDefault = useMemo(() => {
-    return (direction === "this_into_other" && selectedIsDefault) ||
-      (direction === "other_into_this" && currentIsDefault);
+    return (
+      (direction === "this_into_other" && selectedIsDefault) ||
+      (direction === "other_into_this" && currentIsDefault)
+    );
   }, [direction, selectedIsDefault, currentIsDefault]);
 
   const differentCurrency = useMemo(() => {
     return !!targetWallet && srcCurrency !== tgtCurrency;
   }, [targetWallet, srcCurrency, tgtCurrency]);
-  
+
   // Tính tỷ giá thực tế (giống EditTab)
   const exchangeRate = useMemo(() => {
     if (!differentCurrency || !sourceWallet || !targetWallet) return 1;
@@ -2103,7 +2275,14 @@ function MergeTab({
     }
     // Chuyển đổi từ tgtCurrency sang srcCurrency
     return getRate(tgtCurrency, srcCurrency);
-  }, [differentCurrency, srcCurrency, tgtCurrency, currencyMode, sourceWallet, targetWallet]);
+  }, [
+    differentCurrency,
+    srcCurrency,
+    tgtCurrency,
+    currencyMode,
+    sourceWallet,
+    targetWallet,
+  ]);
 
   const convertedSourceAmount = useMemo(() => {
     if (!differentCurrency || !sourceWallet) return srcBalance;
@@ -2113,7 +2292,14 @@ function MergeTab({
       return converted; // Không làm tròn để giữ độ chính xác
     }
     return srcBalance;
-  }, [differentCurrency, srcBalance, srcCurrency, tgtCurrency, currencyMode, sourceWallet]);
+  }, [
+    differentCurrency,
+    srcBalance,
+    srcCurrency,
+    tgtCurrency,
+    currencyMode,
+    sourceWallet,
+  ]);
 
   const convertedTargetAmount = useMemo(() => {
     if (!differentCurrency || !targetWallet) return tgtBalance;
@@ -2123,7 +2309,14 @@ function MergeTab({
       return converted; // Không làm tròn để giữ độ chính xác
     }
     return tgtBalance;
-  }, [differentCurrency, tgtBalance, srcCurrency, tgtCurrency, currencyMode, targetWallet]);
+  }, [
+    differentCurrency,
+    tgtBalance,
+    srcCurrency,
+    tgtCurrency,
+    currencyMode,
+    targetWallet,
+  ]);
 
   const finalCurrency = useMemo(() => {
     if (!differentCurrency) return tgtCurrency;
@@ -2139,7 +2332,16 @@ function MergeTab({
       return srcBalance + convertedTargetAmount;
     }
     return tgtBalance + convertedSourceAmount;
-  }, [targetWallet, sourceWallet, srcBalance, tgtBalance, differentCurrency, currencyMode, convertedSourceAmount, convertedTargetAmount]);
+  }, [
+    targetWallet,
+    sourceWallet,
+    srcBalance,
+    tgtBalance,
+    differentCurrency,
+    currencyMode,
+    convertedSourceAmount,
+    convertedTargetAmount,
+  ]);
 
   // Early return sau khi tất cả hooks đã được gọi
   if (!wallet) {
@@ -2210,7 +2412,8 @@ function MergeTab({
     const currentBal =
       Number(currentWallet.balance ?? currentWallet.current ?? 0) || 0;
     const currentCur = currentWallet.currency || "VND";
-    const currentTx = currentWallet?.txCount ?? currentWallet?.transactionCount ?? 0;
+    const currentTx =
+      currentWallet?.txCount ?? currentWallet?.transactionCount ?? 0;
 
     const selectedBal =
       selectedWallet &&
@@ -2390,8 +2593,7 @@ function MergeTab({
                       Number(w.balance ?? w.current ?? 0)?.toLocaleString(
                         "vi-VN"
                       ) || "0";
-                    const isDiff =
-                      (w.currency || "VND") !== currentCur;
+                    const isDiff = (w.currency || "VND") !== currentCur;
 
                     return (
                       <label
@@ -2425,7 +2627,10 @@ function MergeTab({
                           <div className="wallet-merge__target-row">
                             <span>Số dư</span>
                             <span>
-                              {formatConvertedBalance(Number(w.balance ?? w.current ?? 0), w.currency || "VND")}
+                              {formatConvertedBalance(
+                                Number(w.balance ?? w.current ?? 0),
+                                w.currency || "VND"
+                              )}
                             </span>
                           </div>
                           {w.isDefault && (
@@ -2490,8 +2695,8 @@ function MergeTab({
               </div>
               <ul className="wallet-merge__list">
                 <li>
-                  <strong>{defaultName}</strong> hiện đang là ví mặc định của
-                  hệ thống.
+                  <strong>{defaultName}</strong> hiện đang là ví mặc định của hệ
+                  thống.
                 </li>
                 <li>
                   Sau khi gộp, ví <strong>{defaultName}</strong> sẽ bị xoá.
@@ -2524,9 +2729,8 @@ function MergeTab({
                       Đặt ví đích làm ví mặc định mới (khuyến nghị)
                     </div>
                     <div className="wallet-merge__option-desc">
-                      Sau khi gộp, ví{" "}
-                      <strong>{tgtName || "ví đích"}</strong> sẽ trở thành ví
-                      mặc định.
+                      Sau khi gộp, ví <strong>{tgtName || "ví đích"}</strong> sẽ
+                      trở thành ví mặc định.
                     </div>
                   </div>
                 </label>
@@ -2544,8 +2748,8 @@ function MergeTab({
                       Không đặt ví mặc định sau khi gộp
                     </div>
                     <div className="wallet-merge__option-desc">
-                      Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể
-                      chọn lại sau trong phần quản lý ví.
+                      Hệ thống sẽ tạm thời không có ví mặc định. Bạn có thể chọn
+                      lại sau trong phần quản lý ví.
                     </div>
                   </div>
                 </label>
@@ -2677,16 +2881,13 @@ function MergeTab({
             <div className="wallet-merge__step-label">
               Bước 4 – Chọn loại tiền đích
             </div>
-            <div className="wallet-merge__step-pill">
-              Hai ví cùng loại tiền
-            </div>
+            <div className="wallet-merge__step-pill">Hai ví cùng loại tiền</div>
           </div>
 
           <div className="wallet-merge__box">
             <p className="wallet-merge__hint">
-              Cả hai ví đều sử dụng{" "}
-              <strong>{tgtCurrency}</strong>. Hệ thống sẽ giữ nguyên loại tiền
-              này cho ví sau khi gộp.
+              Cả hai ví đều sử dụng <strong>{tgtCurrency}</strong>. Hệ thống sẽ
+              giữ nguyên loại tiền này cho ví sau khi gộp.
             </p>
 
             <div className="wallet-merge__actions">
@@ -2716,9 +2917,7 @@ function MergeTab({
           <div className="wallet-merge__step-label">
             Bước 4 – Chọn loại tiền đích
           </div>
-          <div className="wallet-merge__step-pill">
-            Hai ví khác loại tiền
-          </div>
+          <div className="wallet-merge__step-pill">Hai ví khác loại tiền</div>
         </div>
 
         <div className="wallet-merge__box">
@@ -2732,9 +2931,7 @@ function MergeTab({
               </div>
               <div className="wallet-merge__summary-row">
                 <span>Số dư</span>
-                <span>
-                  {formatConvertedBalance(srcBalance, srcCurrency)}
-                </span>
+                <span>{formatConvertedBalance(srcBalance, srcCurrency)}</span>
               </div>
             </div>
             <div className="wallet-merge__summary-card">
@@ -2746,9 +2943,7 @@ function MergeTab({
               </div>
               <div className="wallet-merge__summary-row">
                 <span>Số dư</span>
-                <span>
-                  {formatConvertedBalance(tgtBalance, tgtCurrency)}
-                </span>
+                <span>{formatConvertedBalance(tgtBalance, tgtCurrency)}</span>
               </div>
             </div>
           </div>
@@ -2757,7 +2952,8 @@ function MergeTab({
             Cách xử lý khác loại tiền
           </div>
           <p className="wallet-merge__hint">
-            Chọn loại tiền sẽ được giữ lại sau khi gộp. Hệ thống sẽ tự động quy đổi theo tỷ giá hiện tại.
+            Chọn loại tiền sẽ được giữ lại sau khi gộp. Hệ thống sẽ tự động quy
+            đổi theo tỷ giá hiện tại.
           </p>
 
           <div className="wallet-merge__options">
@@ -2782,7 +2978,12 @@ function MergeTab({
                 </div>
                 {differentCurrency && (
                   <div className="wallet-merge__option-foot">
-                    Tỷ giá: 1 {srcCurrency} = {formatExchangeRate(getRate(srcCurrency, tgtCurrency), tgtCurrency)} {tgtCurrency}
+                    Tỷ giá: 1 {srcCurrency} ={" "}
+                    {formatExchangeRate(
+                      getRate(srcCurrency, tgtCurrency),
+                      tgtCurrency
+                    )}{" "}
+                    {tgtCurrency}
                   </div>
                 )}
               </div>
@@ -2809,7 +3010,12 @@ function MergeTab({
                 </div>
                 {differentCurrency && (
                   <div className="wallet-merge__option-foot">
-                    Tỷ giá: 1 {tgtCurrency} = {formatExchangeRate(getRate(tgtCurrency, srcCurrency), srcCurrency)} {srcCurrency}
+                    Tỷ giá: 1 {tgtCurrency} ={" "}
+                    {formatExchangeRate(
+                      getRate(tgtCurrency, srcCurrency),
+                      srcCurrency
+                    )}{" "}
+                    {srcCurrency}
                   </div>
                 )}
               </div>
@@ -2860,9 +3066,7 @@ function MergeTab({
               </div>
               <div className="wallet-merge__summary-row">
                 <span>Số dư</span>
-                <span>
-                  {formatConvertedBalance(srcBalance, srcCurrency)}
-                </span>
+                <span>{formatConvertedBalance(srcBalance, srcCurrency)}</span>
               </div>
               <div className="wallet-merge__summary-row">
                 <span>Giao dịch</span>
@@ -2879,9 +3083,7 @@ function MergeTab({
               </div>
               <div className="wallet-merge__summary-row">
                 <span>Số dư hiện tại</span>
-                <span>
-                  {formatConvertedBalance(tgtBalance, tgtCurrency)}
-                </span>
+                <span>{formatConvertedBalance(tgtBalance, tgtCurrency)}</span>
               </div>
               <div className="wallet-merge__summary-row">
                 <span>Giao dịch hiện tại</span>
@@ -2993,8 +3195,7 @@ function MergeTab({
               Đã gộp ví thành công
             </div>
             <p className="wallet-merge__hint">
-              Hệ thống đã cập nhật lại số dư & giao dịch theo thiết lập của
-              bạn.
+              Hệ thống đã cập nhật lại số dư & giao dịch theo thiết lập của bạn.
             </p>
             <div className="wallet-merge__actions">
               <button
@@ -3154,8 +3355,8 @@ function ConvertTab({
                         Chọn một ví cá nhân khác làm ví mặc định mới
                       </div>
                       <div className="wallet-merge__option-desc">
-                        Sau khi chuyển sang ví nhóm, ví được chọn dưới đây sẽ trở
-                        thành ví mặc định.
+                        Sau khi chuyển sang ví nhóm, ví được chọn dưới đây sẽ
+                        trở thành ví mặc định.
                       </div>
                       <div style={{ marginTop: 6 }}>
                         <select
@@ -3195,8 +3396,8 @@ function ConvertTab({
               ) : (
                 <div className="wallet-merge__section-block">
                   <p className="wallet-merge__hint">
-                    Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển
-                    ví này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc
+                    Hiện tại bạn không có ví cá nhân nào khác. Sau khi chuyển ví
+                    này thành ví nhóm, hệ thống sẽ tạm thời không có ví mặc
                     định. Bạn có thể tạo ví cá nhân mới và đặt làm mặc định sau.
                   </p>
                 </div>
@@ -3218,4 +3419,3 @@ function ConvertTab({
     </div>
   );
 }
-

@@ -1,242 +1,358 @@
-// src/components/funds/ParticipateManager.jsx
 import React, { useEffect, useState } from "react";
+import { toast } from "react-toastify"; // Giả sử bạn dùng react-toastify hoặc component Toast của bạn
 import FundSection from "./FundSection";
+import * as walletService from "../../services/wallet.service"; // Import service
 
-export default function ParticipateManager({ viewFunds, useFunds }) {
+export default function ParticipateManager() {
+  const [accessibleWallets, setAccessibleWallets] = useState([]);
+  const [viewFunds, setViewFunds] = useState([]);
+  const [useFunds, setUseFunds] = useState([]);
+
   const [selectedFund, setSelectedFund] = useState(null);
   const [members, setMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
+  // State cho việc mời thành viên mới
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
+
+  // 1. Fetch danh sách ví được chia sẻ khi component mount
+  useEffect(() => {
+    fetchWallets();
+  }, []);
+
+  const fetchWallets = async () => {
+    try {
+      // Gọi API lấy tất cả ví user tham gia
+      const data = await walletService.getAllAccessibleWallets();
+      setAccessibleWallets(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách ví:", error);
+      toast.error("Không thể tải danh sách ví tham gia");
+    }
+  };
+
+  // 2. Phân loại ví (View vs Use) mỗi khi danh sách thay đổi
+  useEffect(() => {
+    if (!accessibleWallets.length) return;
+
+    const viewers = [];
+    const users = [];
+
+    accessibleWallets.forEach((wallet) => {
+      // Map dữ liệu từ Backend DTO sang format của FundSection (nếu cần)
+      const item = {
+        id: wallet.walletId,
+        name: wallet.walletName,
+        balance: wallet.balance,
+        currency: wallet.currencyCode,
+        role: wallet.myRole, // OWNER, ADMIN, EDITOR, VIEWER
+        type: wallet.walletType,
+        ownerName: wallet.ownerName,
+      };
+
+      if (wallet.myRole === "VIEWER") {
+        viewers.push(item);
+      } else {
+        users.push(item);
+      }
+    });
+
+    setViewFunds(viewers);
+    setUseFunds(users);
+  }, [accessibleWallets]);
+
+  // 3. Fetch thành viên khi chọn ví
   useEffect(() => {
     if (!selectedFund) {
       setMembers([]);
       return;
     }
 
-    if (Array.isArray(selectedFund.members) && selectedFund.members.length > 0) {
-      setMembers(selectedFund.members);
-    } else {
-      setMembers([
-        { id: 1, name: "Bạn A", email: "a@example.com", role: "owner" },
-        { id: 2, name: "Bạn B", email: "b@example.com", role: "use" },
-        { id: 3, name: "Bạn C", email: "c@example.com", role: "view" },
-      ]);
-    }
+    const fetchMembers = async () => {
+      setLoadingMembers(true);
+      try {
+        const data = await walletService.getWalletMembers(selectedFund.id);
+        setMembers(data);
+      } catch (error) {
+        console.error(error);
+        toast.error("Lỗi tải danh sách thành viên");
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+
+    fetchMembers();
   }, [selectedFund]);
 
-  const handleAddMember = () => {
-    setMembers((prev) => [
-      ...prev,
-      { id: Date.now(), name: "", email: "", role: "view" },
-    ]);
+  // --- LOGIC PHÂN QUYỀN UI ---
+  // Kiểm tra xem user hiện tại (Actor) có quyền sửa user kia (Target) không
+  const canManageMember = (targetRole) => {
+    const myRole = selectedFund?.role;
+
+    if (myRole === "OWNER") return true; // Owner quyền lực nhất
+    if (myRole === "ADMIN") {
+      // Admin chỉ sửa được Editor và Viewer
+      return targetRole === "EDITOR" || targetRole === "VIEWER";
+    }
+    return false;
   };
 
-  const handleChangeMember = (id, field, value) => {
-    setMembers((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
-    );
+  // --- ACTIONS ---
+
+  const handleUpdateRole = async (memberId, newRole) => {
+    try {
+      await walletService.updateMemberRole(selectedFund.id, memberId, newRole);
+      toast.success("Cập nhật quyền thành công!");
+
+      // Cập nhật state local để UI phản hồi nhanh
+      setMembers((prev) =>
+        prev.map((m) => (m.memberId === memberId ? { ...m, role: newRole } : m))
+      );
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Lỗi cập nhật quyền");
+    }
   };
 
-  const handleRemoveMember = (id) => {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm("Bạn có chắc muốn mời thành viên này ra khỏi ví?"))
+      return;
+
+    try {
+      await walletService.removeMember(selectedFund.id, memberId);
+      toast.success("Đã xóa thành viên");
+      setMembers((prev) => prev.filter((m) => m.memberId !== memberId));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Lỗi xóa thành viên");
+    }
   };
 
-  const handleSaveMembers = () => {
-    if (!selectedFund) return;
-    console.log("Lưu cập nhật thành viên quỹ tham gia", {
-      fundId: selectedFund.id,
-      members,
-    });
-    alert("Đã lưu thay đổi thành viên (demo trên FE).");
+  const handleInviteMember = async () => {
+    if (!inviteEmail.trim()) {
+      toast.warning("Vui lòng nhập email");
+      return;
+    }
+
+    setIsInviting(true);
+    try {
+      // API shareWallet trả về thông tin member mới
+      const newMember = await walletService.shareWallet(
+        selectedFund.id,
+        inviteEmail
+      );
+      toast.success("Đã thêm thành viên mới!");
+      setMembers((prev) => [...prev, newMember]);
+      setInviteEmail(""); // Clear input
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+          "Không thể mời thành viên (Email không tồn tại hoặc đã tham gia)"
+      );
+    } finally {
+      setIsInviting(false);
+    }
   };
 
+  // Helper hiển thị tên Role tiếng Việt
+  const getRoleLabel = (role) => {
+    switch (role) {
+      case "OWNER":
+        return "Chủ sở hữu";
+      case "ADMIN":
+        return "Quản trị viên";
+      case "EDITOR":
+        return "Thành viên (Sửa)";
+      case "VIEWER":
+        return "Người xem";
+      default:
+        return role;
+    }
+  };
+
+  // --- RENDER ---
   return (
     <div className="row g-3">
-      {/* CỘT TRÁI: DANH SÁCH QUỸ ĐƯỢC THAM GIA */}
+      {/* CỘT TRÁI: DANH SÁCH QUỸ */}
       <div className="col-lg-5">
         <FundSection
-          title="Quỹ tham gia (chỉ xem)"
-          subtitle="Bạn chỉ có quyền xem số dư và lịch sử."
+          title="Quỹ tham gia (Chỉ xem)"
+          subtitle="Bạn chỉ có quyền xem số dư và lịch sử giao dịch."
           items={viewFunds}
-          onSelectFund={() => {
-            // quỹ xem: không cho chỉnh
-          }}
+          onSelectFund={(fund) => setSelectedFund(fund)}
         />
 
         <FundSection
-          title="Quỹ tham gia (được sử dụng)"
-          subtitle="Bạn được phép thao tác tiền và quản lý thành viên (tuỳ quyền)."
+          title="Quỹ tham gia (Được sử dụng)"
+          subtitle="Bạn có quyền thêm giao dịch hoặc quản lý (tùy vai trò)."
           items={useFunds}
           onSelectFund={(fund) => setSelectedFund(fund)}
         />
       </div>
 
-      {/* CỘT PHẢI: CHI TIẾT QUỸ ĐƯỢC CHỌN */}
+      {/* CỘT PHẢI: CHI TIẾT & QUẢN LÝ */}
       <div className="col-lg-7">
         {!selectedFund ? (
-          <div className="card border-0 shadow-sm p-3 p-lg-4">
-            <h5 className="mb-2">Chọn một quỹ được sử dụng</h5>
-            <p className="mb-0 text-muted">
-              Hãy bấm vào một quỹ trong phần{" "}
-              <strong>Quỹ tham gia (được sử dụng)</strong> bên trái để xem chi
-              tiết và quản lý thành viên.
-            </p>
+          <div className="card border-0 shadow-sm p-4 text-center">
+            <h5 className="text-muted">Chọn một ví để xem chi tiết</h5>
           </div>
         ) : (
           <div className="funds-fieldset">
             <div className="funds-fieldset__legend">
-              Quản lý quỹ được tham gia
+              Quản lý thành viên: {selectedFund.name}
             </div>
 
-            <div className="funds-field">
-              <label>Tên quỹ</label>
-              <input
-                type="text"
-                value={selectedFund.name}
-                onChange={(e) =>
-                  setSelectedFund((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
-              <div className="funds-hint">
-                Bạn có thể đổi tên quỹ này (đang demo trên FE).
-              </div>
-            </div>
-
-            <div className="funds-field funds-field--inline">
-              <div>
-                <label>Loại quỹ</label>
-                <input
-                  type="text"
-                  disabled
-                  value={
-                    selectedFund.type === "group"
-                      ? "Quỹ nhóm"
-                      : "Quỹ cá nhân"
-                  }
-                />
-              </div>
+            {/* Thông tin ví cơ bản */}
+            <div className="funds-field funds-field--inline mb-3">
               <div>
                 <label>Vai trò của bạn</label>
                 <input
                   type="text"
                   disabled
-                  value={
-                    selectedFund.role === "manage"
-                      ? "Được sử dụng"
-                      : "Chỉ xem"
-                  }
+                  value={getRoleLabel(selectedFund.role)}
+                  className="fw-bold text-primary"
                 />
               </div>
-            </div>
-
-            <div className="funds-field funds-field--inline">
               <div>
                 <label>Số dư hiện tại</label>
                 <input
                   type="text"
                   disabled
-                  value={`${selectedFund.current.toLocaleString("vi-VN")} ${
-                    selectedFund.currency || ""
+                  value={`${selectedFund.balance?.toLocaleString()} ${
+                    selectedFund.currency
                   }`}
-                />
-              </div>
-              <div>
-                <label>Mục tiêu (nếu có)</label>
-                <input
-                  type="text"
-                  disabled
-                  value={
-                    selectedFund.target
-                      ? `${selectedFund.target.toLocaleString("vi-VN")} ${
-                          selectedFund.currency || ""
-                        }`
-                      : "Không thiết lập"
-                  }
                 />
               </div>
             </div>
 
-            <div className="funds-field mt-2">
-              <label>Thành viên quỹ</label>
+            {/* Danh sách thành viên */}
+            <div className="funds-field">
+              <label>Danh sách thành viên ({members.length})</label>
 
-              {selectedFund.role !== "manage" ? (
-                <div className="funds-hint">
-                  Bạn chỉ có quyền xem. Không thể chỉnh sửa thành viên trong
-                  quỹ này.
-                </div>
+              {loadingMembers ? (
+                <div className="text-center py-3">Đang tải thành viên...</div>
               ) : (
-                <>
-                  <div className="funds-hint">
-                    Bạn có thể thêm, xoá và sửa tên / email / quyền của thành
-                    viên.
-                  </div>
+                <div className="funds-members">
+                  {members.map((m) => {
+                    const isMe = false; // TODO: So sánh m.userId với currentUserId nếu cần ẩn nút xóa chính mình
+                    const isOwner = m.role === "OWNER";
+                    const canEdit = canManageMember(m.role) && !isMe;
 
-                  <div className="funds-members">
-                    {members.map((m) => (
-                      <div key={m.id} className="funds-member-row">
-                        <input
-                          type="text"
-                          placeholder="Tên"
-                          value={m.name}
-                          onChange={(e) =>
-                            handleChangeMember(m.id, "name", e.target.value)
-                          }
-                        />
-                        <input
-                          type="email"
-                          placeholder="Email"
-                          value={m.email}
-                          onChange={(e) =>
-                            handleChangeMember(m.id, "email", e.target.value)
-                          }
-                        />
-                        <select
-                          value={m.role}
-                          onChange={(e) =>
-                            handleChangeMember(m.id, "role", e.target.value)
-                          }
-                        >
-                          <option value="owner">Chủ quỹ</option>
-                          <option value="use">Được sử dụng</option>
-                          <option value="view">Chỉ xem</option>
-                        </select>
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={() => handleRemoveMember(m.id)}
-                        >
-                          <i className="bi bi-x" />
-                        </button>
+                    return (
+                      <div
+                        key={m.memberId}
+                        className="funds-member-row align-items-center mb-2"
+                      >
+                        {/* Avatar & Info */}
+                        <div className="d-flex align-items-center flex-grow-1 gap-2">
+                          <img
+                            src={m.avatar || "https://via.placeholder.com/32"}
+                            alt="avt"
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: "50%",
+                            }}
+                          />
+                          <div style={{ overflow: "hidden" }}>
+                            <div
+                              className="fw-bold text-truncate"
+                              style={{ fontSize: "0.9rem" }}
+                            >
+                              {m.fullName}
+                            </div>
+                            <div
+                              className="text-muted text-truncate"
+                              style={{ fontSize: "0.8rem" }}
+                            >
+                              {m.email}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Role Selector */}
+                        <div style={{ width: "140px" }}>
+                          {canEdit ? (
+                            <select
+                              className="form-select form-select-sm"
+                              value={m.role}
+                              onChange={(e) =>
+                                handleUpdateRole(m.memberId, e.target.value)
+                              }
+                            >
+                              <option value="ADMIN">Quản trị</option>
+                              <option value="EDITOR">Thành viên</option>
+                              <option value="VIEWER">Người xem</option>
+                            </select>
+                          ) : (
+                            <span
+                              className={`badge ${
+                                isOwner
+                                  ? "bg-warning text-dark"
+                                  : "bg-light text-dark border"
+                              }`}
+                            >
+                              {getRoleLabel(m.role)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Delete Button */}
+                        <div style={{ width: "30px", textAlign: "right" }}>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn-icon text-danger"
+                              onClick={() => handleRemoveMember(m.memberId)}
+                              title="Mời ra khỏi ví"
+                            >
+                              <i className="bi bi-x-circle-fill" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      className="btn-link"
-                      onClick={handleAddMember}
-                    >
-                      <i className="bi bi-person-plus me-1" />
-                      Thêm thành viên
-                    </button>
-                  </div>
-
-                  <div className="funds-actions">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => setSelectedFund(null)}
-                    >
-                      Đóng chi tiết
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={handleSaveMembers}
-                    >
-                      Lưu thay đổi
-                    </button>
-                  </div>
-                </>
+                    );
+                  })}
+                </div>
               )}
+            </div>
+
+            {/* Form mời thành viên (Chỉ hiện nếu có quyền mời) */}
+            {(selectedFund.role === "OWNER" ||
+              selectedFund.role === "ADMIN") && (
+              <div className="funds-field mt-3 pt-3 border-top">
+                <label>Mời thành viên mới</label>
+                <div className="d-flex gap-2">
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="Nhập email người dùng..."
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                  />
+                  <button
+                    className="btn btn-primary text-nowrap"
+                    onClick={handleInviteMember}
+                    disabled={isInviting}
+                  >
+                    {isInviting ? "Đang mời..." : "Mời"}
+                  </button>
+                </div>
+                <div className="funds-hint mt-1">
+                  Người được mời sẽ mặc định là "Người xem". Bạn có thể cấp
+                  quyền sau.
+                </div>
+              </div>
+            )}
+
+            {/* Footer Actions */}
+            <div className="funds-actions mt-3">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setSelectedFund(null)}
+              >
+                Đóng
+              </button>
             </div>
           </div>
         )}

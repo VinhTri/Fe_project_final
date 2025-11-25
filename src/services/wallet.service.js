@@ -59,11 +59,14 @@ const handleAxiosResponse = (axiosResponse) => {
  */
 export const createWallet = async (createData) => {
   try {
-    console.log("wallet.service: Calling POST /wallets/create với data:", createData);
+    console.log(
+      "wallet.service: Calling POST /wallets/create với data:",
+      createData
+    );
     const response = await apiClient.post("/create", createData);
     console.log("wallet.service: POST /wallets/create response:", {
       status: response.status,
-      data: response.data
+      data: response.data,
     });
     return handleAxiosResponse(response);
   } catch (error) {
@@ -71,7 +74,7 @@ export const createWallet = async (createData) => {
     if (error.response) {
       console.error("wallet.service: Error response:", {
         status: error.response.status,
-        data: error.response.data
+        data: error.response.data,
       });
       return {
         data: error.response.data || { error: "Đã xảy ra lỗi" },
@@ -109,7 +112,7 @@ export const getMyWallets = async () => {
     const response = await apiClient.get("");
     console.log("wallet.service: GET /wallets response:", {
       status: response.status,
-      data: response.data
+      data: response.data,
     });
     return handleAxiosResponse(response);
   } catch (error) {
@@ -117,7 +120,7 @@ export const getMyWallets = async () => {
     if (error.response) {
       console.error("wallet.service: Error response:", {
         status: error.response.status,
-        data: error.response.data
+        data: error.response.data,
       });
       return {
         data: error.response.data || { error: "Đã xảy ra lỗi" },
@@ -271,7 +274,9 @@ export const getWalletMembers = async (walletId) => {
     } else if (error.request) {
       return {
         response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi lấy danh sách thành viên." },
+        data: {
+          error: "Lỗi kết nối đến máy chủ khi lấy danh sách thành viên.",
+        },
       };
     } else {
       return {
@@ -290,7 +295,9 @@ export const getWalletMembers = async (walletId) => {
  */
 export const removeMember = async (walletId, memberUserId) => {
   try {
-    const response = await apiClient.delete(`/${walletId}/members/${memberUserId}`);
+    const response = await apiClient.delete(
+      `/${walletId}/members/${memberUserId}`
+    );
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {
@@ -408,7 +415,9 @@ export const getMergeCandidates = async (sourceWalletId) => {
     } else if (error.request) {
       return {
         response: { ok: false, status: 0 },
-        data: { error: "Lỗi kết nối đến máy chủ khi lấy danh sách ví có thể gộp." },
+        data: {
+          error: "Lỗi kết nối đến máy chủ khi lấy danh sách ví có thể gộp.",
+        },
       };
     } else {
       return {
@@ -426,7 +435,11 @@ export const getMergeCandidates = async (sourceWalletId) => {
  * @param {string} targetCurrency - Mã tiền tệ đích (VND, USD, etc.)
  * @returns {Promise<Object>} - { preview: Object } hoặc { error: string }
  */
-export const previewMerge = async (targetWalletId, sourceWalletId, targetCurrency) => {
+export const previewMerge = async (
+  targetWalletId,
+  sourceWalletId,
+  targetCurrency
+) => {
   try {
     const response = await apiClient.get(`/${targetWalletId}/merge-preview`, {
       params: {
@@ -469,12 +482,23 @@ export const previewMerge = async (targetWalletId, sourceWalletId, targetCurrenc
  */
 export const mergeWallets = async (targetWalletId, mergeData) => {
   try {
-    console.log("wallet.service: Calling POST /wallets/" + targetWalletId + "/merge với data:", mergeData);
-    const response = await apiClient.post(`/${targetWalletId}/merge`, mergeData);
-    console.log("wallet.service: POST /wallets/" + targetWalletId + "/merge response:", {
-      status: response.status,
-      data: response.data
-    });
+    console.log(
+      "wallet.service: Calling POST /wallets/" +
+        targetWalletId +
+        "/merge với data:",
+      mergeData
+    );
+    const response = await apiClient.post(
+      `/${targetWalletId}/merge`,
+      mergeData
+    );
+    console.log(
+      "wallet.service: POST /wallets/" + targetWalletId + "/merge response:",
+      {
+        status: response.status,
+        data: response.data,
+      }
+    );
     return handleAxiosResponse(response);
   } catch (error) {
     if (error.response) {
@@ -621,10 +645,16 @@ export const getTransferTargets = async (walletId) => {
 export const transferMoney = async (transferData) => {
   try {
     // Map từ format linh hoạt sang format API
-    const fromWalletId = transferData.fromWalletId || transferData.sourceWalletId || transferData.sourceId;
-    const toWalletId = transferData.toWalletId || transferData.targetWalletId || transferData.targetId;
+    const fromWalletId =
+      transferData.fromWalletId ||
+      transferData.sourceWalletId ||
+      transferData.sourceId;
+    const toWalletId =
+      transferData.toWalletId ||
+      transferData.targetWalletId ||
+      transferData.targetId;
     const note = transferData.note || transferData.description || "";
-    
+
     const apiPayload = {
       fromWalletId,
       toWalletId,
@@ -632,12 +662,15 @@ export const transferMoney = async (transferData) => {
       targetCurrencyCode: transferData.targetCurrencyCode, // Currency của số tiền nhập vào (theo ví gửi)
       note,
     };
-    
-    console.log("wallet.service: Calling POST /wallets/transfer với data:", apiPayload);
+
+    console.log(
+      "wallet.service: Calling POST /wallets/transfer với data:",
+      apiPayload
+    );
     const response = await apiClient.post("/transfer", apiPayload);
     console.log("wallet.service: POST /wallets/transfer response:", {
       status: response.status,
-      data: response.data
+      data: response.data,
     });
     return handleAxiosResponse(response);
   } catch (error) {
@@ -661,6 +694,64 @@ export const transferMoney = async (transferData) => {
         data: { error: error.message || "Đã xảy ra lỗi không xác định." },
       };
     }
+  }
+};
+// ========================== MEMBER MANAGEMENT (NEW) ==========================
+
+/**
+ * 🤝 LẤY DANH SÁCH VÍ MÀ TÔI ĐƯỢC CHIA SẺ (HOẶC THAM GIA)
+ */
+export const getAllAccessibleWallets = async () => {
+  try {
+    // API endpoint này phải khớp với Backend Controller
+    const response = await apiClient.get("/shared");
+    return handleAxiosResponse(response);
+  } catch (error) {
+    if (error.response) {
+      return {
+        data: error.response.data || { error: "Đã xảy ra lỗi" },
+        response: {
+          ok: false,
+          status: error.response.status,
+          statusText: error.response.statusText,
+        },
+      };
+    }
+    return {
+      response: { ok: false, status: 0 },
+      data: { error: error.message || "Lỗi kết nối." },
+    };
+  }
+};
+
+/**
+ * 👑 CẬP NHẬT QUYỀN CỦA THÀNH VIÊN
+ */
+export const updateMemberRole = async (walletId, memberId, newRole) => {
+  try {
+    const response = await apiClient.put(
+      `/${walletId}/members/${memberId}/role`,
+      null,
+      {
+        params: { role: newRole },
+      }
+    );
+    return handleAxiosResponse(response);
+  } catch (error) {
+    if (error.response) {
+      return {
+        data: error.response.data || { error: "Đã xảy ra lỗi" },
+        response: {
+          ok: false,
+          status: error.response.status,
+          statusText: error.response.statusText,
+        },
+      };
+    }
+    return {
+      response: { ok: false, status: 0 },
+      data: { error: error.message || "Lỗi kết nối." },
+    };
   }
 };
 
