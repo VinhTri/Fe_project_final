@@ -4,7 +4,8 @@ import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
 import InvitationModal from "./InvitationModal";
 import walletService from "../../../services/wallet.service";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import useOnClickOutside from "../../../hooks/useOnClickOutside"; // Import hook
 
 export default function HomeTopbar() {
   const [userName, setUserName] = useState("Người dùng");
@@ -14,7 +15,10 @@ export default function HomeTopbar() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCount, setInviteCount] = useState(0);
 
-  // ... (Giữ nguyên phần useEffect loadUser và checkInvites) ...
+  // Ref để phát hiện click ra ngoài
+  const inviteRef = useRef(null);
+  useOnClickOutside(inviteRef, () => setShowInviteModal(false));
+
   useEffect(() => {
     const loadUserFromStorage = () => {
       try {
@@ -37,7 +41,7 @@ export default function HomeTopbar() {
     try {
       const res = await walletService.getInvitations();
       if (res && res.data && res.data.invitations) {
-        setInviteCount(res.data?.invitations.length);
+        setInviteCount(res.data.invitations.length);
       }
     } catch (e) {
       console.warn("Không thể lấy số lượng lời mời:", e);
@@ -59,35 +63,31 @@ export default function HomeTopbar() {
       <div className="tb__right">
         <GlobalSearch />
 
-        {/* Sử dụng flex gap trong CSS để căn đều */}
         <div className="tb__actions" role="group">
-          {/* === NÚT LỜI MỜI (Đã sửa gọn gàng) === */}
-          <div
-            className="tb__icon-btn" // <--- Sử dụng class CSS chung
-            onClick={() => setShowInviteModal(true)}
-            title="Hộp thư lời mời"
-          >
-            <i className="fas fa-envelope" style={{ fontSize: "1.2rem" }}></i>
+          {/* === KHỐI NÚT LỜI MỜI === */}
+          {/* Thêm class tb__dd và ref để xử lý dropdown */}
+          <div className="tb__dd" ref={inviteRef}>
+            <div
+              className="tb__icon-btn"
+              onClick={() => setShowInviteModal(!showInviteModal)} // Toggle thay vì set true
+              title="Hộp thư lời mời"
+            >
+              <i className="fas fa-envelope" style={{ fontSize: "1.2rem" }}></i>
+              {inviteCount > 0 && (
+                <span className="tb__badge">{inviteCount}</span>
+              )}
+            </div>
 
-            {inviteCount > 0 && (
-              <span className="tb__badge">{inviteCount}</span>
-            )}
+            {/* Hiển thị Dropdown ngay bên dưới nút */}
+            {showInviteModal && <InvitationModal />}
           </div>
-          {/* ===================================== */}
+          {/* ======================== */}
 
-          {/* NotificationBell cũng nên dùng class tương tự bên trong nó để đồng bộ */}
           <NotificationBell />
-
           <div className="tb__divider" aria-hidden="true" />
-
           <UserMenu avatarUrl={userAvatar} />
         </div>
       </div>
-
-      <InvitationModal
-        isOpen={showInviteModal}
-        onClose={() => setShowInviteModal(false)}
-      />
     </header>
   );
 }

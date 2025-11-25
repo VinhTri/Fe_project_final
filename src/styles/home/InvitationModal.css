@@ -1,63 +1,82 @@
-/* src/styles/home/InvitationModal.css */
-
-.invitation-container {
-  padding: 0; /* Bỏ padding để list tràn viền giống notification dropdown */
-  min-height: 150px;
-  display: flex;
-  flex-direction: column;
+/* Panel dropdown chính - mô phỏng .dd__panel */
+.invitation-dropdown {
+  position: absolute;
+  right: -80px; /* Căn chỉnh vị trí so với icon */
+  top: 48px; /* Cách topbar một chút */
+  width: 360px; /* Độ rộng cố định */
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  z-index: 1000;
+  overflow: hidden; /* Để bo góc hoạt động */
+  animation: fadeIn 0.2s ease-out;
 }
 
+/* Header của dropdown */
+.invitation-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #fafafa;
+}
+
+.invitation-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Body chứa danh sách - quan trọng để Scroll */
+.invitation-body {
+  max-height: 400px; /* Chiều cao tối đa */
+  overflow-y: auto; /* Hiện thanh cuộn nếu quá dài */
+}
+
+/* Loading & Empty state */
 .invitation-loading,
 .invitation-empty {
+  padding: 30px;
   text-align: center;
-  color: #666;
-  font-style: italic;
-  padding: 40px 0;
+  color: #888;
   font-size: 14px;
+  font-style: italic;
 }
 
-/* Giống .dd__list */
+/* Danh sách items */
 .invitation-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 450px;
-  overflow-y: auto;
 }
 
-/* Giống .dd__item */
 .invitation-item {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start; /* Căn hàng theo dòng trên cùng */
-  padding: 12px 20px; /* Padding giống dropdown item */
-  border-bottom: 1px solid #f1f1f1; /* Đường kẻ mờ */
-  background-color: #fff;
-  transition: background-color 0.2s ease;
-  gap: 15px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.2s;
 }
 
 .invitation-item:last-child {
   border-bottom: none;
 }
 
-/* Hiệu ứng Hover giống Notification */
 .invitation-item:hover {
-  background-color: #f8f9fa; /* Màu nền xám nhẹ khi di chuột */
+  background-color: #f8f9fa;
 }
 
+/* Nội dung text */
 .inv-content {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  margin-right: 10px;
 }
 
-/* Giống .dd__title */
 .inv-text {
   font-size: 14px;
   color: #333;
   line-height: 1.4;
+  margin-bottom: 4px;
 }
 
 .inv-highlight {
@@ -67,21 +86,19 @@
 
 .inv-wallet-name {
   font-weight: 700;
-  color: #4a90e2; /* Màu xanh nhẹ tạo điểm nhấn */
+  color: #007bff;
 }
 
-/* Giống .dd__time */
 .inv-meta {
   font-size: 12px;
-  color: #888; /* Màu xám cho thời gian/role */
+  color: #999;
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
 }
 
-/* Badge vai trò nhỏ gọn */
 .inv-role-badge {
-  background-color: #eee;
+  background: #eef2f6;
   color: #555;
   padding: 2px 6px;
   border-radius: 4px;
@@ -89,49 +106,50 @@
   font-weight: 500;
 }
 
-/* Phần nút bấm hành động */
+/* Nút bấm */
 .inv-actions {
   display: flex;
-  flex-direction: row; /* Xếp ngang */
-  gap: 8px;
-  align-items: center;
-  margin-top: 2px;
+  gap: 6px;
 }
 
 .btn-inv {
-  padding: 6px 12px;
-  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   border: none;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
-/* Nút Đồng ý: Xanh lá nhưng tinh tế hơn */
 .btn-accept {
-  background-color: #e6f4ea; /* Nền xanh rất nhạt */
-  color: #1e7e34; /* Chữ xanh đậm */
-  border: 1px solid transparent;
+  background-color: #e6f4ea;
+  color: #1e7e34;
 }
-
 .btn-accept:hover {
   background-color: #1e7e34;
   color: #fff;
 }
 
-/* Nút Từ chối: Đỏ nhạt hoặc xám */
 .btn-decline {
-  background-color: #fff;
-  border: 1px solid #ddd;
-  color: #666;
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+.btn-decline:hover {
+  background-color: #dc2626;
+  color: #fff;
 }
 
-.btn-decline:hover {
-  background-color: #fff1f0;
-  color: #e02424;
-  border-color: #e02424;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
