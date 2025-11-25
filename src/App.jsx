@@ -21,7 +21,7 @@ import FeedbackPage from "./pages/Home/FeedbackPage";
 import FundsPage from "./pages/Home/FundsPage"; 
 import CategoriesPage from "./pages/Home/CategoriesPage";
 import AdminUsersPage from "./pages/Admin/AdminUsersPage";
-
+import AdminReviewsPage from "./pages/Admin/AdminReviewsPage"; // hoặc tên file bạn đang dùng
 export default function App() {
   return (
     <BrowserRouter>
@@ -54,6 +54,7 @@ export default function App() {
     {/* ADMIN dùng lại HomeLayout để giữ sidebar/topbar */}
     <Route path="/admin/*" element={<HomeLayout />}>
       <Route path="users" element={<AdminUsersPage />} />
+      <Route path="reviews" element={<AdminReviewsPage />} />
     </Route>
   </Route>
 </Route>

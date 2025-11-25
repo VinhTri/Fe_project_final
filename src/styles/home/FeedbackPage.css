@@ -14,13 +14,12 @@
    SUMMARY CARD
    ========================== */
 .feedback-summary-card {
-  background: linear-gradient(90deg, #0c5776 0%, #2d99ae 100%);
-  border-radius: 24px;
+  background: #ffffff;
+  border-radius: 18px;
   padding: 18px 20px;
   margin-bottom: 20px;
-  box-shadow: 0 10px 30px rgba(12, 87, 118, 0.22);
-  border: none;
-  color: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e5e7eb;
 }
 
 .feedback-summary-header {
@@ -35,13 +34,13 @@
   font-size: 1.4rem;
   font-weight: 600;
   margin: 0;
-  color: #ffffff;
+  color: #111827;
 }
 
 .feedback-summary-subtitle {
   margin: 4px 0 0;
   font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: #6b7280;
 }
 
 .feedback-summary-body {
@@ -53,7 +52,7 @@
 
 .feedback-summary-left {
   flex: 0 0 220px;
-  border-right: 1px dashed rgba(255, 255, 255, 0.12);
+  border-right: 1px dashed #e5e7eb;
   padding-right: 20px;
 }
 
@@ -66,15 +65,12 @@
 .feedback-summary-score-number {
   font-size: 2.4rem;
   font-weight: 700;
-  color: #ffffff;
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
+  color: #2d99ae;
 }
 
 .feedback-summary-score-max {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: #6b7280;
 }
 
 .feedback-summary-stars {
@@ -168,7 +164,7 @@
    ========================== */
 .feedback-form-card {
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 18px;
   padding: 18px 20px 16px;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
   border: 1px solid #e5e7eb;
@@ -294,7 +290,7 @@
 
 .feedback-item {
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 14px 16px 12px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
@@ -395,7 +391,7 @@
    ========================== */
 .feedback-empty {
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 18px 20px;
   border: 1px dashed #d1d5db;
   font-size: 0.9rem;

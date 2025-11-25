@@ -45,7 +45,12 @@ export default function HomeSidebar() {
         to: "/admin/users",
         label: "Quản lý người dùng",
         icon: "bi-people-fill",
-      }
+      },
+       {
+      to: "/admin/reviews",
+      label: "Đánh giá & bình luận",
+      icon: "bi-chat-dots",
+    }
     );
   }
 
