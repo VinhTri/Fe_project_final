@@ -11,7 +11,8 @@ import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
-import { transactionAPI, walletAPI } from "../../services/api-client";
+import { transactionAPI, walletAPI } from "../../services/apiClient";
+
 
 // ===== REMOVED MOCK DATA - Now using API =====
 

@@ -7,8 +7,9 @@ import {
   transferMoney as transferMoneyAPI,
   mergeWallets as mergeWalletsAPI,
   setDefaultWallet as setDefaultWalletAPI,
-} from "../../services/wallet.service";
-import { walletAPI } from "../../services/api-client";
+} from "../../services/walletApi";
+
+import { walletAPI } from "../../services/apiClient";
 
 const WalletDataContext = createContext(null);
 

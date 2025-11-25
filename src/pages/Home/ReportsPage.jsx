@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/home/ReportsPage.css";
 import { useWalletData } from "../../home/store/WalletDataContext";
-import { transactionAPI } from "../../services/api-client";
+import * as transactionAPI from "../../services/transactionApi";
 
 const RANGE_OPTIONS = [
   { value: "week", label: "Tuần" },

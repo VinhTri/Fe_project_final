@@ -5,7 +5,7 @@ import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
-import { transactionAPI, walletAPI } from "../../services/api-client";
+import { transactionAPI, walletAPI } from "../../services/apiClient";
 import Toast from "../../components/common/Toast/Toast";
 
 import "../../styles/home/WalletsPage.css";

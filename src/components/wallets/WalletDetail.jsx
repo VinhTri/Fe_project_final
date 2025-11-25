@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
-import { walletAPI } from "../../services/api-client";
+import * as walletAPI from "../../services/walletApi";
+
 
 export default function WalletDetail(props) {
   const {

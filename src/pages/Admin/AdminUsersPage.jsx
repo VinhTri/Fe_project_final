@@ -9,7 +9,7 @@ import {
   changeUserRole,
   lockUser,
   unlockUser,
-  deleteUser as deleteUserApi,
+  deleteUserApi,
 } from "../../services/adminUserApi";
 
 // format thời gian dạng "YYYY-MM-DD HH:mm"
@@ -76,30 +76,26 @@ export default function AdminUsersPage() {
     });
   };
 
-
   // =============== API calls ===============
 
   // 1) Lấy danh sách user từ BE
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const res = await getAdminUsers(); // GET /admin/users
-      const mapped = res.data
-        .map((u) => ({
-          id: u.id,
-          fullName: u.fullName,
-          email: u.email,
-          role: u.role, // "USER" | "ADMIN"
-          status: u.locked ? "LOCKED" : "ACTIVE",
-          createdAt: formatFromIso(u.createdAt),
-          lastLogin: null, // tạm, sau này BE có trường lastLogin thì map thêm
-        }))
-        // Ẩn admin hệ thống (email: admin@financeapp.com)
-        .filter((u) => u.email.toLowerCase() !== "admin@financeapp.com");
+      const res = await getAdminUsers(); // GET /api/admin/users
+      const mapped = res.data.map((u) => ({
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        role: u.role, // "USER" | "ADMIN"
+        status: u.locked ? "LOCKED" : "ACTIVE",
+        createdAt: formatFromIso(u.createdAt),
+        lastLogin: null, // tạm, sau này BE có trường lastLogin thì map thêm
+      }));
       setUsers(mapped);
     } catch (e) {
       console.error(e);
-      showToast("Không tải được danh sách người dùng", "error");
+      showToast("Không tải được danh sách người dùng");
     } finally {
       setLoadingUsers(false);
     }
@@ -109,7 +105,7 @@ export default function AdminUsersPage() {
   const fetchUserLogs = async (userId) => {
     setLoadingLogs(true);
     try {
-      const res = await getUserLoginLogs(userId); // GET /admin/users/{id}/login-logs
+      const res = await getUserLoginLogs(userId); // GET /api/admin/users/{id}/login-logs
       const mapped = res.data.map((log) => ({
         id: log.id,
         time: formatFromIso(log.loginTime),
@@ -119,7 +115,7 @@ export default function AdminUsersPage() {
       setLogs(mapped);
     } catch (e) {
       console.error(e);
-      showToast("Không tải được nhật ký đăng nhập", "error");
+      showToast("Không tải được nhật ký đăng nhập");
       setLogs([]);
     } finally {
       setLoadingLogs(false);
@@ -128,24 +124,11 @@ export default function AdminUsersPage() {
 
   // 3) Đổi role USER <-> ADMIN
   const updateUserRole = async (userId, newRole) => {
-    // Không cho phép thay đổi role của chính mình
-    if (userId === currentUser?.id) {
-      showToast("Không thể thay đổi vai trò của chính mình", "error");
-      return;
-    }
-
     const target = users.find((u) => u.id === userId);
-    
-    // Chỉ admin hệ thống mới có thể thay đổi role của admin khác
-    if (!isSystemAdmin && target?.role === ROLES.ADMIN) {
-      showToast("Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác", "error");
-      return;
-    }
-
     const oldRole = target?.role;
 
     try {
-      await changeUserRole(userId, newRole); // POST /admin/users/{id}/role
+      await changeUserRole(userId, newRole); // POST /api/admin/users/{id}/role
 
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
@@ -165,35 +148,23 @@ export default function AdminUsersPage() {
       }
     } catch (e) {
       console.error(e);
-      showToast("Đổi vai trò thất bại", "error");
+      showToast("Đổi vai trò thất bại");
     }
   };
 
   // 4) Khóa / mở khóa user
   const toggleUserStatus = async (userId) => {
-    // Không cho phép khóa/mở khóa chính mình
-    if (userId === currentUser?.id) {
-      showToast("Không thể khóa/mở khóa chính mình", "error");
-      return;
-    }
-
     const target = users.find((u) => u.id === userId);
     if (!target) return;
-
-    // Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác
-    if (!isSystemAdmin && target.role === ROLES.ADMIN) {
-      showToast("Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác", "error");
-      return;
-    }
 
     const oldStatus = target.status;
     const isActive = oldStatus === "ACTIVE";
 
     try {
       if (isActive) {
-        await lockUser(userId); // POST /admin/users/{id}/lock
+        await lockUser(userId); // POST /api/admin/users/{id}/lock
       } else {
-        await unlockUser(userId); // POST /admin/users/{id}/unlock
+        await unlockUser(userId); // POST /api/admin/users/{id}/unlock
       }
 
       const newStatus = isActive ? "LOCKED" : "ACTIVE";
@@ -216,29 +187,16 @@ export default function AdminUsersPage() {
       );
     } catch (e) {
       console.error(e);
-      showToast("Cập nhật trạng thái thất bại", "error");
+      showToast("Cập nhật trạng thái thất bại");
     }
   };
 
   // 5) Xoá user
   const deleteUser = async (userId) => {
-    // Không cho phép xóa chính mình
-    if (userId === currentUser?.id) {
-      showToast("Không thể xóa chính mình", "error");
-      return;
-    }
-
     const target = users.find((u) => u.id === userId);
-    if (!target) return;
-
-    // Chỉ admin hệ thống mới có thể xóa admin khác
-    if (!isSystemAdmin && target.role === ROLES.ADMIN) {
-      showToast("Chỉ admin hệ thống mới có thể xóa admin khác", "error");
-      return;
-    }
 
     try {
-      await deleteUserApi(userId); // DELETE /admin/users/{id}
+      await deleteUserApi(userId); // DELETE /api/admin/users/{id}
 
       if (target) {
         addHistoryEntry(
@@ -257,7 +215,7 @@ export default function AdminUsersPage() {
       showToast(`Đã xóa tài khoản ${target?.fullName || ""}.`);
     } catch (e) {
       console.error(e);
-      showToast("Xóa tài khoản thất bại", "error");
+      showToast("Xóa tài khoản thất bại");
     }
   };
 
@@ -289,33 +247,6 @@ export default function AdminUsersPage() {
   const selectedUser = useMemo(
     () => users.find((u) => u.id === selectedUserId),
     [users, selectedUserId]
-  );
-
-  // Kiểm tra xem user đang chọn có phải là chính mình không
-  const isCurrentUser = useMemo(
-    () => selectedUser && currentUser && selectedUser.id === currentUser.id,
-    [selectedUser, currentUser]
-  );
-
-  // Kiểm tra xem currentUser có phải là admin hệ thống không
-  const isSystemAdmin = useMemo(
-    () => currentUser?.email?.toLowerCase() === "admin@financeapp.com",
-    [currentUser]
-  );
-
-  // Kiểm tra xem có thể quản lý user này không
-  // - Không thể quản lý chính mình
-  // - Nếu không phải admin hệ thống, không thể quản lý admin khác
-  const canManageUser = useMemo(
-    () => {
-      if (!selectedUser) return false;
-      if (isCurrentUser) return false; // Không thể quản lý chính mình
-      if (!isSystemAdmin && selectedUser.role === ROLES.ADMIN) {
-        return false; // Không phải admin hệ thống thì không thể quản lý admin khác
-      }
-      return true;
-    },
-    [selectedUser, isCurrentUser, isSystemAdmin]
   );
 
   const accountHistory = useMemo(
@@ -368,6 +299,7 @@ export default function AdminUsersPage() {
                   <option value="ALL">Tất cả vai trò</option>
                   <option value={ROLES.ADMIN}>Admin</option>
                   <option value={ROLES.USER}>User</option>
+                  {/* Không cho filter Viewer vì Viewer là quyền trên ví, không phải role hệ thống */}
                 </select>
               </div>
             </div>
@@ -410,17 +342,6 @@ export default function AdminUsersPage() {
                             e.stopPropagation();
                             updateUserRole(u.id, e.target.value);
                           }}
-                          disabled={
-                            u.id === currentUser?.id ||
-                            (!isSystemAdmin && u.role === ROLES.ADMIN)
-                          }
-                          title={
-                            u.id === currentUser?.id
-                              ? "Không thể thay đổi vai trò của chính mình"
-                              : !isSystemAdmin && u.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác"
-                              : ""
-                          }
                         >
                           <option value={ROLES.ADMIN}>Admin</option>
                           <option value={ROLES.USER}>User</option>
@@ -446,17 +367,6 @@ export default function AdminUsersPage() {
                             e.stopPropagation();
                             toggleUserStatus(u.id);
                           }}
-                          disabled={
-                            u.id === currentUser?.id ||
-                            (!isSystemAdmin && u.role === ROLES.ADMIN)
-                          }
-                          title={
-                            u.id === currentUser?.id
-                              ? "Không thể khóa/mở khóa chính mình"
-                              : !isSystemAdmin && u.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác"
-                              : ""
-                          }
                         >
                           {u.status === "ACTIVE" ? "Khóa" : "Mở khóa"}
                         </button>
@@ -466,17 +376,6 @@ export default function AdminUsersPage() {
                             e.stopPropagation();
                             deleteUser(u.id);
                           }}
-                          disabled={
-                            u.id === currentUser?.id ||
-                            (!isSystemAdmin && u.role === ROLES.ADMIN)
-                          }
-                          title={
-                            u.id === currentUser?.id
-                              ? "Không thể xóa chính mình"
-                              : !isSystemAdmin && u.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể xóa admin khác"
-                              : ""
-                          }
                         >
                           Xóa
                         </button>
@@ -657,61 +556,28 @@ export default function AdminUsersPage() {
                     <div className="admin-manage-block">
                       <h3>Vai trò</h3>
                       <p>Phân quyền cho người dùng.</p>
-                      {!canManageUser ? (
-                        <div className="text-muted">
-                          <select value={selectedUser.role} disabled>
-                            <option value={ROLES.ADMIN}>Admin</option>
-                            <option value={ROLES.USER}>User</option>
-                          </select>
-                          <small className="d-block mt-2 text-warning">
-                            {isCurrentUser
-                              ? "Không thể thay đổi vai trò của chính mình"
-                              : !isSystemAdmin && selectedUser.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể thay đổi vai trò của admin khác"
-                              : "Không thể thay đổi vai trò"}
-                          </small>
-                        </div>
-                      ) : (
-                        <select
-                          value={selectedUser.role}
-                          onChange={(e) =>
-                            updateUserRole(selectedUser.id, e.target.value)
-                          }
-                        >
-                          <option value={ROLES.ADMIN}>Admin</option>
-                          <option value={ROLES.USER}>User</option>
-                        </select>
-                      )}
+                      <select
+                        value={selectedUser.role}
+                        onChange={(e) =>
+                          updateUserRole(selectedUser.id, e.target.value)
+                        }
+                      >
+                        <option value={ROLES.ADMIN}>Admin</option>
+                        <option value={ROLES.USER}>User</option>
+                      </select>
                     </div>
 
                     <div className="admin-manage-block">
                       <h3>Trạng thái</h3>
                       <p>Khóa hoặc mở khóa tài khoản.</p>
-                      {!canManageUser ? (
-                        <div>
-                          <button className="btn-primary" disabled>
-                            {selectedUser.status === "ACTIVE"
-                              ? "Khóa tài khoản"
-                              : "Mở khóa tài khoản"}
-                          </button>
-                          <small className="d-block mt-2 text-warning">
-                            {isCurrentUser
-                              ? "Không thể khóa/mở khóa chính mình"
-                              : !isSystemAdmin && selectedUser.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể khóa/mở khóa admin khác"
-                              : "Không thể thay đổi trạng thái"}
-                          </small>
-                        </div>
-                      ) : (
-                        <button
-                          className="btn-primary"
-                          onClick={() => toggleUserStatus(selectedUser.id)}
-                        >
-                          {selectedUser.status === "ACTIVE"
-                            ? "Khóa tài khoản"
-                            : "Mở khóa tài khoản"}
-                        </button>
-                      )}
+                      <button
+                        className="btn-primary"
+                        onClick={() => toggleUserStatus(selectedUser.id)}
+                      >
+                        {selectedUser.status === "ACTIVE"
+                          ? "Khóa tài khoản"
+                          : "Mở khóa tài khoản"}
+                      </button>
                     </div>
 
                     <div className="admin-manage-block">
@@ -720,30 +586,12 @@ export default function AdminUsersPage() {
                         Xóa vĩnh viễn tài khoản khỏi hệ thống. Hành động này
                         không thể hoàn tác.
                       </p>
-                      {!canManageUser ? (
-                        <div>
-                          <button
-                            className="btn-primary btn-primary--outline"
-                            disabled
-                          >
-                            Xóa tài khoản
-                          </button>
-                          <small className="d-block mt-2 text-warning">
-                            {isCurrentUser
-                              ? "Không thể xóa chính mình"
-                              : !isSystemAdmin && selectedUser.role === ROLES.ADMIN
-                              ? "Chỉ admin hệ thống mới có thể xóa admin khác"
-                              : "Không thể xóa tài khoản"}
-                          </small>
-                        </div>
-                      ) : (
-                        <button
-                          className="btn-primary btn-primary--outline"
-                          onClick={() => deleteUser(selectedUser.id)}
-                        >
-                          Xóa tài khoản
-                        </button>
-                      )}
+                      <button
+                        className="btn-primary btn-primary--outline"
+                        onClick={() => deleteUser(selectedUser.id)}
+                      >
+                        Xóa tài khoản
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -755,4 +603,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-

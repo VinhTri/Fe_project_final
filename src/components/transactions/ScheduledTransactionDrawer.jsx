@@ -19,57 +19,101 @@ const STATUS_CLASS = {
 
 function formatDateTime(value) {
   if (!value) return "--";
-  const date = new Date(value);
+  const date = new Date(value.replace(" ", "T")); // Fix ISO parsing
   if (Number.isNaN(date.getTime())) return value;
-  return `${date.toLocaleDateString("vi-VN")} ${date.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return `${date.toLocaleDateString("vi-VN")} ${date.toLocaleTimeString(
+    "vi-VN",
+    { hour: "2-digit", minute: "2-digit" }
+  )}`;
 }
 
-export default function ScheduledTransactionDrawer({ open, schedule, onClose, onCancel }) {
+export default function ScheduledTransactionDrawer({
+  open,
+  schedule,
+  onClose,
+  onCancel,
+}) {
   if (!open || !schedule) return null;
 
-  const typeLabel = schedule.scheduleTypeLabel || schedule.scheduleType;
+  const typeLabel =
+    schedule.scheduleTypeLabel || schedule.scheduleType || "Không xác định";
 
   return (
     <Modal open={open} onClose={onClose} width={560}>
       <div className="modal__content" style={{ padding: "1.65rem" }}>
+        {/* Header */}
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div>
-            <p className="text-uppercase text-muted small mb-1">Chi tiết lịch #{schedule.id}</p>
+            <p className="text-uppercase text-muted small mb-1">
+              Chi tiết lịch #{schedule.id}
+            </p>
             <h4 className="mb-0">{schedule.walletName}</h4>
           </div>
-          <span className={STATUS_CLASS[schedule.status] || "badge bg-secondary"}>
+          <span
+            className={
+              STATUS_CLASS[schedule.status] || "badge bg-secondary"
+            }
+          >
             {STATUS_LABEL[schedule.status] || schedule.status}
           </span>
         </div>
 
+        {/* Info */}
         <div className="schedule-detail-box mb-3">
           <p className="fw-semibold mb-2">Thông tin lịch</p>
           <ul className="list-unstyled mb-0 schedule-detail-list">
-            <li><span>Danh mục:</span> {schedule.categoryName} ({schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"})</li>
-            <li><span>Kiểu lịch:</span> {typeLabel}</li>
             <li>
-              <span>Khoảng thời gian:</span> {formatDateTime(schedule.firstRun)}
-              {schedule.endDate ? ` → ${new Date(schedule.endDate).toLocaleDateString("vi-VN")}` : " (Không giới hạn)"}
+              <span>Danh mục:</span> {schedule.categoryName} (
+              {schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"}
+              )
             </li>
-            <li><span>Số tiền:</span> {schedule.amount.toLocaleString("vi-VN") } VND</li>
-            <li><span>Tiếp theo:</span> {formatDateTime(schedule.nextRun)}</li>
-            <li><span>Số lần hoàn thành:</span> {schedule.successRuns}/{schedule.totalRuns}</li>
+            <li>
+              <span>Kiểu lịch:</span> {typeLabel}
+            </li>
+            <li>
+              <span>Khoảng thời gian:</span>{" "}
+              {formatDateTime(schedule.firstRun)}
+              {schedule.endDate
+                ? ` → ${new Date(
+                    schedule.endDate.replace(" ", "T")
+                  ).toLocaleDateString("vi-VN")}`
+                : " (Không giới hạn)"}
+            </li>
+            <li>
+              <span>Số tiền:</span>{" "}
+              {Number(schedule.amount || 0).toLocaleString("vi-VN")} VND
+            </li>
+            <li>
+              <span>Tiếp theo:</span> {formatDateTime(schedule.nextRun)}
+            </li>
+            <li>
+              <span>Số lần hoàn thành:</span>{" "}
+              {schedule.successRuns}/{schedule.totalRuns}
+            </li>
           </ul>
         </div>
 
+        {/* Logs */}
         <div className="schedule-history-box">
           <p className="fw-semibold mb-2">Lịch sử thực thi</p>
           {schedule.logs && schedule.logs.length > 0 ? (
             <ul className="list-unstyled mb-0 schedule-log-list">
               {schedule.logs.map((log) => (
-                <li key={log.id}>
+                <li
+                  key={log.id ?? `${log.time}-${Math.random()}`}
+                >
                   <div>
                     <strong>{formatDateTime(log.time)}</strong>
-                    <span className={`ms-2 ${log.status === "COMPLETED" ? "schedule-status schedule-status--success" : "schedule-status schedule-status--failed"}`}>
-                      {log.status === "COMPLETED" ? "Thành công" : "Thất bại"}
+                    <span
+                      className={`ms-2 ${
+                        log.status === "COMPLETED"
+                          ? "schedule-status schedule-status--success"
+                          : "schedule-status schedule-status--failed"
+                      }`}
+                    >
+                      {log.status === "COMPLETED"
+                        ? "Thành công"
+                        : "Thất bại"}
                     </span>
                   </div>
                   <p className="mb-0 text-muted">{log.message}</p>
@@ -81,9 +125,14 @@ export default function ScheduledTransactionDrawer({ open, schedule, onClose, on
           )}
         </div>
 
+        {/* Actions */}
         <div className="d-flex justify-content-end gap-2 mt-3">
           {schedule.status !== "CANCELLED" && (
-            <button type="button" className="btn btn-outline-danger" onClick={() => onCancel?.(schedule.id)}>
+            <button
+              type="button"
+              className="btn btn-outline-danger"
+              onClick={() => onCancel?.(schedule.id)}
+            >
               Hủy lịch
             </button>
           )}

@@ -7,13 +7,13 @@ import AccountExistsModal from "../../components/common/Modal/AccountExistsModal
 import "../../styles/AuthForms.css";
 
 // API
-import { login, loginWithGoogle } from "../../services/auth.service";
-import { getProfile } from "../../services/profile.service";
+import { login, loginWithGoogle } from "../../services/authApi";
+import { getMyProfile } from "../../services/userApi";
 
 // AUTH CONTEXT
 import { useAuth } from "../../home/store/AuthContext";
 
-// 🔥 CLIENT_ID phải TRÙNG với BE (spring.security.oauth2.client.registration.google.client-id)
+// 🔥 CLIENT_ID phải TRÙNG với BE (mywallet.google.client-id)
 const GOOGLE_CLIENT_ID =
   "418846497154-r9s0e5pgls2ucrnulgjeuk3v3uja1a6u.apps.googleusercontent.com";
 
@@ -54,20 +54,8 @@ export default function LoginPage() {
     let targetPath = "/home";
 
     try {
-      const meRes = await getProfile();
-      // Backend trả về { user: { userId, fullName, email, ... } }
-      // Hoặc có thể là meRes.data.user hoặc meRes.data
-      let me = meRes.data || meRes;
-      
-      // Nếu có wrap trong { user: {...} }, lấy user ra
-      if (me.user) {
-        me = me.user;
-      }
-      
-      // Đảm bảo có userId
-      if (!me.userId && !me.id) {
-        console.warn("Profile response không có userId:", me);
-      }
+      const meRes = await getMyProfile();
+      const me = meRes.data;
 
       localStorage.setItem("user", JSON.stringify(me));
 
@@ -98,19 +86,16 @@ export default function LoginPage() {
 
       // update AuthContext
       authLogin({
-        id: me.id || me.userId,
+        id: me.id,
         fullName: me.fullName || me.name || me.username || "",
         email: me.email,
         role: primaryRole,
         accessToken: token,
       });
 
-      // Dispatch event để các context (WalletDataContext, CategoryDataContext) reload data
-      window.dispatchEvent(new CustomEvent("userChanged"));
-
       setRedirectPath(targetPath);
     } catch (err) {
-      console.error("Lỗi gọi /profile:", err);
+      console.error("Lỗi gọi /users/me:", err);
       setRedirectPath("/home");
 
       authLogin({
@@ -137,83 +122,58 @@ export default function LoginPage() {
       }
 
       const res = await loginWithGoogle({ idToken });
-      
-      // Kiểm tra response.ok thay vì dùng try-catch
-      if (!res.response?.ok) {
-        const status = res.response?.status;
-        const msg =
-          res.data?.message ||
-          res.data?.error ||
-          res.data?.msg ||
-          "";
-        const normMsg = msg.toLowerCase();
-
-        // 1️⃣ TÀI KHOẢN BỊ KHÓA (ACCOUNT_LOCKED 403)
-        if (
-          status === 403 ||
-          normMsg.includes("bị khóa") ||
-          normMsg.includes("locked")
-        ) {
-          return setError(
-            "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để mở khóa."
-          );
-        }
-
-        // 2️⃣ TÀI KHOẢN BỊ XÓA / KHÔNG HOẠT ĐỘNG 30 NGÀY (USER_DELETED 410)
-        if (
-          status === 410 ||
-          normMsg.includes("bị xóa") ||
-          normMsg.includes("không hoạt động 30 ngày")
-        ) {
-          return setError(
-            "Tài khoản của bạn đã bị xóa vì vi phạm bản quyền."
-          );
-        }
-
-        // 3️⃣ USER CHƯA TỒN TẠI (phòng trường hợp backend trả 404)
-        if (
-          status === 404 ||
-          normMsg.includes("không tồn tại") ||
-          normMsg.includes("chưa được tạo")
-        ) {
-          return setError(
-            "Tài khoản chưa được tạo. Vui lòng đăng ký hoặc đăng nhập bằng Google."
-          );
-        }
-
-        // 4️⃣ Sai / hết hạn Google token hoặc lỗi 500
-        if (
-          status === 500 ||
-          normMsg.includes("google token không hợp lệ") ||
-          normMsg.includes("xác thực google thất bại") ||
-          normMsg.includes("id token không hợp lệ")
-        ) {
-          return setError("Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.");
-        }
-        
-        // 5️⃣ Lỗi client ID không khớp
-        if (
-          normMsg.includes("origin is not allowed") ||
-          normMsg.includes("client id") ||
-          status === 403
-        ) {
-          return setError("Cấu hình Google OAuth chưa đúng. Vui lòng liên hệ quản trị viên.");
-        }
-
-        // 5️⃣ Lỗi khác - không hiển thị "Sai email hoặc mật khẩu"
-        return setError(msg || "Lỗi đăng nhập Google. Vui lòng thử lại sau.");
-      }
-
-      // Nếu thành công, lấy token và đăng nhập
       const token = extractToken(res.data);
-      if (!token) {
-        return setError("Không nhận được token từ server. Vui lòng thử lại.");
-      }
 
       await handleLoginSuccess(token);
     } catch (err) {
       console.error("Login Google lỗi:", err);
-      setError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
+      const status = err.response?.status;
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.response?.data?.msg ||
+        "";
+      const normMsg = msg.toLowerCase();
+
+      // 1️⃣ TÀI KHOẢN BỊ KHÓA (ACCOUNT_LOCKED 403)
+      if (
+        status === 403 ||
+        normMsg.includes("bị khóa") ||
+        normMsg.includes("locked")
+      ) {
+        return setError(
+          "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để mở khóa."
+        );
+      }
+
+      // 2️⃣ TÀI KHOẢN BỊ XÓA / KHÔNG HOẠT ĐỘNG 30 NGÀY (USER_DELETED 410)
+      if (
+        status === 410 ||
+        normMsg.includes("bị xóa") ||
+        normMsg.includes("không hoạt động 30 ngày")
+      ) {
+        return setError(
+          "Tài khoản của bạn đã bị xóa hoặc không hoạt động trong 30 ngày. Vui lòng đăng ký lại."
+        );
+      }
+
+      // 3️⃣ USER CHƯA TỒN TẠI (phòng trường hợp backend trả 404)
+      if (
+        status === 404 ||
+        normMsg.includes("không tồn tại") ||
+        normMsg.includes("chưa được tạo")
+      ) {
+        return setError(
+          "Tài khoản chưa được tạo. Vui lòng đăng ký hoặc đăng nhập bằng Google."
+        );
+      }
+
+      // 4️⃣ Sai / hết hạn Google token
+      if (normMsg.includes("google token không hợp lệ")) {
+        return setError("Phiên đăng nhập Google không hợp lệ. Vui lòng thử lại.");
+      }
+
+      setError(msg || "Lỗi đăng nhập Google. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }
@@ -247,9 +207,7 @@ export default function LoginPage() {
     document.body.appendChild(script);
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      document.body.removeChild(script);
     };
   }, []);
 
@@ -279,82 +237,67 @@ export default function LoginPage() {
       setError("");
 
       const res = await login(form);
-      
-      // Kiểm tra nếu response không ok (có lỗi)
-      if (!res.response?.ok) {
-        const status = res.response?.status;
-        const errorCode = res.data?.code;
-        const msg =
-          res.data?.message ||
-          res.data?.error ||
-          res.data?.msg ||
-          "";
-        const normMsg = msg.toLowerCase();
-
-        // 1️⃣ TÀI KHOẢN KHÔNG TỒN TẠI (USER_NOT_FOUND) - ƯU TIÊN KIỂM TRA TRƯỚC
-        if (
-          errorCode === "USER_NOT_FOUND" ||
-          status === 404 ||
-          normMsg.includes("không tồn tại trong hệ thống") ||
-          normMsg.includes("email không tồn tại") ||
-          normMsg.includes("không tồn tại")
-        ) {
-          return setError("Tài khoản chưa đăng ký");
-        }
-
-        // 2️⃣ TÀI KHOẢN BỊ KHÓA (ACCOUNT_LOCKED 403)
-        if (
-          errorCode === "ACCOUNT_LOCKED" ||
-          status === 403 ||
-          normMsg.includes("bị khóa") ||
-          normMsg.includes("locked")
-        ) {
-          return setError(
-            "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để mở khóa."
-          );
-        }
-
-        // 3️⃣ TÀI KHOẢN BỊ XÓA / KHÔNG HOẠT ĐỘNG (USER_DELETED 410)
-        if (
-          errorCode === "USER_DELETED" ||
-          status === 410 ||
-          normMsg.includes("bị xóa") ||
-          normMsg.includes("không hoạt động 30 ngày")
-        ) {
-          return setError(
-            "Tài khoản của bạn đã bị xóa vì vi phạm bản quyền."
-          );
-        }
-
-        // 4️⃣ TÀI KHOẢN GOOGLE CHƯA ĐẶT PASSWORD (GOOGLE_ACCOUNT_ONLY)
-        if (
-          errorCode === "GOOGLE_ACCOUNT_ONLY" ||
-          normMsg.includes("tài khoản google")
-        ) {
-          return setError(
-            "Tài khoản Google chưa đặt mật khẩu. Vui lòng đăng nhập Google để đặt mật khẩu mới."
-          );
-        }
-
-        // 5️⃣ SAI MẬT KHẨU (INVALID_CREDENTIALS) - Hiển thị modal "Sai email hoặc mật khẩu"
-        if (
-          errorCode === "INVALID_CREDENTIALS" ||
-          (status === 400 && errorCode !== "USER_NOT_FOUND") || // Nếu status 400 nhưng không phải USER_NOT_FOUND, có thể là sai mật khẩu
-          (status === 401 && errorCode !== "USER_NOT_FOUND") // Nếu status 401 nhưng không phải USER_NOT_FOUND, có thể là sai mật khẩu
-        ) {
-          return setShowInvalid(true);
-        }
-
-        // Fallback
-        return setError(msg || "Không kết nối được máy chủ (cổng 8080).");
-      }
-
-      // Nếu thành công, lấy token và đăng nhập
       const token = extractToken(res.data);
+
       await handleLoginSuccess(token);
     } catch (err) {
       console.error("Lỗi login:", err);
-      setError("Lỗi kết nối đến server. Vui lòng thử lại sau.");
+
+      const status = err.response?.status;
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.response?.data?.msg ||
+        "";
+      const normMsg = msg.toLowerCase();
+
+      // 1️⃣ TÀI KHOẢN BỊ KHÓA (ACCOUNT_LOCKED 403)
+      if (
+        status === 403 ||
+        normMsg.includes("bị khóa") ||
+        normMsg.includes("locked")
+      ) {
+        return setError(
+          "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để mở khóa."
+        );
+      }
+
+      // 2️⃣ TÀI KHOẢN BỊ XÓA / KHÔNG HOẠT ĐỘNG (USER_DELETED 410)
+      if (
+        status === 410 ||
+        normMsg.includes("bị xóa") ||
+        normMsg.includes("không hoạt động 30 ngày")
+      ) {
+        return setError(
+          "Tài khoản của bạn đã bị xóa hoặc không hoạt động trong 30 ngày. Vui lòng đăng ký lại."
+        );
+      }
+
+      // 3️⃣ USER CHƯA TỒN TẠI
+      if (
+        status === 404 ||
+        normMsg.includes("không tồn tại") ||
+        normMsg.includes("chưa được tạo")
+      ) {
+        return setError(
+          "Tài khoản chưa được tạo. Vui lòng đăng ký hoặc đăng nhập bằng Google."
+        );
+      }
+
+      // 4️⃣ TÀI KHOẢN GOOGLE CHƯA ĐẶT PASSWORD (GOOGLE_ACCOUNT_ONLY)
+      if (normMsg.includes("tài khoản google")) {
+        return setError(
+          "Tài khoản Google chưa đặt mật khẩu. Vui lòng đăng nhập Google để đặt mật khẩu mới."
+        );
+      }
+
+      // 5️⃣ SAI EMAIL / PASSWORD
+      if (status === 400 || status === 401) {
+        return setShowInvalid(true);
+      }
+
+      // Fallback
+      setError(msg || "Không kết nối được máy chủ (cổng 8080).");
     } finally {
       setLoading(false);
     }
@@ -393,7 +336,13 @@ export default function LoginPage() {
             onChange={onChange}
             required
           />
-          
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() => setShowPassword((v) => !v)}
+          >
+            <i className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}></i>
+          </button>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -413,7 +362,7 @@ export default function LoginPage() {
 
         <div className="d-flex align-items-center my-3">
           <hr className="flex-grow-1" />
-          <span className="mx-2 text-muted">Hoặc</span>
+          <span className="mx-2 text-muted">Hoặc đăng nhập bằng</span>
           <hr className="flex-grow-1" />
         </div>
 

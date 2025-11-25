@@ -10,7 +10,7 @@ import {
   forgotPasswordRequest,
   verifyForgotOtp,
   resetPassword,
-} from "../../services/auth.service";
+} from "../../services/authApi";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -114,16 +114,7 @@ export default function ForgotPasswordPage() {
       setError("");
       setSuccessMsg("");
 
-      const res = await forgotPasswordRequest({ email: form.email });
-
-      if (!res.response?.ok) {
-        const apiMsg =
-          res.data?.message ||
-          res.data?.error ||
-          "Không gửi được mã!";
-        setError(apiMsg);
-        return;
-      }
+      await forgotPasswordRequest(form.email);
 
       setSuccessMsg("Mã xác minh đã được gửi đến email!");
       setOtpCountdown(60);
@@ -206,17 +197,6 @@ export default function ForgotPasswordPage() {
         otp: code,
       });
 
-      if (!res.response?.ok) {
-        const apiMsg =
-          res.data?.message ||
-          res.data?.error ||
-          "OTP không hợp lệ!";
-        setError(apiMsg);
-        setOtp(Array(6).fill(""));
-        otpRefs.current[0]?.focus();
-        return;
-      }
-
       setResetToken(res.data.resetToken);
 
       setSuccessMsg("Xác minh OTP thành công!");
@@ -244,16 +224,7 @@ export default function ForgotPasswordPage() {
       setError("");
       setSuccessMsg("");
 
-      const res = await forgotPasswordRequest({ email: form.email });
-
-      if (!res.response?.ok) {
-        const apiMsg =
-          res.data?.message ||
-          res.data?.error ||
-          "Không gửi lại mã được!";
-        setError(apiMsg);
-        return;
-      }
+      await forgotPasswordRequest(form.email);
 
       setSuccessMsg("Đã gửi lại mã mới!");
       setOtpCountdown(60);
@@ -285,19 +256,10 @@ export default function ForgotPasswordPage() {
       setError("");
       setSuccessMsg("");
 
-      const res = await resetPassword({
+      await resetPassword({
         resetToken,
         newPassword: form.newPassword,
       });
-
-      if (!res.response?.ok) {
-        const apiMsg =
-          res.data?.message ||
-          res.data?.error ||
-          "Đổi mật khẩu thất bại!";
-        setError(apiMsg);
-        return;
-      }
 
       setShowSuccess(true);
     } catch (err) {

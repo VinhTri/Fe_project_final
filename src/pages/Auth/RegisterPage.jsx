@@ -8,7 +8,7 @@ import "../../styles/AuthForms.css";
 import ReCAPTCHA from "react-google-recaptcha";
 
 // API
-import { registerRequestOtp, verifyRegisterOtp } from "../../services/auth.service";
+import { registerRequestOtp, verifyRegisterOtp } from "../../services/authApi";
 
 export default function RegisterPage() {
   const [step, setStep] = useState(1);
@@ -147,23 +147,11 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const res = await registerRequestOtp({
+      await registerRequestOtp({
         fullName: form.fullName,
         email: form.email,
+        password: form.password,
       });
-
-      if (!res.response?.ok) {
-        const msg =
-          res.data?.message ||
-          res.data?.error ||
-          "Đã xảy ra lỗi, vui lòng thử lại.";
-        setError(msg);
-
-        if (msg.toLowerCase().includes("đã được đăng ký")) {
-          setShowExists(true);
-        }
-        return;
-      }
 
       setSuccessMsg(
         "Đã gửi mã OTP, vui lòng kiểm tra email để hoàn tất đăng ký."
@@ -258,25 +246,13 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const res = await verifyRegisterOtp({
+      await verifyRegisterOtp({
         email: form.email,
         otp: code,
         password: form.password,
         fullName: form.fullName,
       });
 
-      if (!res.response?.ok) {
-        const msg =
-          res.data?.message ||
-          res.data?.error ||
-          "OTP không hợp lệ!";
-        setError(msg);
-        setOtp(Array(OTP_LENGTH).fill(""));
-        otpRefs.current[0]?.focus();
-        return;
-      }
-
-      // Hiển thị modal thông báo thành công trước khi redirect
       setShowSuccess(true);
     } catch (err) {
       const msg =
@@ -305,15 +281,11 @@ export default function RegisterPage() {
       setError("");
       setSuccessMsg("");
 
-      const res = await registerRequestOtp({
+      await registerRequestOtp({
         fullName: form.fullName,
         email: form.email,
+        password: form.password,
       });
-
-      if (!res.response?.ok) {
-        setError("Không thể gửi lại mã!");
-        return;
-      }
 
       setOtp(Array(OTP_LENGTH).fill(""));
       setSuccessMsg("Đã gửi lại mã OTP!");
@@ -381,7 +353,15 @@ export default function RegisterPage() {
                 value={form.password}
                 onChange={onChange}
               />
-              
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                <i
+                  className={showPassword ? "bi bi-eye-slash" : "bi bi-eye"}
+                ></i>
+              </button>
             </div>
 
             {form.password && (
@@ -409,7 +389,15 @@ export default function RegisterPage() {
                 value={form.confirmPassword}
                 onChange={onChange}
               />
-              
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setShowConfirm(!showConfirm)}
+              >
+                <i
+                  className={showConfirm ? "bi bi-eye-slash" : "bi bi-eye"}
+                ></i>
+              </button>
             </div>
 
             {error && <div className="auth-error">{error}</div>}
