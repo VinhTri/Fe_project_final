@@ -1,40 +1,12 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
+import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
+import { createBudget as createBudgetAPI, getAllBudgets } from "../../services/budget.service";
 
 const BudgetDataContext = createContext(null);
 
 export function BudgetDataProvider({ children }) {
-  const [budgets, setBudgets] = useState([
-    {
-      id: 1,
-      categoryId: 1,
-      categoryName: "Ăn uống",
-      categoryType: "expense", // expense or income
-      limitAmount: 3000000,
-      createdAt: "2025-11-01T09:00:00Z",
-      walletId: null,
-      walletName: "Ví tiền mặt",
-      month: "11/2025", // track which month the budget is for
-      startDate: "2025-11-01",
-      endDate: "2025-11-30",
-      alertPercentage: 90,
-      note: "Ưu tiên thanh toán từ ví tiền mặt.",
-    },
-    {
-      id: 2,
-      categoryId: 3,
-      categoryName: "Mua sắm",
-      categoryType: "expense",
-      limitAmount: 2000000,
-      createdAt: "2025-11-02T08:30:00Z",
-      walletId: null,
-      walletName: "Techcombank",
-      month: "11/2025",
-      startDate: "2025-11-01",
-      endDate: "2025-11-30",
-      alertPercentage: 85,
-      note: "Chỉ áp dụng cho các đơn online lớn.",
-    },
-  ]);
+  const [budgets, setBudgets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // Calculate spent amount for category+wallet combinations
   // Key format: "categoryName:walletName" or "categoryName:all" for budgets applying to all wallets
@@ -45,39 +17,116 @@ export function BudgetDataProvider({ children }) {
   // Keep a copy of all external transactions so we can compute period-based totals
   const [externalTransactionsList, setExternalTransactionsList] = useState([]);
 
-  // ====== helpers ======
-  const createBudget = useCallback((payload) => {
-    // payload: { categoryId, categoryName, categoryType, limitAmount, walletId, walletName, startDate, endDate }
-    const currentMonth = new Date().toLocaleDateString("vi-VN", {
+  // Map API budget data to frontend format
+  const mapBudgetToFrontend = useCallback((apiBudget) => {
+    const currentMonth = new Date(apiBudget.startDate).toLocaleDateString("vi-VN", {
       month: "2-digit",
       year: "numeric",
     });
-    const newBudget = {
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
+
+    return {
+      id: apiBudget.budgetId,
+      budgetId: apiBudget.budgetId,
+      categoryId: apiBudget.categoryId,
+      categoryName: apiBudget.categoryName,
+      categoryType: "expense", // Budget chỉ áp dụng cho expense
+      limitAmount: Number(apiBudget.amountLimit || 0),
+      amountLimit: Number(apiBudget.amountLimit || 0),
+      spentAmount: Number(apiBudget.spentAmount || 0),
+      remainingAmount: Number(apiBudget.remainingAmount || 0),
+      exceededAmount: Number(apiBudget.exceededAmount || 0),
+      usagePercentage: Number(apiBudget.usagePercentage || 0),
+      status: apiBudget.status || "OK", // OK, WARNING, EXCEEDED
+      budgetStatus: apiBudget.budgetStatus || "ACTIVE", // ACTIVE, COMPLETED
+      createdAt: apiBudget.createdAt,
+      updatedAt: apiBudget.updatedAt,
+      walletId: apiBudget.walletId || null,
+      walletName: apiBudget.walletName || "Tất cả ví",
       month: currentMonth,
-      startDate: payload.startDate,
-      endDate: payload.endDate,
-      // include wallet fields if provided
-      walletId: payload.walletId || null,
-      walletName: payload.walletName || null,
-      alertPercentage: payload.alertPercentage ?? 90,
-      note: payload.note || "",
-      ...payload,
+      startDate: apiBudget.startDate,
+      endDate: apiBudget.endDate,
+      alertPercentage: 90, // Default, có thể tính từ usagePercentage
+      note: apiBudget.note || "",
     };
-    setBudgets((prev) => [newBudget, ...prev]);
-    return newBudget;
   }, []);
 
+  // Load budgets from API
+  const loadBudgets = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const { response, data } = await getAllBudgets();
+      
+      if (response?.ok && data?.budgets) {
+        const mappedBudgets = data.budgets.map(mapBudgetToFrontend);
+        setBudgets(mappedBudgets);
+      } else {
+        console.error("Failed to load budgets:", data?.error);
+        setBudgets([]);
+        if (data?.error) {
+          setError(data.error);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading budgets:", err);
+      setBudgets([]);
+      setError("Không thể tải danh sách hạn mức chi tiêu.");
+    } finally {
+      setLoading(false);
+    }
+  }, [mapBudgetToFrontend]);
+
+  // Load budgets when component mounts
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      loadBudgets();
+    } else {
+      setLoading(false);
+    }
+  }, [loadBudgets]);
+
+  // ====== helpers ======
+  const createBudget = useCallback(async (payload) => {
+    // payload: { categoryId, categoryName, categoryType, limitAmount, walletId, walletName, startDate, endDate, note }
+    try {
+      const budgetData = {
+        categoryId: payload.categoryId,
+        walletId: payload.walletId || null,
+        amountLimit: Number(payload.limitAmount || payload.amountLimit || 0),
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+        note: payload.note || null,
+      };
+
+      const { response, data } = await createBudgetAPI(budgetData);
+
+      if (response?.ok && data?.budget) {
+        const newBudget = mapBudgetToFrontend(data.budget);
+        setBudgets((prev) => [newBudget, ...prev]);
+        return newBudget;
+      } else {
+        throw new Error(data?.error || "Tạo hạn mức chi tiêu thất bại");
+      }
+    } catch (err) {
+      console.error("Error creating budget:", err);
+      throw err;
+    }
+  }, [mapBudgetToFrontend]);
+
   const updateBudget = useCallback((budgetId, patch) => {
+    // Note: API không có endpoint update budget, nên chỉ update local state
+    // Nếu backend thêm API sau, có thể tích hợp ở đây
     setBudgets((prev) =>
-      prev.map((b) => (b.id === budgetId ? { ...b, ...patch } : b))
+      prev.map((b) => (b.id === budgetId || b.budgetId === budgetId ? { ...b, ...patch } : b))
     );
     return patch;
   }, []);
 
   const deleteBudget = useCallback((budgetId) => {
-    setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
+    // Note: API không có endpoint delete budget, nên chỉ xóa local state
+    // Nếu backend thêm API sau, có thể tích hợp ở đây
+    setBudgets((prev) => prev.filter((b) => b.id !== budgetId && b.budgetId !== budgetId));
   }, []);
 
   // Compute spent amount for a budget object by scanning externalTransactionsList within the budget's date range
@@ -149,6 +198,8 @@ export function BudgetDataProvider({ children }) {
   const value = useMemo(
     () => ({
       budgets,
+      loading,
+      error,
       transactionsByCategory,
       externalTransactionsList,
       createBudget,
@@ -159,9 +210,12 @@ export function BudgetDataProvider({ children }) {
       getRemainingAmount,
       updateTransactionsByCategory,
       updateAllExternalTransactions,
+      reloadBudgets: loadBudgets,
     }),
     [
       budgets,
+      loading,
+      error,
       transactionsByCategory,
       externalTransactionsList,
       createBudget,
@@ -172,6 +226,7 @@ export function BudgetDataProvider({ children }) {
       getRemainingAmount,
       updateTransactionsByCategory,
       updateAllExternalTransactions,
+      loadBudgets,
     ]
   );
 

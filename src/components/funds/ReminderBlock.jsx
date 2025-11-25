@@ -1,7 +1,7 @@
 // src/components/funds/ReminderBlock.jsx
 import React, { useState } from "react";
 
-export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" }) {
+export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day", onDataChange }) {
   const [mode, setMode] = useState("follow"); // follow | custom
   const [customType, setCustomType] = useState("day");
 
@@ -12,6 +12,23 @@ export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" 
   const [customTime, setCustomTime] = useState("");
   const [customWeekDay, setCustomWeekDay] = useState("mon");
   const [customMonthDay, setCustomMonthDay] = useState(1);
+
+  // Notify parent when data changes
+  React.useEffect(() => {
+    if (onDataChange && reminderOn) {
+      const weekDayMap = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 7 };
+      onDataChange({
+        enabled: reminderOn,
+        mode,
+        type: mode === "follow" ? freq : customType,
+        time: mode === "follow" ? followTime : customTime,
+        dayOfWeek: mode === "follow" ? (freq === "week" ? weekDayMap[followWeekDay] : undefined) : (customType === "week" ? weekDayMap[customWeekDay] : undefined),
+        dayOfMonth: mode === "follow" ? (freq === "month" ? followMonthDay : undefined) : (customType === "month" ? customMonthDay : undefined),
+      });
+    } else if (onDataChange && !reminderOn) {
+      onDataChange({ enabled: false });
+    }
+  }, [reminderOn, mode, freq, customType, followTime, followWeekDay, followMonthDay, customTime, customWeekDay, customMonthDay, onDataChange]);
 
   const freqLabel =
     {

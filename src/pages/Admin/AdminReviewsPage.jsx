@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import "../../styles/admin/AdminReviewsPage.css";
 
@@ -22,7 +22,7 @@ function RatingStars({ value }) {
 
 export default function AdminReviewsPage() {
   const { t } = useLanguage();
-  const { reviews, addAdminReply } = useFeedbackData();
+  const { reviews, loading: reviewsLoading, error: reviewsError, addAdminReply } = useFeedbackData();
   const { pushNotification } = useNotifications();
   const { showToast } = useToast();
   const location = useLocation();
@@ -64,11 +64,15 @@ export default function AdminReviewsPage() {
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter((r) => {
+        const user = (r.user || r.userName || "").toLowerCase();
+        const email = (r.email || r.userEmail || "").toLowerCase();
+        const comment = (r.comment || r.message || r.subject || "").toLowerCase();
+        const source = (r.source || "").toLowerCase();
         return (
-          r.user.toLowerCase().includes(q) ||
-          r.email.toLowerCase().includes(q) ||
-          r.comment.toLowerCase().includes(q) ||
-          r.source.toLowerCase().includes(q)
+          user.includes(q) ||
+          email.includes(q) ||
+          comment.includes(q) ||
+          source.includes(q)
         );
       });
     }
@@ -109,57 +113,69 @@ export default function AdminReviewsPage() {
     setReplyDrafts((drafts) => ({ ...drafts, [id]: value }));
   };
 
-  const handleSubmitReply = (id) => {
+  const handleSubmitReply = async (id) => {
     const content = (replyDrafts[id] || "").trim();
     if (!content) return;
 
-    const replyDate = new Date()
-      .toISOString()
-      .slice(0, 16)
-      .replace("T", " ");
+    try {
+      // 1) Gọi API để lưu phản hồi
+      await addAdminReply(id, {
+        author: "Admin",
+        message: content,
+      });
 
-    // 1) Lưu vào feedback
-    addAdminReply(id, {
-      author: "Admin",
-      message: content,
-      date: replyDate,
-    });
+      // 2) Gửi notification cho user
+      const review = reviews.find((r) => r.id === id || r.feedbackId === id);
 
-    // 2) Gửi notification cho user
-    const review = reviews.find((r) => r.id === id);
+      pushNotification({
+        role: "user",
+        type: "admin_reply",
+        reviewId: id,
+        title: t("admin.reviews.notification.title"),
+        desc: review
+          ? (review.comment || review.message || "").length > 60
+            ? (review.comment || review.message || "").slice(0, 60) + "..."
+            : review.comment || review.message || ""
+          : "",
+        timeLabel: t("admin.reviews.notification.time"),
+      });
 
-    pushNotification({
-      role: "user",
-      type: "admin_reply",
-      reviewId: id,
-      title: t("admin.reviews.notification.title"),
-      desc: review
-        ? review.comment.length > 60
-          ? review.comment.slice(0, 60) + "..."
-          : review.comment
-        : "",
-      timeLabel: t("admin.reviews.notification.time"),
-    });
+      // 3) Xoá draft
+      setReplyDrafts((drafts) => {
+        const next = { ...drafts };
+        delete next[id];
+        return next;
+      });
 
-    // 3) Xoá draft
-    setReplyDrafts((drafts) => {
-      const next = { ...drafts };
-      delete next[id];
-      return next;
-    });
+      // 4) Thu gọn panel
+      setExpandedIds((prev) => prev.filter((x) => x !== id));
 
-    // 4) Thu gọn panel
-    setExpandedIds((prev) => prev.filter((x) => x !== id));
+      // 5) Toast
+      showToast(t("admin.reviews.toast.success"));
 
-    // 5) Toast
-    showToast(t("admin.reviews.toast.success"));
-
-    // 6) Scroll tới review
-    setTimeout(() => {
-      const el = document.getElementById("review-" + id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 200);
+      // 6) Scroll tới review
+      setTimeout(() => {
+        const el = document.getElementById("review-" + id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+    } catch (error) {
+      console.error("Error submitting admin reply:", error);
+      showToast(error.message || "Không thể gửi phản hồi. Vui lòng thử lại.", "error");
+    }
   };
+
+  // Map focusReviewId to feedbackId if needed
+  useEffect(() => {
+    if (focusReviewId && reviews.length > 0) {
+      const review = reviews.find((r) => r.id === focusReviewId || r.feedbackId === focusReviewId);
+      if (review) {
+        const reviewId = review.id || review.feedbackId;
+        if (!expandedIds.includes(reviewId)) {
+          setExpandedIds((prev) => [...prev, reviewId]);
+        }
+      }
+    }
+  }, [focusReviewId, reviews, expandedIds]);
 
   return (
     <div className="dashboard-page">
@@ -292,36 +308,40 @@ export default function AdminReviewsPage() {
                 </div>
 
                 {group.items.map((r) => {
-                  const expanded = expandedIds.includes(r.id);
+                  const reviewId = r.id || r.feedbackId;
+                  const expanded = expandedIds.includes(reviewId);
                   const unreplied = !r.adminReply;
 
                   return (
                     <div
-                      key={r.id}
-                      id={"review-" + r.id}
+                      key={reviewId}
+                      id={"review-" + reviewId}
                       className="list-group-item border-0 border-bottom d-flex flex-column gap-2"
                     >
                       <div className="d-flex flex-column flex-md-row align-items-md-center gap-2">
                         <div className="flex-grow-1">
                           <div className="d-flex align-items-center gap-2 mb-1">
-                            <RatingStars value={r.rating} />
+                            {r.rating && <RatingStars value={r.rating} />}
                             <span className="fw-semibold">
-                              {r.user}{" "}
+                              {r.user || r.userName || "Người dùng"}{" "}
                               <span
                                 className="text-muted"
                                 style={{ fontSize: "0.85rem" }}
                               >
-                                ({r.email})
+                                ({r.email || r.userEmail || ""})
                               </span>
                             </span>
                           </div>
 
                           <div className="text-muted" style={{ fontSize: "0.9rem" }}>
-                            {expanded
-                              ? r.comment
-                              : r.comment.length > 80
-                              ? r.comment.slice(0, 80) + "..."
-                              : r.comment}
+                            {(() => {
+                              const comment = r.comment || r.message || r.subject || "";
+                              return expanded
+                                ? comment
+                                : comment.length > 80
+                                ? comment.slice(0, 80) + "..."
+                                : comment;
+                            })()}
                           </div>
                         </div>
 
@@ -339,7 +359,7 @@ export default function AdminReviewsPage() {
 
                           <button
                             className="btn btn-sm btn-outline-secondary"
-                            onClick={() => toggleExpand(r.id)}
+                            onClick={() => toggleExpand(reviewId)}
                           >
                             {expanded ? t("admin.reviews.btn.collapse") : t("admin.reviews.btn.view_details")}
                           </button>
@@ -386,22 +406,22 @@ export default function AdminReviewsPage() {
                               <textarea
                                 rows={3}
                                 className="form-control form-control-sm"
-                                value={replyDrafts[r.id] || ""}
+                                value={replyDrafts[reviewId] || ""}
                                 onChange={(e) =>
-                                  handleChangeDraft(r.id, e.target.value)
+                                  handleChangeDraft(reviewId, e.target.value)
                                 }
                                 placeholder={t("admin.reviews.reply_placeholder")}
                               />
                               <div className="d-flex justify-content-end gap-2 mt-2">
                                 <button
                                   className="btn btn-sm btn-outline-secondary"
-                                  onClick={() => handleChangeDraft(r.id, "")}
+                                  onClick={() => handleChangeDraft(reviewId, "")}
                                 >
                                   {t("admin.reviews.btn.clear")}
                                 </button>
                                 <button
                                   className="btn btn-sm btn-primary"
-                                  onClick={() => handleSubmitReply(r.id)}
+                                  onClick={() => handleSubmitReply(reviewId)}
                                 >
                                   {t("admin.reviews.btn.send")}
                                 </button>

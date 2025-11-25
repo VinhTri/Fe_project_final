@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
+import { loginLogAPI } from "../../services/api-client";
 import "../../styles/home/SettingsPage.css";
 
 export default function SettingsPage() {
@@ -17,6 +18,9 @@ export default function SettingsPage() {
     // Lấy từ localStorage hoặc mặc định là VND
     return localStorage.getItem("defaultCurrency") || "VND";
   });
+  const [loginLogs, setLoginLogs] = useState([]);
+  const [loginLogsLoading, setLoginLogsLoading] = useState(false);
+  const [loginLogsError, setLoginLogsError] = useState("");
 
   // Refs cho các input fields
   const fullNameRef = useRef(null);
@@ -30,6 +34,62 @@ export default function SettingsPage() {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  // Load login logs khi mở tab login-log
+  useEffect(() => {
+    if (activeKey === "login-log" && loginLogs.length === 0 && !loginLogsLoading) {
+      loadLoginLogs();
+    }
+  }, [activeKey]);
+
+  const loadLoginLogs = async () => {
+    try {
+      setLoginLogsLoading(true);
+      setLoginLogsError("");
+      const response = await loginLogAPI.getMyLoginLogs();
+      if (response && Array.isArray(response)) {
+        setLoginLogs(response);
+      } else if (response && response.logs && Array.isArray(response.logs)) {
+        setLoginLogs(response.logs);
+      } else {
+        setLoginLogs([]);
+      }
+    } catch (error) {
+      console.error("Error loading login logs:", error);
+      setLoginLogsError("Không thể tải nhật ký đăng nhập. Vui lòng thử lại sau.");
+      setLoginLogs([]);
+    } finally {
+      setLoginLogsLoading(false);
+    }
+  };
+
+  const formatLoginLogDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return "Vừa xong";
+      if (diffMins < 60) return `${diffMins} phút trước`;
+      if (diffHours < 24) return `${diffHours} giờ trước`;
+      if (diffDays === 1) return "Hôm qua";
+      if (diffDays < 7) return `${diffDays} ngày trước`;
+
+      return date.toLocaleDateString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return dateString;
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -377,38 +437,49 @@ export default function SettingsPage() {
 
               thường.
 </p>
-<div className="settings-table__wrap">
-<table className="settings-table">
-<thead>
-<tr>
-<th>Thời gian</th>
-<th>Thiết bị</th>
-<th>Địa chỉ IP</th>
-<th>Trạng thái</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Hôm nay, 09:32</td>
-<td>Chrome • Windows</td>
-<td>192.168.1.10</td>
-<td>Thành công</td>
-</tr>
-<tr>
-<td>Hôm qua, 21:15</td>
-<td>Safari • iOS</td>
-<td>10.0.0.5</td>
-<td>Thành công</td>
-</tr>
-<tr>
-<td>2 ngày trước</td>
-<td>Không xác định</td>
-<td>203.113.12.45</td>
-<td>Nghi vấn</td>
-</tr>
-</tbody>
-</table>
-</div>
+{loginLogsLoading ? (
+              <div className="text-center py-4">
+                <div className="spinner-border text-primary" role="status" />
+                <p className="mt-2 text-muted">Đang tải nhật ký đăng nhập...</p>
+              </div>
+            ) : loginLogsError ? (
+              <div className="alert alert-danger">
+                <i className="bi bi-exclamation-triangle me-2" />
+                {loginLogsError}
+              </div>
+            ) : loginLogs.length === 0 ? (
+              <div className="text-center py-4 text-muted">
+                <i className="bi bi-inbox fs-1 d-block mb-2" />
+                <p>Chưa có nhật ký đăng nhập</p>
+              </div>
+            ) : (
+              <div className="settings-table__wrap">
+                <table className="settings-table">
+                  <thead>
+                    <tr>
+                      <th>Thời gian</th>
+                      <th>Thiết bị</th>
+                      <th>Địa chỉ IP</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loginLogs.map((log) => (
+                      <tr key={log.logId || log.id}>
+                        <td>{formatLoginLogDate(log.loginTime || log.createdAt)}</td>
+                        <td>{log.device || log.userAgent || "Không xác định"}</td>
+                        <td>{log.ipAddress || log.ip || "N/A"}</td>
+                        <td>
+                          <span className={`badge ${log.status === "SUCCESS" || log.success ? "bg-success" : "bg-danger"}`}>
+                            {log.status === "SUCCESS" || log.success ? "Thành công" : "Thất bại"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 </div>
 
         );

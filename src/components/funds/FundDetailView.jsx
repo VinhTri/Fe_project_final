@@ -10,7 +10,7 @@ const buildFormState = (fund) => ({
   description: fund.description || "",
 });
 
-export default function FundDetailView({ fund, onBack, onUpdateFund }) {
+export default function FundDetailView({ fund, onBack, onUpdateFund, onDeleteFund, onDepositFund, onWithdrawFund }) {
   const isGroup = fund.type === "group";
 
   const [isEditing, setIsEditing] = useState(false);
@@ -54,25 +54,92 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
     setMembers(Array.isArray(fund.members) ? [...fund.members] : []);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const updated = {
-      ...fund,
-      name: form.name.trim(),
-      hasTerm: !!form.hasTerm,
-      current: Number(form.current) || 0,
-      target:
-        form.target === "" || form.target === null
-          ? null
-          : Number(form.target),
-      currency: form.currency || "VND",
-      description: form.description.trim(),
-      members: isGroup ? members : fund.members,
+    if (!onUpdateFund) {
+      setIsEditing(false);
+      return;
+    }
+
+    // Map form data to API format
+    // Note: API chỉ cho phép update: fundName, frequency, amountPerPeriod, startDate, endDate, note, reminder, autoDeposit
+    // Không thể update: fundType, hasDeadline, targetAmount, currentAmount, currencyCode, targetWalletId
+    const updateData = {
+      fundName: form.name.trim(),
+      frequency: fund.frequency || "MONTHLY",
+      amountPerPeriod: fund.amountPerPeriod || 0,
+      startDate: fund.startDate || new Date().toISOString().split("T")[0],
+      endDate: fund.hasTerm && fund.endDate ? fund.endDate : undefined,
+      note: form.description.trim() || null,
+      reminderEnabled: fund.reminderEnabled || false,
+      reminderType: fund.reminderType || "MONTHLY",
+      reminderTime: fund.reminderTime || "20:00:00",
+      reminderDayOfMonth: fund.reminderDayOfMonth,
+      autoDepositEnabled: fund.autoDepositEnabled || false,
+      autoDepositType: fund.autoDepositType || "FOLLOW_REMINDER",
     };
 
-    onUpdateFund?.(updated);
-    setIsEditing(false);
+    // If group fund, include members
+    if (isGroup && members.length > 0) {
+      updateData.members = members
+        .filter((m) => m.email && m.email.trim())
+        .map((m) => ({
+          email: m.email.trim(),
+          role: m.role === "owner" ? "OWNER" : m.role === "use" || m.role === "manage" ? "CONTRIBUTOR" : "CONTRIBUTOR",
+        }));
+    }
+
+    try {
+      await onUpdateFund({ ...fund, ...updateData });
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Error updating fund:", err);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDeleteFund) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa quỹ "${fund.name}"?`)) {
+      return;
+    }
+    try {
+      await onDeleteFund(fund.fundId || fund.id);
+    } catch (err) {
+      console.error("Error deleting fund:", err);
+    }
+  };
+
+  const handleDeposit = async () => {
+    const amount = prompt("Nhập số tiền muốn nạp vào quỹ:");
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return;
+    }
+    if (onDepositFund) {
+      try {
+        await onDepositFund(fund.fundId || fund.id, Number(amount));
+      } catch (err) {
+        console.error("Error depositing to fund:", err);
+      }
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (fund.hasTerm) {
+      alert("Quỹ có thời hạn không thể rút tiền.");
+      return;
+    }
+    const amount = prompt("Nhập số tiền muốn rút từ quỹ:");
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return;
+    }
+    if (onWithdrawFund) {
+      try {
+        await onWithdrawFund(fund.fundId || fund.id, Number(amount));
+      } catch (err) {
+        console.error("Error withdrawing from fund:", err);
+      }
+    }
   };
 
   const progress =
@@ -174,16 +241,44 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
             </div>
           )}
 
-          <div className="mt-3">
+          <div className="mt-3 d-flex gap-2 flex-wrap">
             {!isEditing && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setIsEditing(true)}
-              >
-                <i className="bi bi-pencil-square me-1" />
-                Sửa quỹ này
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <i className="bi bi-pencil-square me-1" />
+                  Sửa quỹ này
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={handleDeposit}
+                >
+                  <i className="bi bi-plus-circle me-1" />
+                  Nạp tiền
+                </button>
+                {!fund.hasTerm && (
+                  <button
+                    type="button"
+                    className="btn btn-warning"
+                    onClick={handleWithdraw}
+                  >
+                    <i className="bi bi-dash-circle me-1" />
+                    Rút tiền
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleDelete}
+                >
+                  <i className="bi bi-trash me-1" />
+                  Xóa quỹ
+                </button>
+              </>
             )}
           </div>
         </div>

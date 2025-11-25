@@ -13,12 +13,15 @@ import Toast from "../../components/common/Toast/Toast";
 export default function BudgetsPage() {
   const {
     budgets,
+    loading: budgetsLoading,
+    error: budgetsError,
     getSpentAmount,
     getSpentForBudget,
     createBudget,
     updateBudget,
     deleteBudget,
     externalTransactionsList,
+    reloadBudgets,
   } = useBudgetData();
   const { expenseCategories } = useCategoryData();
   const { wallets } = useWalletData();
@@ -311,6 +314,10 @@ export default function BudgetsPage() {
         setToast({ open: true, message: "Đã cập nhật hạn mức", type: "success" });
       } else {
         await createBudget(payload);
+        // Reload budgets from API
+        if (reloadBudgets) {
+          await reloadBudgets();
+        }
         setToast({ open: true, message: "Đã tạo hạn mức mới", type: "success" });
       }
     } catch (error) {

@@ -6,6 +6,10 @@ export default function AutoTopupBlock({
   setAutoTopupOn,
   dependsOnReminder,
   reminderFreq = "day",
+  sourceWallets = [],
+  selectedSourceWalletId,
+  onSourceWalletChange,
+  onDataChange,
 }) {
   const [mode, setMode] = useState(dependsOnReminder ? "follow" : "custom");
   const [customType, setCustomType] = useState("day");
@@ -16,6 +20,26 @@ export default function AutoTopupBlock({
   const [customAmount, setCustomAmount] = useState("");
 
   const canFollowReminder = dependsOnReminder;
+
+  // Notify parent when data changes
+  React.useEffect(() => {
+    if (onDataChange && autoTopupOn) {
+      const weekDayMap = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 7 };
+      onDataChange({
+        enabled: autoTopupOn,
+        mode,
+        type: mode === "follow" ? "FOLLOW_REMINDER" : "CUSTOM_SCHEDULE",
+        scheduleType: mode === "custom" ? customType : undefined,
+        time: customTime,
+        dayOfWeek: customType === "week" ? weekDayMap[customWeekDay] : undefined,
+        dayOfMonth: customType === "month" ? customMonthDay : undefined,
+        amount: customAmount ? Number(customAmount) : undefined,
+        sourceWalletId: selectedSourceWalletId,
+      });
+    } else if (onDataChange && !autoTopupOn) {
+      onDataChange({ enabled: false });
+    }
+  }, [autoTopupOn, mode, customType, customTime, customWeekDay, customMonthDay, customAmount, selectedSourceWalletId, onDataChange]);
 
   const freqLabel =
     {
@@ -217,6 +241,29 @@ export default function AutoTopupBlock({
 
           {mode === "custom" && (
             <>
+              <div className="funds-field">
+                <label>Ví nguồn</label>
+                <select
+                  value={selectedSourceWalletId || ""}
+                  onChange={(e) => onSourceWalletChange && onSourceWalletChange(Number(e.target.value) || null)}
+                >
+                  <option value="">Chọn ví nguồn</option>
+                  {sourceWallets.map((wallet) => {
+                    const walletId = wallet.walletId || wallet.id;
+                    const walletName = wallet.name || wallet.walletName || "Unnamed Wallet";
+                    const currency = wallet.currency || wallet.currencyCode || "";
+                    return (
+                      <option key={walletId} value={walletId}>
+                        {walletName} - {wallet.balance?.toLocaleString("vi-VN")} {currency}
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="funds-hint">
+                  Chọn ví để tự động nạp tiền vào quỹ.
+                </div>
+              </div>
+
               <div className="funds-field">
                 <label>Kiểu lịch tự nạp</label>
                 <select

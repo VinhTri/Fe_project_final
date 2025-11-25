@@ -6,15 +6,15 @@ import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 import { calcEstimateDate } from "./fundUtils";
 
-export default function PersonalTermForm({ wallets }) {
+export default function PersonalTermForm({ wallets, onSubmit, onCancel }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
-    () => wallets.find((w) => String(w.id) === String(srcWalletId)) || null,
+    () => wallets.find((w) => String(w.walletId || w.id) === String(srcWalletId)) || null,
     [wallets, srcWalletId]
   );
 
   const currentBalance = Number(selectedWallet?.balance || 0);
-  const currency = selectedWallet?.currency || "";
+  const currency = selectedWallet?.currency || selectedWallet?.currencyCode || "";
 
   const currentBalanceText = selectedWallet
     ? `${currentBalance.toLocaleString("vi-VN")} ${currency}`
@@ -29,8 +29,18 @@ export default function PersonalTermForm({ wallets }) {
   const [endDate, setEndDate] = useState("");
   const [estimateText, setEstimateText] = useState("");
 
+  const [fundName, setFundName] = useState("");
+  const [note, setNote] = useState("");
   const [reminderOn, setReminderOn] = useState(false);
   const [autoTopupOn, setAutoTopupOn] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // Reminder data from ReminderBlock
+  const [reminderData, setReminderData] = useState(null);
+  
+  // Auto deposit data from AutoTopupBlock
+  const [autoDepositData, setAutoDepositData] = useState(null);
+  const [sourceWalletId, setSourceWalletId] = useState(null);
 
   useEffect(() => {
     if (!selectedWallet || !targetAmount) {
@@ -118,9 +128,13 @@ export default function PersonalTermForm({ wallets }) {
     );
   }, [selectedWallet, targetAmount, periodAmount, freq, startDate, currentBalance]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedWallet) {
-      alert("Vui lòng chọn ví nguồn trước khi lưu quỹ.");
+      alert("Vui lòng chọn ví đích trước khi lưu quỹ.");
+      return;
+    }
+    if (!fundName.trim()) {
+      alert("Vui lòng nhập tên quỹ.");
       return;
     }
     if (!targetAmount) {
@@ -131,15 +145,97 @@ export default function PersonalTermForm({ wallets }) {
       alert("Số tiền mục tiêu chưa hợp lệ, vui lòng kiểm tra lại.");
       return;
     }
+    if (!startDate) {
+      alert("Vui lòng chọn ngày bắt đầu.");
+      return;
+    }
+    if (!endDate) {
+      alert("Vui lòng chọn ngày kết thúc.");
+      return;
+    }
 
-    console.log("Lưu quỹ cá nhân có thời hạn", {
-      srcWalletId,
-      targetAmount,
-      freq,
-      periodAmount,
-      startDate,
-      endDate,
-    });
+    // Map frequency
+    const frequencyMap = {
+      day: "DAILY",
+      week: "WEEKLY",
+      month: "MONTHLY",
+      year: "YEARLY",
+    };
+    const apiFrequency = frequencyMap[freq] || "MONTHLY";
+
+    // Map reminder data from ReminderBlock
+    const reminderTypeMap = {
+      day: "DAILY",
+      week: "WEEKLY",
+      month: "MONTHLY",
+      year: "YEARLY",
+    };
+    
+    let finalReminderData = null;
+    if (reminderData?.enabled) {
+      const reminderType = reminderData.mode === "follow" ? apiFrequency : reminderTypeMap[reminderData.type] || "MONTHLY";
+      finalReminderData = {
+        reminderEnabled: true,
+        reminderType,
+        reminderTime: reminderData.time ? `${reminderData.time}:00` : "20:00:00",
+        reminderDayOfWeek: reminderData.dayOfWeek,
+        reminderDayOfMonth: reminderData.dayOfMonth,
+      };
+    }
+
+    // Map auto deposit data from AutoTopupBlock
+    let finalAutoDepositData = null;
+    if (autoDepositData?.enabled) {
+      if (autoDepositData.type === "FOLLOW_REMINDER") {
+        finalAutoDepositData = {
+          autoDepositEnabled: true,
+          autoDepositType: "FOLLOW_REMINDER",
+          sourceWalletId: sourceWalletId || (selectedWallet.walletId || selectedWallet.id),
+        };
+      } else {
+        const scheduleTypeMap = {
+          day: "DAILY",
+          week: "WEEKLY",
+          month: "MONTHLY",
+        };
+        finalAutoDepositData = {
+          autoDepositEnabled: true,
+          autoDepositType: "CUSTOM_SCHEDULE",
+          sourceWalletId: sourceWalletId || (selectedWallet.walletId || selectedWallet.id),
+          autoDepositScheduleType: scheduleTypeMap[autoDepositData.scheduleType] || "MONTHLY",
+          autoDepositTime: autoDepositData.time ? `${autoDepositData.time}:00` : "20:00:00",
+          autoDepositDayOfWeek: autoDepositData.dayOfWeek,
+          autoDepositDayOfMonth: autoDepositData.dayOfMonth,
+          autoDepositAmount: autoDepositData.amount || 0,
+        };
+      }
+    }
+
+    const fundData = {
+      fundName: fundName.trim(),
+      targetWalletId: selectedWallet.walletId || selectedWallet.id,
+      fundType: "PERSONAL",
+      hasDeadline: true,
+      targetAmount: Number(targetAmount),
+      frequency: apiFrequency,
+      amountPerPeriod: Number(periodAmount) || 0,
+      startDate: startDate,
+      endDate: endDate,
+      note: note.trim() || null,
+      ...finalReminderData,
+      ...finalAutoDepositData,
+    };
+
+    if (onSubmit) {
+      setLoading(true);
+      try {
+        await onSubmit(fundData);
+      } catch (err) {
+        console.error("Error submitting fund:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   return (
@@ -155,6 +251,9 @@ export default function PersonalTermForm({ wallets }) {
             type="text"
             maxLength={50}
             placeholder="Ví dụ: Quỹ mua xe máy"
+            value={fundName}
+            onChange={(e) => setFundName(e.target.value)}
+            required
           />
           <div className="funds-hint">Tối đa 50 ký tự.</div>
         </div>
@@ -263,6 +362,7 @@ export default function PersonalTermForm({ wallets }) {
         reminderOn={reminderOn}
         setReminderOn={setReminderOn}
         freq={freq}
+        onDataChange={setReminderData}
       />
 
       <AutoTopupBlock
@@ -270,6 +370,10 @@ export default function PersonalTermForm({ wallets }) {
         setAutoTopupOn={setAutoTopupOn}
         dependsOnReminder={reminderOn}
         reminderFreq={freq}
+        sourceWallets={wallets}
+        selectedSourceWalletId={sourceWalletId}
+        onSourceWalletChange={setSourceWalletId}
+        onDataChange={setAutoDepositData}
       />
 
       <div className="funds-fieldset funds-fieldset--full">
@@ -278,6 +382,8 @@ export default function PersonalTermForm({ wallets }) {
           <textarea
             rows={3}
             placeholder="Ghi chú riêng cho quỹ này (không bắt buộc)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
           />
         </div>
 
@@ -285,9 +391,8 @@ export default function PersonalTermForm({ wallets }) {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() =>
-              console.log("Hủy tạo quỹ cá nhân có thời hạn")
-            }
+            onClick={onCancel || (() => console.log("Hủy tạo quỹ cá nhân có thời hạn"))}
+            disabled={loading}
           >
             Hủy
           </button>
@@ -295,8 +400,16 @@ export default function PersonalTermForm({ wallets }) {
             type="button"
             className="btn-primary"
             onClick={handleSave}
+            disabled={loading}
           >
-            Lưu quỹ cá nhân
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" />
+                Đang tạo...
+              </>
+            ) : (
+              "Lưu quỹ cá nhân"
+            )}
           </button>
         </div>
       </div>

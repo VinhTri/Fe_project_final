@@ -6,9 +6,10 @@ export default function WalletSourceField({ required, wallets = [], value, onCha
 
   const filtered = useMemo(
     () =>
-      wallets.filter((w) =>
-        (w.name || "").toLowerCase().includes(search.toLowerCase())
-      ),
+      wallets.filter((w) => {
+        const walletName = w.name || w.walletName || "";
+        return walletName.toLowerCase().includes(search.toLowerCase());
+      }),
     [wallets, search]
   );
 
@@ -31,8 +32,11 @@ export default function WalletSourceField({ required, wallets = [], value, onCha
             <span className="funds-hint">Không tìm thấy ví phù hợp.</span>
           ) : (
             filtered.map((w) => {
-              const selected = String(value) === String(w.id);
-              const label = w.currency ? `${w.name} · ${w.currency}` : w.name;
+              const walletId = w.walletId || w.id;
+              const walletName = w.name || w.walletName || "Unnamed Wallet";
+              const selected = String(value) === String(walletId);
+              const currency = w.currency || w.currencyCode || "";
+              const label = currency ? `${walletName} · ${currency}` : walletName;
 
               return (
                 <button
@@ -42,7 +46,8 @@ export default function WalletSourceField({ required, wallets = [], value, onCha
                     "wallet-source__item" + (selected ? " is-active" : "")
                   }
                   onClick={() => {
-                    onChange && onChange(w.id);
+                    const walletId = w.walletId || w.id;
+                    onChange && onChange(walletId);
                     setSearch(label);
                   }}
                 >

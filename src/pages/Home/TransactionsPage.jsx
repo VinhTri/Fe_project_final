@@ -12,6 +12,10 @@ import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import { transactionAPI, walletAPI } from "../../services/api-client";
+import {
+  getAllScheduledTransactions,
+  deleteScheduledTransaction as deleteScheduledTransactionAPI,
+} from "../../services/scheduled-transaction.service";
 
 // ===== REMOVED MOCK DATA - Now using API =====
 
@@ -150,7 +154,8 @@ export default function TransactionsPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [scheduledTransactions, setScheduledTransactions] = useState(MOCK_SCHEDULES);
+  const [scheduledTransactions, setScheduledTransactions] = useState([]);
+  const [scheduledTransactionsLoading, setScheduledTransactionsLoading] = useState(false);
   const [scheduleFilter, setScheduleFilter] = useState("all");
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -220,6 +225,82 @@ export default function TransactionsPage() {
 
   const hasWallets = Array.isArray(wallets) && wallets.length > 0;
 
+  // Load scheduled transactions from API
+  const loadScheduledTransactions = useCallback(async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      setScheduledTransactions([]);
+      setScheduledTransactionsLoading(false);
+      return;
+    }
+
+    try {
+      setScheduledTransactionsLoading(true);
+      const { response, data } = await getAllScheduledTransactions();
+      
+      if (response?.ok && data?.scheduledTransactions) {
+        // Map each scheduled transaction to frontend format
+        const mapped = data.scheduledTransactions.map((apiSchedule) => {
+          // Get currency from wallet if available
+          const wallet = wallets?.find(w => (w.walletId || w.id) === apiSchedule.walletId);
+          const currency = wallet?.currency || wallet?.currencyCode || "VND";
+
+          // Calculate totalRuns if possible
+          let totalRuns = null;
+          if (apiSchedule.startDate && apiSchedule.endDate) {
+            totalRuns = estimateScheduleRuns(
+              `${apiSchedule.startDate}T${apiSchedule.executionTime || "00:00:00"}`,
+              apiSchedule.endDate,
+              apiSchedule.scheduleType
+            );
+          }
+
+          return {
+            id: apiSchedule.scheduleId,
+            scheduleId: apiSchedule.scheduleId,
+            walletId: apiSchedule.walletId,
+            walletName: apiSchedule.walletName || "Unknown",
+            categoryName: apiSchedule.categoryName || "Unknown",
+            transactionType: apiSchedule.transactionTypeId === 1 ? "expense" : "income",
+            transactionTypeId: apiSchedule.transactionTypeId,
+            transactionTypeName: apiSchedule.transactionTypeName,
+            categoryId: apiSchedule.categoryId,
+            amount: Number(apiSchedule.amount || 0),
+            currency: currency,
+            scheduleType: apiSchedule.scheduleType,
+            scheduleTypeLabel: SCHEDULE_TYPE_LABELS[apiSchedule.scheduleType] || apiSchedule.scheduleType,
+            status: apiSchedule.status || "PENDING",
+            firstRun: apiSchedule.startDate ? `${apiSchedule.startDate}T${apiSchedule.executionTime || "00:00:00"}` : null,
+            nextRun: apiSchedule.nextExecutionDate ? `${apiSchedule.nextExecutionDate}T${apiSchedule.executionTime || "00:00:00"}` : null,
+            endDate: apiSchedule.endDate || null,
+            successRuns: apiSchedule.completedCount || 0,
+            totalRuns: totalRuns,
+            failedRuns: apiSchedule.failedCount || 0,
+            warning: apiSchedule.failedCount > 0 ? "Có lần thực hiện thất bại" : null,
+            logs: [], // API không trả về logs
+            note: apiSchedule.note || "",
+            dayOfWeek: apiSchedule.dayOfWeek,
+            dayOfMonth: apiSchedule.dayOfMonth,
+            month: apiSchedule.month,
+            day: apiSchedule.day,
+            executionTime: apiSchedule.executionTime,
+            createdAt: apiSchedule.createdAt,
+            updatedAt: apiSchedule.updatedAt,
+          };
+        });
+        setScheduledTransactions(mapped);
+      } else {
+        console.error("Failed to load scheduled transactions:", data?.error);
+        setScheduledTransactions([]);
+      }
+    } catch (error) {
+      console.error("Error loading scheduled transactions:", error);
+      setScheduledTransactions([]);
+    } finally {
+      setScheduledTransactionsLoading(false);
+    }
+  }, [wallets]);
+
   // Load transactions from API
   useEffect(() => {
     const loadTransactions = async () => {
@@ -288,6 +369,21 @@ export default function TransactionsPage() {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, [hasWallets, mapTransactionToFrontend, mapTransferToFrontend]);
+
+  // Load scheduled transactions when component mounts
+  useEffect(() => {
+    loadScheduledTransactions();
+    
+    // Reload when user changes
+    const handleUserChange = () => {
+      loadScheduledTransactions();
+    };
+    window.addEventListener("userChanged", handleUserChange);
+
+    return () => {
+      window.removeEventListener("userChanged", handleUserChange);
+    };
+  }, [loadScheduledTransactions]);
 
   // Apply wallet filter when navigated with ?focus=<walletId|walletName>
   useEffect(() => {
@@ -904,32 +1000,112 @@ export default function TransactionsPage() {
     setCurrentPage(1);
   };
 
-  const handleScheduleSubmit = (payload) => {
-    const scheduleId = Date.now();
-    const totalRuns = estimateScheduleRuns(payload.firstRun, payload.endDate, payload.scheduleType);
-    const newSchedule = {
-      id: scheduleId,
-      walletId: payload.walletId,
-      walletName: payload.walletName,
-      categoryName: payload.categoryName,
-      transactionType: payload.transactionType,
-      amount: payload.amount,
-      currency: "VND",
-      scheduleType: payload.scheduleType,
-      scheduleTypeLabel: SCHEDULE_TYPE_LABELS[payload.scheduleType] || payload.scheduleType,
-      status: "PENDING",
-      firstRun: payload.firstRun,
-      nextRun: payload.firstRun,
-      endDate: payload.endDate,
-      successRuns: 0,
-      totalRuns,
-      warning: null,
-      logs: [],
-    };
+  const handleScheduleSubmit = async (payload) => {
+    try {
+      // Find categoryId from category name
+      const categoryList = payload.transactionType === "income" 
+        ? (incomeCategories || [])
+        : (expenseCategories || []);
+      
+      const category = categoryList.find(
+        c => c.name === payload.categoryName || 
+             c.categoryName === payload.categoryName ||
+             (c.name && c.name.trim() === payload.categoryName?.trim()) ||
+             (c.categoryName && c.categoryName.trim() === payload.categoryName?.trim())
+      );
+      
+      if (!category) {
+        setToast({ 
+          open: true, 
+          message: `Không tìm thấy danh mục "${payload.categoryName}".`,
+          type: "error",
+        });
+        return;
+      }
 
-    setScheduledTransactions((prev) => [newSchedule, ...prev]);
-    setScheduleModalOpen(false);
-    setToast({ open: true, message: "Đã tạo lịch giao dịch mới.", type: "success" });
+      const categoryId = category.categoryId || category.id;
+      if (!categoryId) {
+        setToast({ open: true, message: "Không tìm thấy ID của danh mục. Vui lòng thử lại.", type: "error" });
+        return;
+      }
+
+      // Find walletId from wallet name
+      const wallet = wallets.find(
+        w => w.name === payload.walletName || 
+             w.walletName === payload.walletName ||
+             (w.name && w.name.trim() === payload.walletName?.trim()) ||
+             (w.walletName && w.walletName.trim() === payload.walletName?.trim())
+      );
+
+      if (!wallet) {
+        setToast({ open: true, message: `Không tìm thấy ví "${payload.walletName}".`, type: "error" });
+        return;
+      }
+
+      const walletId = wallet.walletId || wallet.id;
+      if (!walletId) {
+        setToast({ open: true, message: "Không tìm thấy ID của ví. Vui lòng thử lại.", type: "error" });
+        return;
+      }
+
+      // Map scheduleType to API format
+      const scheduleTypeMap = {
+        ONCE: "ONCE",
+        DAILY: "DAILY",
+        WEEKLY: "WEEKLY",
+        MONTHLY: "MONTHLY",
+        YEARLY: "YEARLY",
+      };
+
+      const apiScheduleType = scheduleTypeMap[payload.scheduleType] || "MONTHLY";
+
+      // Parse firstRun to get startDate and executionTime
+      const firstRunDate = payload.firstRun ? new Date(payload.firstRun) : new Date();
+      const startDate = firstRunDate.toISOString().split("T")[0]; // YYYY-MM-DD
+      const executionTime = firstRunDate.toTimeString().split(" ")[0]; // HH:mm:ss
+
+      // Build request data
+      const scheduleData = {
+        walletId: Number(walletId),
+        transactionTypeId: payload.transactionType === "income" ? 2 : 1,
+        categoryId: Number(categoryId),
+        amount: Number(payload.amount),
+        note: payload.note || null,
+        scheduleType: apiScheduleType,
+        startDate: startDate,
+        executionTime: executionTime,
+        endDate: payload.endDate || null,
+      };
+
+      // Add schedule-specific fields
+      if (apiScheduleType === "WEEKLY" && payload.dayOfWeek) {
+        scheduleData.dayOfWeek = Number(payload.dayOfWeek);
+      }
+      if (apiScheduleType === "MONTHLY" && payload.dayOfMonth) {
+        scheduleData.dayOfMonth = Number(payload.dayOfMonth);
+      }
+      if (apiScheduleType === "YEARLY") {
+        if (payload.month) scheduleData.month = Number(payload.month);
+        if (payload.day) scheduleData.day = Number(payload.day);
+      }
+
+      // Call API
+      const { createScheduledTransaction } = await import("../../services/scheduled-transaction.service");
+      const result = await createScheduledTransaction(scheduleData);
+      const { response, data } = result;
+
+      if (response?.ok && data?.scheduledTransaction) {
+        const newSchedule = mapScheduledTransactionToFrontend(data.scheduledTransaction);
+        setScheduledTransactions((prev) => [newSchedule, ...prev]);
+        setScheduleModalOpen(false);
+        setToast({ open: true, message: data.message || "Đã tạo lịch giao dịch mới.", type: "success" });
+      } else {
+        setToast({ open: true, message: data?.error || "Tạo lịch giao dịch thất bại.", type: "error" });
+      }
+    } catch (error) {
+      console.error("Error creating scheduled transaction:", error);
+      setToast({ open: true, message: "Lỗi kết nối khi tạo lịch giao dịch.", type: "error" });
+    }
   };
 
   const handleScheduleCancel = (scheduleId) => {
@@ -1139,7 +1315,12 @@ export default function TransactionsPage() {
               ))}
             </div>
 
-            {filteredSchedules.length === 0 ? (
+            {scheduledTransactionsLoading ? (
+              <div className="text-center py-4">
+                <div className="spinner-border text-primary" role="status" />
+                <p className="mt-2 text-muted">Đang tải danh sách lịch giao dịch...</p>
+              </div>
+            ) : filteredSchedules.length === 0 ? (
               <div className="text-center text-muted py-4">
                 Chưa có lịch nào phù hợp.
               </div>
@@ -1529,11 +1710,11 @@ function estimateScheduleRuns(startValue, endValue, scheduleType) {
 }
 
 const SCHEDULE_TYPE_LABELS = {
-  ONE_TIME: "Một lần",
-  DAILY: "Hằng ngày",
-  WEEKLY: "Hằng tuần",
-  MONTHLY: "Hằng tháng",
-  YEARLY: "Hằng năm",
+  ONCE: "Một lần",
+  DAILY: "Hàng ngày",
+  WEEKLY: "Hàng tuần",
+  MONTHLY: "Hàng tháng",
+  YEARLY: "Hàng năm",
 };
 
 const SCHEDULE_STATUS_META = {
@@ -1550,49 +1731,53 @@ const SCHEDULE_TABS = [
   { value: "recurring", label: "Định kỳ" },
 ];
 
-const MOCK_SCHEDULES = [
-  {
-    id: 101,
-    walletId: "wallet-main",
-    walletName: "Ví chính",
-    categoryName: "Hóa đơn",
-    transactionType: "expense",
-    amount: 2500000,
-    currency: "VND",
-    scheduleType: "MONTHLY",
-    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.MONTHLY,
-    status: "PENDING",
-    firstRun: "2025-01-05T08:00",
-    nextRun: "2025-03-05T08:00",
-    endDate: "2025-12-31",
-    successRuns: 1,
-    totalRuns: 12,
-    warning: null,
-    logs: [
-      { id: 1, time: "2025-02-05T08:00", status: "FAILED", message: "Không đủ số dư" },
-      { id: 2, time: "2025-01-05T08:00", status: "COMPLETED", message: "Thành công" },
-    ],
-  },
-  {
-    id: 102,
-    walletId: "wallet-travel",
-    walletName: "Ví du lịch",
-    categoryName: "Tiền lãi",
-    transactionType: "income",
-    amount: 1000000,
-    currency: "VND",
-    scheduleType: "DAILY",
-    scheduleTypeLabel: SCHEDULE_TYPE_LABELS.DAILY,
-    status: "FAILED",
-    firstRun: "2025-02-01T09:00",
-    nextRun: "2025-02-22T09:00",
-    endDate: null,
-    successRuns: 3,
-    totalRuns: 5,
-    warning: "Không đủ số dư ở lần gần nhất",
-    logs: [
-      { id: 3, time: "2025-02-10T09:00", status: "FAILED", message: "Không đủ số dư ví du lịch" },
-      { id: 4, time: "2025-02-09T09:00", status: "COMPLETED", message: "Thành công" },
-    ],
-  },
-];
+// Map API scheduled transaction to frontend format
+// Note: Function được định nghĩa sau SCHEDULE_TYPE_LABELS để có thể sử dụng
+const mapScheduledTransactionToFrontend = (apiSchedule) => {
+  // Get currency from wallet if available
+  const wallet = wallets?.find(w => (w.walletId || w.id) === apiSchedule.walletId);
+  const currency = wallet?.currency || wallet?.currencyCode || "VND";
+
+  // Calculate totalRuns if possible
+  let totalRuns = null;
+  if (apiSchedule.startDate && apiSchedule.endDate) {
+    totalRuns = estimateScheduleRuns(
+      `${apiSchedule.startDate}T${apiSchedule.executionTime || "00:00:00"}`,
+      apiSchedule.endDate,
+      apiSchedule.scheduleType
+    );
+  }
+
+  return {
+    id: apiSchedule.scheduleId,
+    scheduleId: apiSchedule.scheduleId,
+    walletId: apiSchedule.walletId,
+    walletName: apiSchedule.walletName || "Unknown",
+    categoryName: apiSchedule.categoryName || "Unknown",
+    transactionType: apiSchedule.transactionTypeId === 1 ? "expense" : "income",
+    transactionTypeId: apiSchedule.transactionTypeId,
+    transactionTypeName: apiSchedule.transactionTypeName,
+    categoryId: apiSchedule.categoryId,
+    amount: Number(apiSchedule.amount || 0),
+    currency: currency,
+    scheduleType: apiSchedule.scheduleType,
+    scheduleTypeLabel: SCHEDULE_TYPE_LABELS[apiSchedule.scheduleType] || apiSchedule.scheduleType,
+    status: apiSchedule.status || "PENDING",
+    firstRun: apiSchedule.startDate ? `${apiSchedule.startDate}T${apiSchedule.executionTime || "00:00:00"}` : null,
+    nextRun: apiSchedule.nextExecutionDate ? `${apiSchedule.nextExecutionDate}T${apiSchedule.executionTime || "00:00:00"}` : null,
+    endDate: apiSchedule.endDate || null,
+    successRuns: apiSchedule.completedCount || 0,
+    totalRuns: totalRuns,
+    failedRuns: apiSchedule.failedCount || 0,
+    warning: apiSchedule.failedCount > 0 ? "Có lần thực hiện thất bại" : null,
+    logs: [], // API không trả về logs, có thể lấy từ endpoint riêng nếu có
+    note: apiSchedule.note || "",
+    dayOfWeek: apiSchedule.dayOfWeek,
+    dayOfMonth: apiSchedule.dayOfMonth,
+    month: apiSchedule.month,
+    day: apiSchedule.day,
+    executionTime: apiSchedule.executionTime,
+    createdAt: apiSchedule.createdAt,
+    updatedAt: apiSchedule.updatedAt,
+  };
+};

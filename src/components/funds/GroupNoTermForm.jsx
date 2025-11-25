@@ -4,33 +4,154 @@ import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
 
-export default function GroupNoTermForm({ wallets }) {
+export default function GroupNoTermForm({ wallets, onSubmit, onCancel }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
   const selectedWallet = useMemo(
-    () => wallets.find((w) => String(w.id) === String(srcWalletId)) || null,
+    () => wallets.find((w) => String(w.walletId || w.id) === String(srcWalletId)) || null,
     [wallets, srcWalletId]
   );
 
   const currentBalance = Number(selectedWallet?.balance || 0);
-  const currency = selectedWallet?.currency || "";
+  const currency = selectedWallet?.currency || selectedWallet?.currencyCode || "";
 
   const currentBalanceText = selectedWallet
     ? `${currentBalance.toLocaleString("vi-VN")} ${currency}`
     : "";
 
+  const [fundName, setFundName] = useState("");
+  const [note, setNote] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [periodAmount, setPeriodAmount] = useState("");
   const [reminderOn, setReminderOn] = useState(false);
   const [autoTopupOn, setAutoTopupOn] = useState(false);
   const [freq, setFreq] = useState("month");
+  const [loading, setLoading] = useState(false);
+  const [reminderData, setReminderData] = useState(null);
+  const [autoDepositData, setAutoDepositData] = useState(null);
+  const [sourceWalletId, setSourceWalletId] = useState(null);
+  const [members, setMembers] = useState([]);
 
-  const handleSave = () => {
+  const handleAddMember = () => {
+    setMembers((prev) => [
+      ...prev,
+      { id: Date.now(), name: "", email: "", role: "view" },
+    ]);
+  };
+
+  const handleChangeMember = (id, field, value) => {
+    setMembers((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+    );
+  };
+
+  const handleRemoveMember = (id) => {
+    setMembers((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const handleSave = async () => {
     if (!selectedWallet) {
-      alert("Vui lòng chọn ví nguồn trước khi lưu quỹ nhóm.");
+      alert("Vui lòng chọn ví đích trước khi lưu quỹ nhóm.");
       return;
     }
-    console.log("Lưu quỹ nhóm không thời hạn", {
-      srcWalletId,
-      freq,
-    });
+    if (!fundName.trim()) {
+      alert("Vui lòng nhập tên quỹ nhóm.");
+      return;
+    }
+    if (members.length === 0) {
+      alert("Quỹ nhóm phải có ít nhất 1 thành viên ngoài chủ quỹ.");
+      return;
+    }
+
+    const frequencyMap = {
+      day: "DAILY",
+      week: "WEEKLY",
+      month: "MONTHLY",
+      year: "YEARLY",
+    };
+    const apiFrequency = frequencyMap[freq] || "MONTHLY";
+
+    const reminderTypeMap = {
+      day: "DAILY",
+      week: "WEEKLY",
+      month: "MONTHLY",
+      year: "YEARLY",
+    };
+
+    let finalReminderData = null;
+    if (reminderData?.enabled) {
+      const reminderType = reminderData.mode === "follow" ? apiFrequency : reminderTypeMap[reminderData.type] || "MONTHLY";
+      finalReminderData = {
+        reminderEnabled: true,
+        reminderType,
+        reminderTime: reminderData.time ? `${reminderData.time}:00` : "20:00:00",
+        reminderDayOfWeek: reminderData.dayOfWeek,
+        reminderDayOfMonth: reminderData.dayOfMonth,
+      };
+    }
+
+    let finalAutoDepositData = null;
+    if (autoDepositData?.enabled) {
+      if (autoDepositData.type === "FOLLOW_REMINDER") {
+        finalAutoDepositData = {
+          autoDepositEnabled: true,
+          autoDepositType: "FOLLOW_REMINDER",
+          sourceWalletId: sourceWalletId || (selectedWallet.walletId || selectedWallet.id),
+        };
+      } else {
+        const scheduleTypeMap = {
+          day: "DAILY",
+          week: "WEEKLY",
+          month: "MONTHLY",
+        };
+        finalAutoDepositData = {
+          autoDepositEnabled: true,
+          autoDepositType: "CUSTOM_SCHEDULE",
+          sourceWalletId: sourceWalletId || (selectedWallet.walletId || selectedWallet.id),
+          autoDepositScheduleType: scheduleTypeMap[autoDepositData.scheduleType] || "MONTHLY",
+          autoDepositTime: autoDepositData.time ? `${autoDepositData.time}:00` : "20:00:00",
+          autoDepositDayOfWeek: autoDepositData.dayOfWeek,
+          autoDepositDayOfMonth: autoDepositData.dayOfMonth,
+          autoDepositAmount: autoDepositData.amount || 0,
+        };
+      }
+    }
+
+    const apiMembers = members
+      .filter((m) => m.email && m.email.trim())
+      .map((m) => ({
+        email: m.email.trim(),
+        role: m.role === "use" ? "CONTRIBUTOR" : "CONTRIBUTOR",
+      }));
+
+    if (apiMembers.length === 0) {
+      alert("Vui lòng thêm ít nhất 1 thành viên với email hợp lệ.");
+      return;
+    }
+
+    const fundData = {
+      fundName: fundName.trim(),
+      targetWalletId: selectedWallet.walletId || selectedWallet.id,
+      fundType: "GROUP",
+      hasDeadline: false,
+      frequency: apiFrequency,
+      amountPerPeriod: periodAmount ? Number(periodAmount) : undefined,
+      startDate: startDate || new Date().toISOString().split("T")[0],
+      note: note.trim() || null,
+      members: apiMembers,
+      ...finalReminderData,
+      ...finalAutoDepositData,
+    };
+
+    if (onSubmit) {
+      setLoading(true);
+      try {
+        await onSubmit(fundData);
+      } catch (err) {
+        console.error("Error submitting fund:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   return (
@@ -46,6 +167,9 @@ export default function GroupNoTermForm({ wallets }) {
             type="text"
             maxLength={50}
             placeholder="Ví dụ: Quỹ sinh hoạt nhóm"
+            value={fundName}
+            onChange={(e) => setFundName(e.target.value)}
+            required
           />
         </div>
 
@@ -68,7 +192,11 @@ export default function GroupNoTermForm({ wallets }) {
           </div>
           <div>
             <label>Ngày bắt đầu</label>
-            <input type="date" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
           </div>
         </div>
       </div>
@@ -88,7 +216,13 @@ export default function GroupNoTermForm({ wallets }) {
           </div>
           <div>
             <label>Số tiền gửi mỗi kỳ</label>
-            <input type="number" min={0} placeholder="Tuỳ chọn" />
+            <input
+              type="number"
+              min={0}
+              placeholder="Tuỳ chọn"
+              value={periodAmount}
+              onChange={(e) => setPeriodAmount(e.target.value)}
+            />
           </div>
         </div>
       </div>
@@ -97,6 +231,7 @@ export default function GroupNoTermForm({ wallets }) {
         reminderOn={reminderOn}
         setReminderOn={setReminderOn}
         freq={freq}
+        onDataChange={setReminderData}
       />
 
       <AutoTopupBlock
@@ -104,21 +239,77 @@ export default function GroupNoTermForm({ wallets }) {
         setAutoTopupOn={setAutoTopupOn}
         dependsOnReminder={reminderOn}
         reminderFreq={freq}
+        sourceWallets={wallets}
+        selectedSourceWalletId={sourceWalletId}
+        onSourceWalletChange={setSourceWalletId}
+        onDataChange={setAutoDepositData}
       />
+
+      <div className="funds-fieldset funds-fieldset--full">
+      <div className="funds-fieldset">
+        <div className="funds-fieldset__legend">Thành viên quỹ</div>
+        <div className="funds-hint">
+          Thêm thành viên bằng email, gán quyền <strong>xem</strong> hoặc <strong>sử dụng</strong>.
+        </div>
+        <div className="funds-members">
+          {members.map((m) => (
+            <div key={m.id} className="funds-member-row">
+              <input
+                type="text"
+                placeholder="Tên"
+                value={m.name}
+                onChange={(e) => handleChangeMember(m.id, "name", e.target.value)}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={m.email}
+                onChange={(e) => handleChangeMember(m.id, "email", e.target.value)}
+              />
+              <select
+                value={m.role}
+                onChange={(e) => handleChangeMember(m.id, "role", e.target.value)}
+              >
+                <option value="view">Xem</option>
+                <option value="use">Sử dụng</option>
+              </select>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => handleRemoveMember(m.id)}
+              >
+                <i className="bi bi-x" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn-link"
+            onClick={handleAddMember}
+          >
+            <i className="bi bi-person-plus me-1" />
+            Thêm thành viên
+          </button>
+        </div>
+      </div>
 
       <div className="funds-fieldset funds-fieldset--full">
         <div className="funds-field">
           <label>Ghi chú</label>
-          <textarea rows={3} placeholder="Ghi chú cho quỹ nhóm" />
+          <textarea
+            rows={3}
+            placeholder="Ghi chú cho quỹ nhóm"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
         </div>
 
         <div className="funds-actions">
           <button
             type="button"
             className="btn-secondary"
-            onClick={() =>
-              console.log("Hủy tạo quỹ nhóm không thời hạn")
-            }
+            onClick={onCancel || (() => console.log("Hủy tạo quỹ nhóm không thời hạn"))}
+            disabled={loading}
           >
             Hủy
           </button>
@@ -126,8 +317,16 @@ export default function GroupNoTermForm({ wallets }) {
             type="button"
             className="btn-primary"
             onClick={handleSave}
+            disabled={loading}
           >
-            Lưu quỹ nhóm
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" />
+                Đang tạo...
+              </>
+            ) : (
+              "Lưu quỹ nhóm"
+            )}
           </button>
         </div>
       </div>

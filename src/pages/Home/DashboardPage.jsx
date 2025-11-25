@@ -211,27 +211,37 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    const loadData = () => {
+    const loadData = async () => {
       try {
+        // Ưu tiên dùng externalTransactionsList từ BudgetDataContext (đã được load từ API)
+        if (externalTransactionsList && externalTransactionsList.length > 0) {
+          setLocalTransactions(externalTransactionsList);
+          return;
+        }
+
+        // Nếu không có, thử load từ localStorage
         const raw = localStorage.getItem(STORAGE_EXTERNAL);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setLocalTransactions(parsed);
             return;
           }
         }
-        setLocalTransactions(createMockData());
+
+        // Fallback: chỉ dùng mock data nếu không có dữ liệu từ API và localStorage
+        // Không tự động set mock data, để user thấy trạng thái "chưa có dữ liệu"
+        setLocalTransactions([]);
       } catch (err) {
         console.error("DashboardPage: loadData", err);
-        setLocalTransactions(createMockData());
+        setLocalTransactions([]);
       }
     };
 
     loadData();
     window.addEventListener("storage", loadData);
     return () => window.removeEventListener("storage", loadData);
-  }, []);
+  }, [externalTransactionsList]);
 
   const transactions = externalTransactionsList.length
     ? externalTransactionsList

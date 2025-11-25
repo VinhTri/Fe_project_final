@@ -1,8 +1,9 @@
 // src/components/funds/ParticipateManager.jsx
 import React, { useEffect, useState } from "react";
 import FundSection from "./FundSection";
+import { getParticipatedFunds } from "../../services/fund.service";
 
-export default function ParticipateManager({ viewFunds, useFunds }) {
+export default function ParticipateManager({ viewFunds, useFunds, onReload }) {
   const [selectedFund, setSelectedFund] = useState(null);
   const [members, setMembers] = useState([]);
 
@@ -40,13 +41,17 @@ export default function ParticipateManager({ viewFunds, useFunds }) {
     setMembers((prev) => prev.filter((m) => m.id !== id));
   };
 
-  const handleSaveMembers = () => {
+  const handleSaveMembers = async () => {
     if (!selectedFund) return;
+    
+    // Note: API không có endpoint riêng để update members của participated fund
+    // Cần chủ quỹ mới có thể update members
+    // Ở đây chỉ log và thông báo
     console.log("Lưu cập nhật thành viên quỹ tham gia", {
       fundId: selectedFund.id,
       members,
     });
-    alert("Đã lưu thay đổi thành viên (demo trên FE).");
+    alert("Chỉ chủ quỹ mới có thể cập nhật thành viên. Vui lòng liên hệ chủ quỹ.");
   };
 
   return (
