@@ -1,102 +1,98 @@
-// src/components/home/Topbar/NotificationBell.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import NotificationList from "./NotificationList";
-import { useNotifications } from "../../../home/store/NotificationContext";
-import useOnClickOutside from "../../../hooks/useOnClickOutside";
+// src/components/home/Topbar/NotificationList.jsx
 
-export default function NotificationBell({ role = "user" }) {
-  const navigate = useNavigate();
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
-  const [open, setOpen] = useState(false);
-  const [bump, setBump] = useState(false);
-  const ref = useRef(null);
+// chọn icon + nhãn theo loại thông báo
+function getIconAndLabel(type) {
+  switch (type) {
+    case "user_feedback":
+      return {
+        icon: "bi-chat-left-text",
+        label: "Đánh giá mới",
+      };
+    case "admin_reply":
+      return {
+        icon: "bi-reply-fill",
+        label: "Phản hồi của admin",
+      };
+    default:
+      return {
+        icon: "bi-bell-fill",
+        label: "Thông báo",
+      };
+  }
+}
 
-  useOnClickOutside(ref, () => setOpen(false));
-
-  // lấy thông báo đúng role (admin / user) mới xem được
-  const roleItems = useMemo(
-    () =>
-      notifications
-        .filter((n) => !role || n.role === role)
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() -
-            new Date(a.createdAt).getTime()
-        ),
-    [notifications, role]
-  );
-
-  const unreadCount = roleItems.filter((n) => !n.read).length;
-
-  // rung chuông nhẹ khi có notif mới
-  useEffect(() => {
-    if (!roleItems.length) return;
-    setBump(true);
-    const t = setTimeout(() => setBump(false), 300);
-    return () => clearTimeout(t);
-  }, [roleItems.length]);
-
-  const handleItemClick = (n) => {
-    markAsRead(n.id);
-    setOpen(false);
-
-    if (n.type === "user_feedback") {
-      // admin xem review
-      navigate("/admin/reviews", {
-        state: { focusReviewId: n.reviewId },
-      });
-    } else if (n.type === "admin_reply") {
-      // user xem phản hồi
-      navigate("/home/feedback", {
-        state: { focusReviewId: n.reviewId },
-      });
-    }
-  };
-
-  const handleMarkAll = () => {
-    markAllAsRead(role);
-  };
+export default function NotificationList({ items = [], onItemClick }) {
+  // EMPTY STATE xịn xò
+  if (!items.length) {
+    return (
+      <div className="notif-empty">
+        <div className="notif-empty__icon">
+          <i className="bi bi-bell-slash" />
+        </div>
+        <div className="notif-empty__title">Chưa có thông báo</div>
+        <div className="notif-empty__desc">
+          Mọi hoạt động quan trọng (đánh giá, phản hồi, cảnh báo chi tiêu...)
+          sẽ hiển thị tại đây.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="notif-bell-wrap" ref={ref}>
-      <button
-        type="button"
-        className={
-          "notif-bell " +
-          (bump ? "notif-bell--bump" : "") +
-          (open ? " notif-bell--open" : "")
-        }
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Thông báo"
-      >
-        <i className="bi bi-bell-fill" />
-        {unreadCount > 0 && (
-          <span className="notif-badge">{unreadCount}</span>
-        )}
-      </button>
+    <ul className="dd__list notif-list">
+      {items.map((n) => {
+        const { icon, label } = getIconAndLabel(n.type);
 
-      {open && (
-        <div className="notif-dropdown">
-          <div className="dd__panel dd__panel--notif">
-            <div className="dd__head">Thông báo</div>
+        const title = n.title || "Thông báo";
+        const desc = n.desc || "";
+        const time = n.timeLabel || "Vừa xong";
 
-            <NotificationList
-              items={roleItems}
-              onItemClick={handleItemClick}
-            />
-
-            <div className="dd__foot">
-              <button
-                className="btn btn-sm btn-light"
-                onClick={handleMarkAll}
-              >
-                Đánh dấu đã đọc
-              </button>
+        return (
+          <li
+            key={n.id}
+            className={
+              "dd__item notif-item " + (n.read ? "notif-item--read" : "")
+            }
+            onClick={() => onItemClick && onItemClick(n)}
+          >
+            {/* ICON TRÒN BÊN TRÁI */}
+            <div className="notif-item__icon-wrap">
+              <div className="notif-item__icon">
+                <i className={`bi ${icon}`} />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+
+            {/* TEXT BÊN PHẢI */}
+            <div className="notif-item__content">
+              {/* hàng 1: tiêu đề + badge type */}
+              <div className="notif-item__title-row">
+                <span className="notif-item__title">{title}</span>
+                <span className="notif-item__type-badge">{label}</span>
+              </div>
+
+              {/* hàng 2: mô tả */}
+              {desc && (
+                <div className="notif-item__desc">{desc}</div>
+              )}
+
+              {/* hàng 3: thời gian + trạng thái */}
+              <div className="notif-item__meta">
+                <span className="notif-item__time">{time}</span>
+                <span
+                  className={
+                    "notif-item__status " +
+                    (n.read
+                      ? "notif-item__status--read"
+                      : "notif-item__status--unread")
+                  }
+                >
+                  {n.read ? "Đã xem" : "Mới"}
+                </span>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

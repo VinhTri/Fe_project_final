@@ -1,5 +1,5 @@
 // src/home/store/FeedbackDataContext.jsx
-import { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 
 const FeedbackContext = createContext(null);
 
@@ -57,8 +57,7 @@ export function FeedbackProvider({ children }) {
   // admin phản hồi
   const addAdminReply = (reviewId, { author = "Admin", message, date }) => {
     const replyDate =
-      date ||
-      new Date().toISOString().slice(0, 16).replace("T", " ");
+      date || new Date().toISOString().slice(0, 16).replace("T", " ");
 
     setReviews((prev) =>
       prev.map((r) =>
@@ -83,4 +82,13 @@ export function FeedbackProvider({ children }) {
   );
 }
 
-export const useFeedbackData = () => useContext(FeedbackContext);
+// ✅ Hook có check, tránh trả về null im lặng
+export function useFeedbackData() {
+  const ctx = useContext(FeedbackContext);
+  if (!ctx) {
+    throw new Error(
+      "useFeedbackData phải được dùng bên trong <FeedbackProvider> (index.jsx)."
+    );
+  }
+  return ctx;
+}
