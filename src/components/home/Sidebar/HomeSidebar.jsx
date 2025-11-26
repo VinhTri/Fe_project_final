@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
 import { useAuth, ROLES } from "../../../home/store/AuthContext";
+import { useLanguage } from "../../../home/store/LanguageContext";
 
+// Use translation keys; labels resolved at render time
 const BASE_MENU = [
-  { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
-  { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" },
-  { to: "/home/funds", label: "Quỹ", icon: "bi-piggy-bank" },
-  { to: "/home/categories", label: "Danh mục", icon: "bi-tags" },
-  { to: "/home/transactions", label: "Giao dịch", icon: "bi-cash-stack" },
-  
-  { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
-  { to: "/home/reports", label: "Báo cáo", icon: "bi-bar-chart-line" },
+  { to: "/home", labelKey: "sidebar.overview", icon: "bi-speedometer2", end: true },
+  { to: "/home/wallets", labelKey: "sidebar.wallets", icon: "bi-wallet2" },
+  { to: "/home/funds", labelKey: "sidebar.funds", icon: "bi-piggy-bank" },
+  { to: "/home/categories", labelKey: "sidebar.categories", icon: "bi-tags" },
+  { to: "/home/transactions", labelKey: "sidebar.transactions", icon: "bi-cash-stack" },
+  { to: "/home/budgets", labelKey: "sidebar.budgets", icon: "bi-graph-up-arrow" },
+  { to: "/home/reports", labelKey: "sidebar.reports", icon: "bi-bar-chart-line" },
 ];
 
 export default function HomeSidebar() {
@@ -19,6 +20,7 @@ export default function HomeSidebar() {
     localStorage.getItem("sb_collapsed") === "1"
   );
   const { currentUser } = useAuth();
+  const { t } = useLanguage();
 
   const isAdmin =
     !!currentUser?.role &&
@@ -32,12 +34,12 @@ export default function HomeSidebar() {
       base.push(
         {
           to: "/admin/users",
-          label: "Quản lý người dùng",
+          labelKey: "sidebar.user_management",
           icon: "bi-people-fill",
         },
         {
           to: "/admin/reviews",
-          label: "Đánh giá & bình luận",
+          labelKey: "sidebar.feedback",
           icon: "bi-chat-dots",
         }
       );
@@ -63,8 +65,8 @@ export default function HomeSidebar() {
         />
 
         <div className="sb__brand-text">
-          <div className="sb__brand-title">HỆ THỐNG QUẢN LÝ</div>
-          <div className="sb__brand-sub">Quản lý ví cá nhân</div>
+          <div className="sb__brand-title">{t("sidebar.brand.title")}</div>
+          <div className="sb__brand-sub">{t("sidebar.brand.subtitle")}</div>
         </div>
       </div>
 
@@ -77,7 +79,7 @@ export default function HomeSidebar() {
         <span className="sb__icon" aria-hidden="true">
           <i className="bi bi-list" />
         </span>
-        <span className="sb__text sb__menu-title">Menu</span>
+        <span className="sb__text sb__menu-title">{t("sidebar.menu")}</span>
       </button>
 
       <div className="sb__divider" />
@@ -91,12 +93,12 @@ export default function HomeSidebar() {
             className={({ isActive }) =>
               "sb__link" + (isActive ? " is-active" : "")
             }
-            aria-label={collapsed ? m.label : undefined} // chỉ cho screen reader
+            aria-label={collapsed ? (m.labelKey ? t(m.labelKey) : m.label) : undefined}
           >
             <span className="sb__icon" aria-hidden="true">
               <i className={`bi ${m.icon}`} />
             </span>
-            <span className="sb__text">{m.label}</span>
+            <span className="sb__text">{m.labelKey ? t(m.labelKey) : m.label}</span>
           </NavLink>
         ))}
       </nav>

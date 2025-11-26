@@ -1,5 +1,6 @@
 // src/pages/Home/CategoriesPage.jsx
 import React, { useRef, useState } from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 import "../../styles/home/CategoriesPage.css";
 import Toast from "../../components/common/Toast/Toast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
@@ -11,6 +12,7 @@ import { useAuth } from "../../home/store/AuthContext";
 const PAGE_SIZE = 9; // ✅ giới hạn 9 thẻ mỗi trang
 
 export default function CategoriesPage() {
+  const { t } = useLanguage();
   const {
     expenseCategories,
     incomeCategories,
@@ -310,8 +312,8 @@ export default function CategoriesPage() {
           open: true,
           message:
             createKind === "expense"
-              ? "Bạn đã có danh mục chi phí cá nhân này rồi."
-              : "Bạn đã có danh mục thu nhập cá nhân này rồi.",
+              ? t("categories.error.duplicate_expense")
+              : t("categories.error.duplicate_income"),
           type: "error",
         });
         return;
@@ -326,7 +328,7 @@ export default function CategoriesPage() {
       setPage(1);
       setToast({
         open: true,
-        message: "Đã thêm danh mục mới.",
+        message: t("categories.toast.add_success"),
         type: "success",
       });
     } else if (modalMode === "edit") {
@@ -348,8 +350,8 @@ export default function CategoriesPage() {
           open: true,
           message:
             modalEditingKind === "income"
-              ? "Đã tồn tại danh mục thu nhập cá nhân này."
-              : "Đã tồn tại danh mục chi phí cá nhân này.",
+              ? t("categories.error.duplicate_income")
+              : t("categories.error.duplicate_expense"),
           type: "error",
         });
         return;
@@ -363,7 +365,7 @@ export default function CategoriesPage() {
 
       setToast({
         open: true,
-        message: "Đã cập nhật danh mục.",
+        message: t("categories.toast.update_success"),
         type: "success",
       });
     }
@@ -400,7 +402,7 @@ export default function CategoriesPage() {
 
       setToast({
         open: true,
-        message: `Đã xóa danh mục "${cat.name}"`,
+        message: t("categories.toast.delete_success") + (cat?.name ? ` ${cat.name}` : ""),
         type: "success",
       });
 
@@ -412,7 +414,7 @@ export default function CategoriesPage() {
       console.error("Lỗi khi xóa danh mục:", error);
       setToast({
         open: true,
-        message: error.message || "Lỗi khi xóa danh mục",
+        message: error.message || t("categories.error.delete_failed"),
         type: "error",
       });
     }
@@ -431,11 +433,8 @@ export default function CategoriesPage() {
               <i className="bi bi-tags cat-header-icon" />
             </div>
             <div>
-              <h2 className="mb-1">Danh Mục</h2>
-              <p className="mb-0">
-                Thêm các danh mục mà bạn thường tiêu tiền vào hoặc nhận tiền từ
-                đây.
-              </p>
+              <h2 className="mb-1">{t("categories.page.title")}</h2>
+              <p className="mb-0">{t("categories.page.subtitle")}</p>
             </div>
           </div>
 
@@ -453,7 +452,7 @@ export default function CategoriesPage() {
                   resetSearch();
                 }}
               >
-                Chi phí
+                {t("categories.tab.expense")}
               </button>
               <button
                 type="button"
@@ -467,7 +466,7 @@ export default function CategoriesPage() {
                   resetSearch();
                 }}
               >
-                Thu nhập
+                {t("categories.tab.income")}
               </button>
               <button
                 type="button"
@@ -481,7 +480,7 @@ export default function CategoriesPage() {
                   resetSearch();
                 }}
               >
-                Mặc định
+                {t("categories.tab.system")}
               </button>
             </div>
 
@@ -492,7 +491,7 @@ export default function CategoriesPage() {
                 onClick={openAddModal}
               >
                 <i className="bi bi-plus-circle me-1" />
-                Thêm danh mục
+                {t("categories.btn.add")}
               </button>
             </div>
           </div>
@@ -503,7 +502,7 @@ export default function CategoriesPage() {
       <div className="card border-0 shadow-sm mb-3" style={{ borderRadius: 18 }}>
         <div className="card-body">
           <form className="g-3" onSubmit={handleSearchSubmit}>
-            <label className="form-label fw-semibold">Tìm danh mục</label>
+            <label className="form-label fw-semibold">{t("categories.filter.name")}</label>
             <div className="category-search-inline">
               <div
                 className={`searchable-select category-search-select flex-grow-1 ${
@@ -514,7 +513,7 @@ export default function CategoriesPage() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Chọn hoặc nhập tên danh mục"
+                  placeholder={t("categories.filter.name_placeholder")}
                   value={searchQuery}
                   onFocus={() => setSelectMenuOpen(true)}
                   onChange={(e) => {
@@ -536,7 +535,7 @@ export default function CategoriesPage() {
 
                 {selectMenuOpen && (
                   <div className="searchable-select-menu">
-                    <button
+                      <button
                       type="button"
                       className={`searchable-option ${
                         !pendingCategoryId ? "active" : ""
@@ -550,13 +549,13 @@ export default function CategoriesPage() {
                         setSelectMenuOpen(false);
                         setPage(1);
                       }}
-                    >
-                      Tất cả danh mục
-                    </button>
+                        >
+                          {t("categories.search_all")}
+                        </button>
 
                     {filteredOptions.length === 0 ? (
                       <div className="px-3 py-2 text-muted small">
-                        Không tìm thấy danh mục
+                        {t("categories.search_none")}
                       </div>
                     ) : (
                       filteredOptions.map((cat) => (
@@ -589,35 +588,35 @@ export default function CategoriesPage() {
 
               {/* NÚT TÌM KIẾM + SẮP XẾP */}
               <div className="category-search-actions">
-                <button
+                  <button
                   type="submit"
                   className="btn btn-primary btn-sm category-search-submit"
                 >
-                  Tìm kiếm
+                  {t("categories.btn.search")}
                 </button>
 
                 <div className="category-sort">
                   <span>
-                    {activeTab === "system" ? "Ưu tiên:" : "Sắp xếp:"}
+                    {activeTab === "system" ? t("categories.sort.priority") : t("categories.sort.label")}
                   </span>
                   {activeTab === "system" ? (
                     <select
                       value={sortMode}
                       onChange={(e) => setSortMode(e.target.value)}
                     >
-                      <option value="sysExpense">Chi phí mặc định</option>
-                      <option value="sysIncome">Thu nhập mặc định</option>
+                      <option value="sysExpense">{t("categories.sort.sysExpense")}</option>
+                      <option value="sysIncome">{t("categories.sort.sysIncome")}</option>
                     </select>
                   ) : (
                     <select
                       value={sortMode}
                       onChange={(e) => setSortMode(e.target.value)}
                     >
-                      <option value="default">Mặc định</option>
-                      <option value="nameAsc">Tên (A → Z)</option>
-                      <option value="nameDesc">Tên (Z → A)</option>
-                      <option value="newest">Mới → Cũ</option>
-                      <option value="oldest">Cũ → Mới</option>
+                      <option value="default">{t("categories.sort.default")}</option>
+                      <option value="nameAsc">{t("categories.sort.nameAsc")}</option>
+                      <option value="nameDesc">{t("categories.sort.nameDesc")}</option>
+                      <option value="newest">{t("categories.sort.newest")}</option>
+                      <option value="oldest">{t("categories.sort.oldest")}</option>
                     </select>
                   )}
                 </div>
@@ -637,11 +636,9 @@ export default function CategoriesPage() {
             <div className="py-5 text-center text-muted">
               <i className="bi bi-inboxes fs-1 d-block mb-2" />
               <div className="fw-semibold mb-1">
-                Không còn danh mục phù hợp với tìm kiếm
+                {t("categories.table.empty")}
               </div>
-              <div className="small mb-3">
-                Hãy thêm danh mục để quản lý chi tiết thu chi của bạn.
-              </div>
+              <div className="small mb-3">{t("categories.empty_hint")}</div>
             </div>
           ) : (
             <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
@@ -662,9 +659,9 @@ export default function CategoriesPage() {
                           <span className="badge bg-light text-muted cat-index-badge">
                             #{stt.toString().padStart(2, "0")}
                           </span>
-                          {isSystemCategory && (
+                            {isSystemCategory && (
                             <span className="badge bg-soft-info text-info small">
-                              Mặc định hệ thống
+                              {t("categories.badge.system")}
                             </span>
                           )}
                         </div>
@@ -682,11 +679,11 @@ export default function CategoriesPage() {
                           <div className="text-muted small">
                             {isExpense ? (
                               <span className="badge bg-soft-danger text-danger">
-                                Chi phí
+                                {t("categories.type.expense")}
                               </span>
                             ) : (
                               <span className="badge bg-soft-success text-success">
-                                Thu nhập
+                                {t("categories.type.income")}
                               </span>
                             )}
                           </div>
@@ -697,7 +694,7 @@ export default function CategoriesPage() {
                                   className="btn btn-link btn-sm text-muted me-2 p-0 category-action-btn"
                                   type="button"
                                   onClick={() => openEditModal(c)}
-                                  title="Sửa danh mục"
+                                    title={t("categories.action.edit")}
                                 >
                                   <i className="bi bi-pencil-square" />
                                   <span className="ms-1 d-none d-sm-inline">
@@ -708,7 +705,7 @@ export default function CategoriesPage() {
                                   className="btn btn-link btn-sm text-danger p-0 category-action-btn"
                                   type="button"
                                   onClick={() => handleDelete(c)}
-                                  title="Xóa danh mục"
+                                  title={t("categories.action.delete")}
                                 >
                                   <i className="bi bi-trash" />
                                   <span className="ms-1 d-none d-sm-inline">
@@ -804,10 +801,10 @@ export default function CategoriesPage() {
 
       <ConfirmModal
         open={!!confirmDel}
-        title="Xóa danh mục"
-        message={confirmDel ? `Xóa danh mục "${confirmDel.name}"?` : ""}
-        okText="Xóa"
-        cancelText="Hủy"
+        title={t("categories.action.delete")}
+        message={confirmDel ? t("categories.confirm.delete", { name: confirmDel.name }) : ""}
+        okText={t("categories.action.delete")}
+        cancelText={t("categories.btn.cancel")}
         onOk={doDelete}
         onClose={() => setConfirmDel(null)}
       />

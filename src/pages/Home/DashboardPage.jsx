@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 import "../../styles/home/DashboardPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
@@ -10,42 +11,7 @@ const DONUT_OTHER_COLOR = "#F8DAD0";
 
 
 
-const translations = {
-  "dashboard.title": "Tổng quan tài chính",
-  "dashboard.subtitle": "Xem nhanh tình hình thu chi và biến động số dư.",
-  "dashboard.period.week": "Tuần",
-  "dashboard.period.month": "Tháng",
-  "dashboard.period.year": "Năm",
-  "dashboard.by_week": "Theo tuần",
-  "dashboard.by_month": "Theo tháng",
-  "dashboard.by_year": "Theo năm",
-  "dashboard.other": "Khác",
-  "dashboard.no_data": "Chưa có dữ liệu",
-  "dashboard.transaction_type": "Loại giao dịch",
-  "dashboard.total_spending": "Tổng chi tiêu",
-  "dashboard.total_expense": "Tổng chi",
-  "dashboard.spending_level": "Mức độ chi tiêu",
-  "dashboard.spending_level_subtitle": "Mức chi theo từng mốc thời gian",
-  "dashboard.balance_fluctuation": "Biến động số dư",
-  "dashboard.income_expense": "Thu vs Chi",
-  "dashboard.income": "Thu",
-  "dashboard.expense": "Chi",
-  "dashboard.transaction_history": "Lịch sử giao dịch",
-  "dashboard.recent_transactions": "Các giao dịch gần đây",
-  "dashboard.search_placeholder": "Tìm kiếm giao dịch...",
-  "dashboard.no_transactions": "Không có giao dịch",
-  "dashboard.chart.week_prefix": "Tuần",
-  "dashboard.chart.month_prefix": "T",
-  "common.day.mon": "T2",
-  "common.day.tue": "T3",
-  "common.day.wed": "T4",
-  "common.day.thu": "T5",
-  "common.day.fri": "T6",
-  "common.day.sat": "T7",
-  "common.day.sun": "CN",
-};
-
-const t = (key) => translations[key] || key;
+// translations moved to central LanguageContext
 
 const parseAmount = (value) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -190,6 +156,7 @@ const getPeriodRange = (period) => {
 
 export default function DashboardPage() {
   const { formatCurrency } = useCurrency();
+  const { t } = useLanguage();
   const { externalTransactionsList = [] } = useBudgetData();
   const [period, setPeriod] = useState("tuan");
   const [localTransactions, setLocalTransactions] = useState([]);

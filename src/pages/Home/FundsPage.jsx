@@ -1,5 +1,6 @@
 // src/pages/Home/FundsPage.jsx
 import React, { useMemo, useState } from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import "../../styles/home/FundsPage.css";
 
@@ -11,6 +12,7 @@ import FundDetailView from "../../components/funds/FundDetailView";
 
 export default function FundsPage() {
   const { wallets } = useWalletData();
+  const { t } = useLanguage();
 
   // CHỈ VÍ CÁ NHÂN (vì đã bỏ quỹ nhóm)
   const personalWallets = useMemo(
@@ -138,10 +140,8 @@ export default function FundsPage() {
     </div>
 
     <div className="funds-header-text">
-      <h2 className="mb-1">Quản lý quỹ</h2>
-      <p className="mb-0 text-muted">
-        Theo dõi và quản lý các quỹ tiết kiệm cá nhân của bạn.
-      </p>
+      <h2 className="mb-1">{t('funds.title')}</h2>
+      <p className="mb-0 text-muted">{t('funds.subtitle')}</p>
     </div>
   </div>
 
@@ -153,7 +153,7 @@ export default function FundsPage() {
       onClick={() => setViewMode("create")}
     >
       <i className="bi bi-plus-circle me-1" />
-      Tạo quỹ
+      {t('funds.btn.create_personal')}
     </button>
   ) : (
     <button
@@ -165,7 +165,7 @@ export default function FundsPage() {
       }}
     >
       <i className="bi bi-arrow-left me-1" />
-      Quay lại danh sách quỹ
+      {t('funds.btn.back')}
     </button>
   )}
 </div>
@@ -180,7 +180,7 @@ export default function FundsPage() {
 
               <input
                 type="text"
-                placeholder="Tìm kiếm theo tên quỹ..."
+                placeholder={t('funds.search_placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -197,18 +197,14 @@ export default function FundsPage() {
             </div>
 
             <div className="funds-toolbar__sort">
-              <span>Sắp xếp:</span>
+              <span>{t('funds.sort_label')}</span>
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value)}
               >
-                <option value="name">Tên quỹ (A → Z)</option>
-                <option value="currentDesc">
-                  Số tiền hiện tại (cao → thấp)
-                </option>
-                <option value="progressDesc">
-                  Tỷ lệ hoàn thành (cao → thấp)
-                </option>
+                <option value="name">{t('funds.sort.name')}</option>
+                <option value="currentDesc">{t('funds.sort.currentDesc')}</option>
+                <option value="progressDesc">{t('funds.sort.progressDesc')}</option>
               </select>
             </div>
           </div>
@@ -218,9 +214,9 @@ export default function FundsPage() {
             {/* BOX 1: QUỸ CÓ THỜI HẠN */}
             <div className="fund-section-wrapper fund-section-wrapper--term">
               <FundSection
-                title="Quỹ có thời hạn"
-                subtitle="Quỹ có mục tiêu rõ ràng và thời hạn kết thúc."
-                items={filteredTermFunds}        
+                title={t('funds.section.personal_term')}
+                subtitle={t('funds.section.personal_term_desc')}
+                items={filteredTermFunds}
                 onSelectFund={handleSelectFund}
               />
             </div>
@@ -228,9 +224,9 @@ export default function FundsPage() {
             {/* BOX 2: QUỸ KHÔNG THỜI HẠN */}
             <div className="fund-section-wrapper fund-section-wrapper--no-term">
               <FundSection
-                title="Quỹ không thời hạn"
-                subtitle="Quỹ tích luỹ dài hạn, không có hạn chót."
-                items={filteredNoTermFunds}      
+                title={t('funds.section.personal_no_term')}
+                subtitle={t('funds.section.personal_no_term_desc')}
+                items={filteredNoTermFunds}
                 onSelectFund={handleSelectFund}
               />
             </div>
@@ -262,7 +258,7 @@ export default function FundsPage() {
               }
               onClick={() => setPersonalTab("term")}
             >
-              Quỹ có thời hạn
+              {t('funds.section.personal_term')}
             </button>
             <button
               className={
@@ -271,7 +267,7 @@ export default function FundsPage() {
               }
               onClick={() => setPersonalTab("no-term")}
             >
-              Quỹ không thời hạn
+              {t('funds.section.personal_no_term')}
             </button>
           </div>
 

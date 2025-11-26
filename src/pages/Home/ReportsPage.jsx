@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import "../../styles/home/ReportsPage.css";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import { transactionAPI } from "../../services/api-client";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 const RANGE_OPTIONS = [
   { value: "week", label: "Tuần" },
@@ -122,6 +123,7 @@ const buildChartData = (transactions, range) => {
 
 export default function ReportsPage() {
   const { formatCurrency } = useCurrency();
+  const { t } = useLanguage();
   const { formatDate } = useDateFormat();
   const { wallets, loading: walletsLoading } = useWalletData();
   const [selectedWalletId, setSelectedWalletId] = useState(null);
@@ -247,14 +249,14 @@ export default function ReportsPage() {
         <div className="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
           <div>
             <h2 className="mb-1" style={{ color: "#fff" }}>
-              Báo cáo Tài chính
+              {t("reports.title")}
             </h2>
             <p className="mb-0" style={{ color: "rgba(255,255,255,0.85)" }}>
-              Theo dõi chi tiết dòng tiền vào/ra theo từng ví để ra quyết định chính xác hơn.
+              {t("reports.subtitle")}
             </p>
           </div>
-          <div className="reports-header-pill">
-            <i className="bi bi-graph-up" /> Tổng quan realtime
+            <div className="reports-header-pill">
+            <i className="bi bi-graph-up" /> {t("reports.overview_realtime")}
           </div>
         </div>
       </div>
@@ -264,26 +266,26 @@ export default function ReportsPage() {
           <div className="card-body">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div>
-                <h5 className="mb-1">Danh sách ví</h5>
-                <p className="text-muted mb-0 small">Chọn một ví để xem biểu đồ dòng tiền.</p>
+                <h5 className="mb-1">{t("reports.wallets.title")}</h5>
+                <p className="text-muted mb-0 small">{t("reports.wallets.desc")}</p>
               </div>
-              <span className="badge rounded-pill text-bg-light">{wallets.length} ví</span>
+              <span className="badge rounded-pill text-bg-light">{wallets.length} {t("wallets.count_unit")}</span>
             </div>
             <div className="reports-wallet-search mb-3">
               <i className="bi bi-search" />
               <input
                 type="text"
                 className="form-control"
-                placeholder="Tìm kiếm ví..."
+                placeholder={t("wallets.search_placeholder")}
                 value={walletSearch}
                 onChange={(e) => setWalletSearch(e.target.value)}
               />
             </div>
             <div className="reports-wallet-list">
               {walletsLoading ? (
-                <div className="text-center py-4 text-muted small">Đang tải ví...</div>
+                <div className="text-center py-4 text-muted small">{t("common.loading")}</div>
               ) : filteredWallets.length === 0 ? (
-                <div className="text-center py-4 text-muted small">Không tìm thấy ví phù hợp.</div>
+                <div className="text-center py-4 text-muted small">{t("reports.wallets.not_found")}</div>
               ) : (
                 filteredWallets.map((wallet) => (
                   <button
@@ -315,20 +317,20 @@ export default function ReportsPage() {
             <div className="reports-chart-header-card">
               <div className="reports-chart-header">
                 <div>
-                  <p className="text-muted mb-1">Ví được chọn</p>
-                  <h4 className="mb-1">{selectedWallet?.name || "Chưa có ví"}</h4>
+                  <p className="text-muted mb-1">{t("reports.selected_wallet_label")}</p>
+                  <h4 className="mb-1">{selectedWallet?.name || t("reports.no_wallet")}</h4>
                   <div className="reports-summary-row">
                     <div>
                       <span className="summary-dot" style={{ background: INCOME_COLOR }} />
-                      Thu vào: <strong>{formatCurrency(summary.income)}</strong>
+                      {t("dashboard.income")}: <strong>{formatCurrency(summary.income)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: EXPENSE_COLOR }} />
-                      Chi ra: <strong>{formatCurrency(summary.expense)}</strong>
+                      {t("dashboard.expense")}: <strong>{formatCurrency(summary.expense)}</strong>
                     </div>
                     <div>
                       <span className="summary-dot" style={{ background: net >= 0 ? "#16a34a" : "#dc2626" }} />
-                      Còn lại: <strong>{formatCurrency(net)}</strong>
+                      {t("reports.remaining")}: <strong>{formatCurrency(net)}</strong>
                     </div>
                   </div>
                 </div>
@@ -340,8 +342,8 @@ export default function ReportsPage() {
                         type="button"
                         className={`reports-range-btn ${range === option.value ? "active" : ""}`}
                         onClick={() => setRange(option.value)}
-                      >
-                        {option.label}
+                        >
+                        {t(`reports.range.${option.value}`)}
                       </button>
                     ))}
                   </div>
@@ -351,7 +353,7 @@ export default function ReportsPage() {
                     onClick={handleViewHistory}
                     disabled={!selectedWalletId}
                   >
-                    <i className="bi bi-clock-history" /> Lịch sử giao dịch
+                    <i className="bi bi-clock-history" /> {t("reports.view_history")}
                   </button>
                 </div>
               </div>
@@ -361,11 +363,11 @@ export default function ReportsPage() {
               {loadingTransactions ? (
                 <div className="reports-chart-empty text-center text-muted py-5">
                   <div className="spinner-border text-primary mb-3" role="status" />
-                  <p className="mb-0">Đang tải dữ liệu giao dịch...</p>
+                  <p className="mb-0">{t("transactions.loading.list")}</p>
                 </div>
               ) : !selectedWallet ? (
                 <div className="reports-chart-empty text-center text-muted py-5">
-                  Hãy chọn một ví để xem báo cáo.
+                  {t("reports.select_wallet_prompt")}
                 </div>
               ) : error ? (
                 <div className="reports-chart-empty text-center text-danger py-5">
@@ -373,7 +375,7 @@ export default function ReportsPage() {
                 </div>
               ) : chartData.length === 0 ? (
                 <div className="reports-chart-empty text-center text-muted py-5">
-                  Chưa có giao dịch nào cho giai đoạn này.
+                  {t("reports.no_transactions_in_period")}
                 </div>
               ) : (
                 <div className="reports-chart-viewport">

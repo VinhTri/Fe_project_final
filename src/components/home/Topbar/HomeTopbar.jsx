@@ -3,10 +3,12 @@ import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
 import { useEffect, useState } from "react";
+import { useLanguage } from "../../../home/store/LanguageContext";
 
 export default function HomeTopbar() {
   const [userName, setUserName] = useState("Người dùng");
   const [userAvatar, setUserAvatar] = useState("https://www.gravatar.com/avatar/?d=mp&s=40");
+  const { t } = useLanguage();
 
   useEffect(() => {
     // 1. Tạo một hàm riêng để load/reload user từ localStorage
@@ -51,7 +53,7 @@ export default function HomeTopbar() {
     <header className="tb__wrap" role="banner">
       {/* Trái: chào người dùng */}
       <div className="tb__left">
-        <div className="tb__welcome">Xin chào, {userName}!</div>
+        <div className="tb__welcome">{t("topbar.welcome").replace("{name}", userName)}</div>
       </div>
 
       {/* Phải: Global Search + actions */}

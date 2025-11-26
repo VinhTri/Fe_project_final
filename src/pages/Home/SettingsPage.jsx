@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
 import "../../styles/home/SettingsPage.css";
+import { useLanguage } from "../../home/store/LanguageContext";
+import { useToast } from "../../components/common/Toast/ToastContext";
 
 export default function SettingsPage() {
   const [activeKey, setActiveKey] = useState(null);
@@ -22,6 +24,10 @@ export default function SettingsPage() {
   // Move date format state to top-level to avoid hook rules error
   const [dateFormat, setDateFormat] = useState(() => localStorage.getItem("dateFormat") || "dd/MM/yyyy");
   const [dateSuccess, setDateSuccess] = useState("");
+
+  const { t, changeLanguage, language } = useLanguage();
+  const { showToast } = useToast();
+  const [selectedLang, setSelectedLang] = useState(language || "vi");
 
   // Refs cho các input fields
   const fullNameRef = useRef(null);
@@ -43,10 +49,10 @@ export default function SettingsPage() {
       if (response.ok && data.user) {
         setUser(data.user);
       } else {
-        setError(data.error || "Không thể tải thông tin profile");
+        setError(data.error || t('settings.error.load_profile'));
       }
     } catch (err) {
-      setError("Lỗi kết nối khi tải thông tin profile");
+      setError(t('settings.error.network_load'));
     } finally {
       setLoading(false);
     }
@@ -69,13 +75,13 @@ export default function SettingsPage() {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      setError("Vui lòng chọn file ảnh hợp lệ");
+      setError(t('settings.error.avatar_invalid'));
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError("Kích thước ảnh không được vượt quá 5MB");
+      setError(t('settings.error.avatar_size'));
       return;
     }
 
@@ -103,7 +109,7 @@ export default function SettingsPage() {
 
     if (!fullName && !avatarFile) {
       if (!fullName && !user?.fullName) {
-        setError("Vui lòng nhập tên hoặc chọn ảnh đại diện");
+        setError(t('settings.error.enter_name_or_avatar'));
         return;
       }
     }
@@ -138,16 +144,16 @@ export default function SettingsPage() {
         if (avatarRef.current) avatarRef.current.value = "";
         
         // 5. Hiển thị thông báo thành công
-        setSuccess(data.message || "Cập nhật profile thành công");
+        setSuccess(data.message || t('settings.profile.save_success'));
         setTimeout(() => setSuccess(""), 3000);
         
       } else {
         // Xử lý lỗi từ API
-        setError(data.error || "Cập nhật profile thất bại");
+        setError(data.error || t('settings.profile.save_failed'));
       }
     } catch (err) {
       // Xử lý lỗi mạng hoặc lỗi hệ thống
-      setError("Lỗi kết nối khi cập nhật profile");
+      setError(t('settings.error.network_update'));
     } finally {
       setLoading(false);
     }
@@ -159,18 +165,18 @@ export default function SettingsPage() {
     const confirmPassword = confirmPasswordRef.current?.value;
 
     if (!newPassword || !confirmPassword) {
-      setError("Vui lòng nhập đầy đủ mật khẩu mới và xác nhận mật khẩu");
+      setError(t('settings.password.error.fill'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError("Mật khẩu mới và xác nhận không khớp");
+      setError(t('settings.password.error.mismatch'));
       return;
     }
 
     // Nếu user đã có password, bắt buộc phải nhập old password
     if (user?.hasPassword && (!oldPassword || oldPassword.trim() === "")) {
-      setError("Vui lòng nhập mật khẩu hiện tại");
+      setError(t('settings.password.error.need_current'));
       return;
     }
 
@@ -193,10 +199,10 @@ export default function SettingsPage() {
         await loadProfile();
         setTimeout(() => setSuccess(""), 3000);
       } else {
-        setError(data.error || "Đổi mật khẩu thất bại");
+        setError(data.error || t('settings.password.failed'));
       }
     } catch (err) {
-      setError("Lỗi kết nối khi đổi mật khẩu");
+      setError(t('settings.error.network_update'));
     } finally {
       setLoading(false);
     }
@@ -212,25 +218,18 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Chỉnh sửa hồ sơ cá nhân</h4>
-<p className="settings-detail__desc">
-
-              Cập nhật ảnh đại diện và tên hiển thị của bạn.
-</p>
+<h4>{t('settings.profile')}</h4>
+<p className="settings-detail__desc">{t('settings.profile.desc')}</p>
 <div className="settings-profile-grid">
 
               {/* CỘT TRÁI: ĐỔI TÊN */}
 <div className="settings-form__group">
-<label>Tên hiển thị</label>
+<label>{t('settings.profile.display_name')}</label>
 <input
-
                   ref={fullNameRef}
                   type="text"
-
                   defaultValue={user?.fullName || ""}
-
-                  placeholder="Nhập tên muốn hiển thị"
-
+                  placeholder={t('settings.profile.placeholder')}
                 />
 </div>
 
@@ -246,8 +245,7 @@ export default function SettingsPage() {
 
                 />
 <label className="settings-btn settings-btn--primary settings-avatar-btn">
-
-                  Chọn ảnh
+                  {t('settings.profile.choose_avatar')}
 <input
 
                     ref={avatarRef}
@@ -263,7 +261,7 @@ export default function SettingsPage() {
 </label>
 {avatarFile && (
                 <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-                  Đã chọn: {avatarFile.name}
+                  {t('settings.profile.selected')}: {avatarFile.name}
                 </p>
               )}
 </div>
@@ -275,8 +273,7 @@ export default function SettingsPage() {
               onClick={handleUpdateProfile}
               disabled={loading}
             >
-
-              {loading ? "Đang lưu..." : "Lưu thay đổi"}
+              {loading ? t('common.loading') : t('common.save')}
 </button>
 </div>
 
@@ -286,11 +283,11 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Đổi mật khẩu</h4>
+<h4>{t('settings.password')}</h4>
 <p className="settings-detail__desc">
               {user?.hasPassword 
-                ? "Nên sử dụng mật khẩu mạnh, khó đoán để bảo vệ tài khoản."
-                : "Bạn đang đăng nhập bằng Google. Hãy đặt mật khẩu để có thể đăng nhập bằng email và mật khẩu."}
+                ? t('settings.password.has_desc')
+                : t('settings.password.no_password_desc')}
 </p>
 <div className="settings-form__grid">
 {/* Chỉ hiển thị field "Mật khẩu hiện tại" nếu user đã có password */}
@@ -335,7 +332,7 @@ export default function SettingsPage() {
               disabled={loading}
             >
 
-              {loading ? "Đang cập nhật..." : user?.hasPassword ? "Cập nhật mật khẩu" : "Đặt mật khẩu"}
+              {loading ? t('settings.password.updating') : user?.hasPassword ? t('settings.password.update_btn') : t('settings.password.set_btn')}
 </button>
 </div>
 
@@ -345,28 +342,17 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Xác thực 2 lớp (2FA)</h4>
-<p className="settings-detail__desc">
-
-              Thêm một lớp bảo mật bằng mã xác thực khi đăng nhập.
-</p>
+<h4>{t('settings.2fa')}</h4>
+<p className="settings-detail__desc">{t('settings.2fa.desc')}</p>
 <div className="settings-toggle-row">
-<span>Trạng thái 2FA</span>
+<span>{t('settings.2fa.status_label')}</span>
 <label className="settings-switch">
 <input type="checkbox" />
 <span className="settings-switch__slider" />
 </label>
 </div>
-<p className="settings-detail__hint">
-
-              Sau khi bật, mỗi lần đăng nhập bạn sẽ cần nhập thêm mã xác thực
-
-              gửi qua ứng dụng hoặc email.
-</p>
-<button className="settings-btn settings-btn--primary">
-
-              Cấu hình 2FA
-</button>
+<p className="settings-detail__hint">{t('settings.2fa.hint')}</p>
+<button className="settings-btn settings-btn--primary">{t('settings.2fa.configure')}</button>
 </div>
 
         );
@@ -375,13 +361,8 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Nhật ký đăng nhập</h4>
-<p className="settings-detail__desc">
-
-              Kiểm tra các lần đăng nhập gần đây để phát hiện hoạt động bất
-
-              thường.
-</p>
+<h4>{t('settings.login_log')}</h4>
+<p className="settings-detail__desc">{t('settings.login_log.desc')}</p>
 <div className="settings-table__wrap">
 <table className="settings-table">
 <thead>
@@ -422,24 +403,13 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Đăng xuất tất cả thiết bị</h4>
-<p className="settings-detail__desc">
-
-              Tính năng này sẽ đăng xuất tài khoản khỏi tất cả thiết bị đang
-
-              đăng nhập ngoại trừ thiết bị hiện tại.
-</p>
-<ul className="settings-detail__list">
-<li>Nên sử dụng khi bạn nghi ngờ tài khoản bị lộ.</li>
-<li>
-
-                Sau khi đăng xuất, bạn cần đăng nhập lại bằng mật khẩu hiện tại.
-</li>
-</ul>
-<button className="settings-btn settings-btn--danger">
-
-              Đăng xuất tất cả thiết bị
-</button>
+  <h4>{t('settings.logout_all')}</h4>
+  <p className="settings-detail__desc">{t('settings.logout_all.desc')}</p>
+  <ul className="settings-detail__list">
+    <li>{t('settings.logout_all.note1')}</li>
+    <li>{t('settings.logout_all.note2')}</li>
+  </ul>
+  <button className="settings-btn settings-btn--danger">{t('settings.logout_all.btn')}</button>
 </div>
 
         );
@@ -450,38 +420,33 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Chọn đơn vị tiền tệ</h4>
-<p className="settings-detail__desc">
-
-              Đơn vị tiền tệ mặc định dùng để hiển thị số dư và báo cáo.
-</p>
-<div className="settings-form__group">
-<label>Đơn vị tiền tệ mặc định</label>
-<select 
-                ref={currencyRef}
-                defaultValue={defaultCurrency}
-                onChange={(e) => setDefaultCurrency(e.target.value)}
-              >
-<option value="VND">VND - Việt Nam Đồng</option>
-<option value="USD">USD - Đô la Mỹ</option>
-</select>
-</div>
+  <h4>{t('settings.currency')}</h4>
+  <p className="settings-detail__desc">{t('settings.currency.desc')}</p>
+  <div className="settings-form__group">
+    <label>{t('settings.currency.label')}</label>
+    <select
+      ref={currencyRef}
+      defaultValue={defaultCurrency}
+      onChange={(e) => setDefaultCurrency(e.target.value)}
+    >
+      <option value="VND">VND - Việt Nam Đồng</option>
+      <option value="USD">USD - Đô la Mỹ</option>
+    </select>
+  </div>
 {error && activeKey === "currency" && <div className="settings-error" style={{color: 'red', marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>{error}</div>}
 {success && activeKey === "currency" && <div className="settings-success" style={{color: 'green', marginBottom: '10px', padding: '10px', backgroundColor: '#e6ffe6', borderRadius: '4px'}}>{success}</div>}
-<button 
+            <button 
               className="settings-btn settings-btn--primary"
               onClick={() => {
                 const selectedCurrency = currencyRef.current?.value || "VND";
                 localStorage.setItem("defaultCurrency", selectedCurrency);
                 setDefaultCurrency(selectedCurrency);
-                setSuccess("Đã lưu cài đặt đơn vị tiền tệ");
-                setTimeout(() => setSuccess(""), 3000);
                 // Bắn event để các component khác cập nhật
                 window.dispatchEvent(new CustomEvent('currencySettingChanged', { detail: { currency: selectedCurrency } }));
+                showToast(t('settings.currency.saved'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } });
               }}
             >
-
-              Lưu cài đặt
+              {t('common.save')}
 </button>
 </div>
 
@@ -490,58 +455,54 @@ export default function SettingsPage() {
       case "currency-format":
         return (
           <div className="settings-detail__body">
-            <h4>Định dạng tiền tệ</h4>
-            <p className="settings-detail__desc">Chọn cách hiển thị số tiền trên ứng dụng.</p>
+            <h4>{t('settings.currency_format')}</h4>
+            <p className="settings-detail__desc">{t('settings.currency_format.desc')}</p>
             <div className="settings-form__group">
-              <label>Kiểu hiển thị</label>
+              <label>{t('settings.currency_format.label')}</label>
               <select value={moneyFormat} onChange={e => setMoneyFormat(e.target.value)}>
-                <option value="space">1 234 567 (cách nhau bằng khoảng trắng)</option>
-                <option value="dot">1.234.567 (dấu chấm)</option>
-                <option value="comma">1,234,567 (dấu phẩy)</option>
+                <option value="space">{t('settings.currency_format.opt.space')}</option>
+                <option value="dot">{t('settings.currency_format.opt.dot')}</option>
+                <option value="comma">{t('settings.currency_format.opt.comma')}</option>
               </select>
             </div>
             <div className="settings-form__group">
-              <label>Số chữ số thập phân</label>
+              <label>{t('settings.currency_format.decimals_label')}</label>
               <select value={moneyDecimalDigits} onChange={e => setMoneyDecimalDigits(e.target.value)}>
-                <option value="0">0 (ví dụ: 1.000)</option>
-                <option value="2">2 (ví dụ: 1.000,50)</option>
+                <option value="0">{t('settings.currency_format.opt.decimals.0')}</option>
+                <option value="2">{t('settings.currency_format.opt.decimals.2')}</option>
               </select>
             </div>
             <button className="settings-btn settings-btn--primary" onClick={() => {
               localStorage.setItem("moneyFormat", moneyFormat);
               localStorage.setItem("moneyDecimalDigits", moneyDecimalDigits);
               window.dispatchEvent(new CustomEvent('moneyFormatChanged', { detail: { moneyFormat, moneyDecimalDigits } }));
-              setSuccess("Đã lưu định dạng tiền tệ");
-              setTimeout(() => setSuccess(""), 2000);
+              showToast(t('settings.currency_format.saved'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } });
             }}>
-              Lưu định dạng
+              {t('common.save')}
             </button>
-            {success && <div className="settings-success" style={{color: 'green', marginTop: 10}}>{success}</div>}
           </div>
         );
 
       case "date-format":
         return (
           <div className="settings-detail__body">
-            <h4>Cài đặt định dạng ngày</h4>
-            <p className="settings-detail__desc">Chọn cách hiển thị ngày tháng trên toàn hệ thống.</p>
+            <h4>{t('settings.date_format')}</h4>
+            <p className="settings-detail__desc">{t('settings.date_format.desc')}</p>
             <div className="settings-form__group">
-              <label>Định dạng</label>
+              <label>{t('settings.date_format.label')}</label>
               <select value={dateFormat} onChange={e => setDateFormat(e.target.value)}>
-                <option value="dd/MM/yyyy">dd/MM/yyyy (31/12/2025)</option>
-                <option value="MM/dd/yyyy">MM/dd/yyyy (12/31/2025)</option>
-                <option value="yyyy-MM-dd">yyyy-MM-dd (2025-12-31)</option>
+                <option value="dd/MM/yyyy">{t('settings.date_format.opt.ddMMyyyy')}</option>
+                <option value="MM/dd/yyyy">{t('settings.date_format.opt.MMddyyyy')}</option>
+                <option value="yyyy-MM-dd">{t('settings.date_format.opt.yyyyMMdd')}</option>
               </select>
             </div>
             <button className="settings-btn settings-btn--primary" onClick={() => {
               localStorage.setItem("dateFormat", dateFormat);
               window.dispatchEvent(new CustomEvent('dateFormatChanged', { detail: { dateFormat } }));
-              setDateSuccess("Đã lưu cài đặt ngày");
-              setTimeout(() => setDateSuccess(""), 2000);
+              showToast(t('settings.date_format.saved'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } });
             }}>
-              Lưu cài đặt ngày
+              {t('common.save')}
             </button>
-            {dateSuccess && <div className="settings-success" style={{color: 'green', marginTop: 10}}>{dateSuccess}</div>}
           </div>
         );
 
@@ -549,21 +510,22 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Chọn ngôn ngữ hệ thống</h4>
-<p className="settings-detail__desc">
-
-              Ngôn ngữ hiển thị cho toàn bộ giao diện ứng dụng.
-</p>
+<h4>{t('settings.language.title')}</h4>
+<p className="settings-detail__desc">{t('settings.language.desc')}</p>
 <div className="settings-form__group">
-<label>Ngôn ngữ</label>
-<select defaultValue="vi">
+<label>{t('settings.language.label')}</label>
+<select value={selectedLang} onChange={(e) => setSelectedLang(e.target.value)}>
 <option value="vi">Tiếng Việt</option>
 <option value="en">English</option>
 </select>
 </div>
-<button className="settings-btn settings-btn--primary">
-
-              Lưu ngôn ngữ
+<button className="settings-btn settings-btn--primary" onClick={() => {
+                changeLanguage(selectedLang);
+                // notify other parts if they listen for an event
+                window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: selectedLang } }));
+                showToast(t('settings.language.saved'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } });
+              }}>
+              {t('settings.language.save')}
 </button>
 </div>
 
@@ -573,29 +535,23 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Chế độ nền</h4>
-<p className="settings-detail__desc">
-
-              Chọn chế độ hiển thị phù hợp với mắt của bạn.
-</p>
+<h4>{t('settings.theme')}</h4>
+<p className="settings-detail__desc">{t('settings.theme.desc')}</p>
 <div className="settings-radio-row">
 <label className="settings-radio">
 <input type="radio" name="theme" defaultChecked />
-<span>Chế độ sáng</span>
+<span>{t('settings.theme.opt.light')}</span>
 </label>
 <label className="settings-radio">
 <input type="radio" name="theme" />
-<span>Chế độ tối</span>
+<span>{t('settings.theme.opt.dark')}</span>
 </label>
 <label className="settings-radio">
 <input type="radio" name="theme" />
-<span>Tự động theo hệ thống</span>
+<span>{t('settings.theme.opt.system')}</span>
 </label>
 </div>
-<button className="settings-btn settings-btn--primary">
-
-              Lưu chế độ nền
-</button>
+<button className="settings-btn settings-btn--primary" onClick={() => showToast(t('common.success'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } })}>{t('common.save')}</button>
 </div>
 
         );
@@ -604,24 +560,15 @@ export default function SettingsPage() {
 
         return (
 <div className="settings-detail__body">
-<h4>Sao lưu & đồng bộ</h4>
-<p className="settings-detail__desc">
-
-              Đảm bảo dữ liệu ví của bạn luôn được an toàn và có thể khôi phục.
-</p>
+<h4>{t('settings.backup')}</h4>
+<p className="settings-detail__desc">{t('settings.backup.desc')}</p>
 <ul className="settings-detail__list">
-<li>Sao lưu thủ công dữ liệu hiện tại.</li>
-<li>Bật đồng bộ tự động với tài khoản của bạn.</li>
-</ul>
+  <li>{t('settings.backup.manual')}</li>
+  <li>{t('settings.backup.auto')}</li>
+  </ul>
 <div className="settings-form__actions">
-<button className="settings-btn settings-btn--primary">
-
-                Sao lưu ngay
-</button>
-<button className="settings-btn">
-
-                Bật đồng bộ tự động
-</button>
+  <button className="settings-btn settings-btn--primary" onClick={() => showToast(t('settings.backup.backup_now'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } })}>{t('settings.backup.backup_now')}</button>
+  <button className="settings-btn" onClick={() => showToast(t('settings.backup.enable_sync'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } })}>{t('settings.backup.enable_sync')}</button>
 </div>
 </div>
 
@@ -635,43 +582,28 @@ export default function SettingsPage() {
 
   };
 
+  // use translation keys for labels so UI follows selected language
   const securityItems = [
-
-    { key: "profile", label: "Chỉnh hồ sơ cá nhân" },
-
-    { key: "password", label: "Đổi mật khẩu" },
-
-    { key: "2fa", label: "Xác thực 2 lớp (2FA)" },
-
-    { key: "login-log", label: "Nhật ký đăng nhập" },
-
-    { key: "logout-all", label: "Đăng xuất tất cả thiết bị" },
-
+    { key: "profile", labelKey: "settings.profile" },
+    { key: "password", labelKey: "settings.password" },
+    { key: "2fa", labelKey: "settings.2fa" },
+    { key: "login-log", labelKey: "settings.login_log" },
+    { key: "logout-all", labelKey: "settings.logout_all" },
   ];
 
   const systemItems = [
-
-    { key: "currency", label: "Chọn đơn vị tiền tệ" },
-
-    { key: "currency-format", label: "Định dạng tiền tệ" },
-
-    { key: "date-format", label: "Cài đặt định dạng ngày" },
-
-    { key: "language", label: "Chọn ngôn ngữ hệ thống" },
-
-    { key: "theme", label: "Chế độ nền" },
-
-    { key: "backup", label: "Sao lưu & đồng bộ" },
-
+    { key: "currency", labelKey: "settings.currency" },
+    { key: "currency-format", labelKey: "settings.currency_format" },
+    { key: "date-format", labelKey: "settings.date_format" },
+    { key: "language", labelKey: "settings.language" },
+    { key: "theme", labelKey: "settings.theme" },
+    { key: "backup", labelKey: "settings.backup" },
   ];
 
   return (
 <div className="settings-page">
-<h1 className="settings-title">Cài đặt</h1>
-<p className="settings-subtitle">
-
-        Quản lý bảo mật và cài đặt hệ thống cho tài khoản của bạn.
-</p>
+<h1 className="settings-title">{t('settings.title')}</h1>
+<p className="settings-subtitle">{t('settings.subtitle')}</p>
 
       {/* ===== PROFILE HEADER NẰM NGOÀI BẢO MẬT ===== */}
 <div className="settings-profile-header">
@@ -685,15 +617,15 @@ export default function SettingsPage() {
 
         />
 <div className="settings-profile-info">
-<h3 className="settings-profile-name">{user?.fullName || "Đang tải..."}</h3>
+<h3 className="settings-profile-name">{user?.fullName || t('common.loading')}</h3>
 <p className="settings-profile-email">{user?.email || ""}</p>
 </div>
 </div>
 <div className="settings-list">
 
         {/* NHÓM: BẢO MẬT */}
-<div className="settings-group">
-<div className="settings-group__header">Bảo mật</div>
+      <div className="settings-group">
+      <div className="settings-group__header">{t('settings.security_group')}</div>
 
           {securityItems.map((item) => (
 <div key={item.key} className="settings-item">
@@ -707,7 +639,7 @@ export default function SettingsPage() {
 
                 onClick={() => toggleItem(item.key)}
 >
-<span className="settings-item__label">{item.label}</span>
+<span className="settings-item__label">{t(item.labelKey)}</span>
 <span className="settings-item__arrow">
 
                   {activeKey === item.key ? "▲" : "▼"}
@@ -724,8 +656,8 @@ export default function SettingsPage() {
 </div>
 
         {/* NHÓM: CÀI ĐẶT HỆ THỐNG */}
-<div className="settings-group">
-<div className="settings-group__header">Cài đặt hệ thống</div>
+      <div className="settings-group">
+      <div className="settings-group__header">{t('settings.system_group')}</div>
 
           {systemItems.map((item) => (
 <div key={item.key} className="settings-item">
@@ -739,7 +671,7 @@ export default function SettingsPage() {
 
                 onClick={() => toggleItem(item.key)}
 >
-<span className="settings-item__label">{item.label}</span>
+<span className="settings-item__label">{t(item.labelKey)}</span>
 <span className="settings-item__arrow">
 
                   {activeKey === item.key ? "▲" : "▼"}
