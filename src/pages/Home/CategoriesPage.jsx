@@ -44,6 +44,7 @@ export default function CategoriesPage() {
   const [modalInitial, setModalInitial] = useState("");
   const [modalEditingId, setModalEditingId] = useState(null);
   const [modalEditingKind, setModalEditingKind] = useState(null); // 'expense' | 'income'
+  const [systemCategoryType, setSystemCategoryType] = useState("expense"); // 'expense' | 'income' - chỉ dùng khi ở tab system
 
   const [page, setPage] = useState(1);
 
@@ -255,7 +256,13 @@ export default function CategoriesPage() {
     setModalMode("create");
     setModalInitial("");
     setModalEditingId(null);
-    setModalEditingKind(activeTab === "income" ? "income" : "expense");
+    if (activeTab === "system") {
+      // Ở tab system, để user chọn loại
+      setModalEditingKind(null);
+      setSystemCategoryType("expense"); // Mặc định là chi phí
+    } else {
+      setModalEditingKind(activeTab === "income" ? "income" : "expense");
+    }
     setModalOpen(true);
   };
 
@@ -282,23 +289,31 @@ export default function CategoriesPage() {
   // ===============================
   // VALIDATE DUPLICATE & SUBMIT MODAL
   // ===============================
-  const handleModalSubmit = (payload) => {
+  const handleModalSubmit = async (payload) => {
     const rawName = (payload.name || "").trim();
     if (!rawName) return;
     const normalized = rawName.toLowerCase();
 
     if (modalMode === "create") {
       const createKind =
-        activeTab === "income" || modalEditingKind === "income"
+        activeTab === "system"
+          ? systemCategoryType || "expense"
+          : activeTab === "income" || modalEditingKind === "income"
           ? "income"
           : "expense";
+
+      // Nếu đang tạo danh mục system, không cần check duplicate với danh mục cá nhân
+      const isSystemCategory = activeTab === "system" || payload.isSystem;
 
       const listInKind =
         createKind === "expense"
           ? expenseCategories || []
           : incomeCategories || [];
 
-      const isDuplicate = listInKind.some((c) => {
+      // Chỉ check duplicate với danh mục cá nhân nếu không phải system category
+      // Khi ở tab system, không check duplicate với danh mục cá nhân (vì có thể trùng tên)
+      const isDuplicate = !isSystemCategory && listInKind.some((c) => {
+        // Bỏ qua danh mục system khi check duplicate
         if (getIsSystemCategory(c)) return false;
         const existingName = (c.name || "").trim().toLowerCase();
         if (!existingName) return false;
@@ -310,25 +325,68 @@ export default function CategoriesPage() {
           open: true,
           message:
             createKind === "expense"
-              ? "Bạn đã có danh mục chi phí cá nhân này rồi."
-              : "Bạn đã có danh mục thu nhập cá nhân này rồi.",
+              ? "Bạn đã có danh mục chi phí này rồi."
+              : "Bạn đã có danh mục thu nhập này rồi.",
           type: "error",
         });
+        setModalOpen(false);
+        setModalEditingId(null);
+        setModalEditingKind(null);
         return;
       }
 
-      if (createKind === "expense") {
-        createExpenseCategory({ ...payload, name: rawName });
-      } else {
-        createIncomeCategory({ ...payload, name: rawName });
-      }
+      try {
+        // Nếu có transactionType từ payload (tab system), dùng nó
+        const finalKind = payload.transactionType || createKind;
+        
+        if (finalKind === "expense") {
+          await createExpenseCategory({ ...payload, name: rawName });
+        } else {
+          await createIncomeCategory({ ...payload, name: rawName });
+        }
 
-      setPage(1);
-      setToast({
-        open: true,
-        message: "Đã thêm danh mục mới.",
-        type: "success",
-      });
+        setPage(1);
+        setToast({
+          open: true,
+          message: "Đã thêm danh mục mới.",
+          type: "success",
+        });
+        setModalOpen(false);
+        setModalEditingId(null);
+        setModalEditingKind(null);
+      } catch (error) {
+        console.error("Error creating category:", error);
+        // Kiểm tra nếu lỗi là duplicate từ backend
+        const errorMessage = error.message || error.error || "";
+        const isDuplicateError =
+          errorMessage.toLowerCase().includes("đã tồn tại") ||
+          errorMessage.toLowerCase().includes("duplicate") ||
+          errorMessage.toLowerCase().includes("already exists");
+        
+        if (isDuplicateError) {
+          setToast({
+            open: true,
+            message:
+              createKind === "expense"
+                ? "Bạn đã có danh mục chi phí này rồi."
+                : "Bạn đã có danh mục thu nhập này rồi.",
+            type: "error",
+          });
+        } else {
+          setToast({
+            open: true,
+            message: errorMessage || "Có lỗi xảy ra khi thêm danh mục.",
+            type: "error",
+          });
+        }
+        // Không đóng modal nếu có lỗi khác duplicate
+        if (!isDuplicateError) {
+          return;
+        }
+        setModalOpen(false);
+        setModalEditingId(null);
+        setModalEditingKind(null);
+      }
     } else if (modalMode === "edit") {
       const listInKind =
         modalEditingKind === "income"
@@ -348,29 +406,60 @@ export default function CategoriesPage() {
           open: true,
           message:
             modalEditingKind === "income"
-              ? "Đã tồn tại danh mục thu nhập cá nhân này."
-              : "Đã tồn tại danh mục chi phí cá nhân này.",
+              ? "Đã tồn tại danh mục thu nhập này."
+              : "Đã tồn tại danh mục chi phí này.",
           type: "error",
         });
+        setModalOpen(false);
+        setModalEditingId(null);
+        setModalEditingKind(null);
         return;
       }
 
-      if (modalEditingKind === "expense") {
-        updateExpenseCategory(modalEditingId, { ...payload, name: rawName });
-      } else {
-        updateIncomeCategory(modalEditingId, { ...payload, name: rawName });
+      try {
+        if (modalEditingKind === "expense") {
+          await updateExpenseCategory(modalEditingId, { ...payload, name: rawName });
+        } else {
+          await updateIncomeCategory(modalEditingId, { ...payload, name: rawName });
+        }
+
+        setToast({
+          open: true,
+          message: "Đã cập nhật danh mục.",
+          type: "success",
+        });
+        setModalOpen(false);
+        setModalEditingId(null);
+        setModalEditingKind(null);
+      } catch (error) {
+        console.error("Error updating category:", error);
+        const errorMessage = error.message || error.error || "";
+        const isDuplicateError =
+          errorMessage.toLowerCase().includes("đã tồn tại") ||
+          errorMessage.toLowerCase().includes("duplicate") ||
+          errorMessage.toLowerCase().includes("already exists");
+        
+        if (isDuplicateError) {
+          setToast({
+            open: true,
+            message:
+              modalEditingKind === "income"
+                ? "Đã tồn tại danh mục thu nhập này."
+                : "Đã tồn tại danh mục chi phí này.",
+            type: "error",
+          });
+          setModalOpen(false);
+          setModalEditingId(null);
+          setModalEditingKind(null);
+        } else {
+          setToast({
+            open: true,
+            message: errorMessage || "Có lỗi xảy ra khi cập nhật danh mục.",
+            type: "error",
+          });
+        }
       }
-
-      setToast({
-        open: true,
-        message: "Đã cập nhật danh mục.",
-        type: "success",
-      });
     }
-
-    setModalOpen(false);
-    setModalEditingId(null);
-    setModalEditingKind(null);
   };
 
   const handleDelete = (cat) => {
@@ -798,8 +887,15 @@ export default function CategoriesPage() {
             : "chi phí"
         }
         onSubmit={handleModalSubmit}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setModalEditingId(null);
+          setModalEditingKind(null);
+        }}
         isAdmin={isAdmin}
+        activeTab={activeTab}
+        selectedType={systemCategoryType}
+        onTypeChange={(type) => setSystemCategoryType(type)}
       />
 
       <ConfirmModal

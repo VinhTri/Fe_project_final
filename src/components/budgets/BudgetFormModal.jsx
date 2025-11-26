@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../common/Modal/Modal";
+import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 
 export default function BudgetFormModal({
   open,
@@ -12,17 +13,29 @@ export default function BudgetFormModal({
 }) {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedWallet, setSelectedWallet] = useState("");
-  const [limitAmount, setLimitAmount] = useState("");
+  const [limitAmountFormatted, setLimitAmountFormatted] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [alertThreshold, setAlertThreshold] = useState(90);
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState({});
+  const [dateError, setDateError] = useState("");
+
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayDate = getTodayDate();
 
   useEffect(() => {
     if (initialData && mode === "edit") {
       setSelectedCategory(initialData.categoryName);
-      setLimitAmount(initialData.limitAmount);
+      setLimitAmountFormatted(formatMoneyInput(initialData.limitAmount || 0));
       // If wallet info exists on initialData, preselect
       setSelectedWallet(initialData.walletId || initialData.walletName || "");
       // Set dates from initialData if available
@@ -33,24 +46,47 @@ export default function BudgetFormModal({
     } else {
       setSelectedCategory("");
       setSelectedWallet("");
-      setLimitAmount("");
+      setLimitAmountFormatted("");
       setStartDate("");
       setEndDate("");
       setAlertThreshold(90);
       setNote("");
     }
     setErrors({});
+    setDateError("");
   }, [open, mode, initialData]);
+
+  // Validate dates
+  useEffect(() => {
+    setDateError("");
+    
+    if (!startDate && !endDate) {
+      return;
+    }
+
+    // Validate start date - không được ở trong quá khứ (chỉ cho mode create)
+    if (startDate && mode === "create" && startDate < todayDate) {
+      setDateError("Ngày bắt đầu không được ở trong quá khứ.");
+      return;
+    }
+
+    // Validate end date - phải sau start date
+    if (startDate && endDate) {
+      if (endDate <= startDate) {
+        setDateError("Ngày kết thúc phải sau ngày bắt đầu.");
+        return;
+      }
+    }
+  }, [startDate, endDate, mode, todayDate]);
 
   const handleCategoryChange = (e) => setSelectedCategory(e.target.value);
   const handleWalletChange = (e) => setSelectedWallet(e.target.value);
 
   const handleLimitChange = (e) => {
-    const val = e.target.value;
-    // allow only numbers
-    if (/^\d*$/.test(val)) {
-      setLimitAmount(val);
-    }
+    const inputValue = e.target.value;
+    // Format với dấu chấm mỗi 3 số
+    const formatted = formatMoneyInput(inputValue);
+    setLimitAmountFormatted(formatted);
   };
 
   const handleSubmit = (e) => {
@@ -64,17 +100,37 @@ export default function BudgetFormModal({
     if (!selectedWallet) {
       newErrors.wallet = "Vui lòng chọn ví áp dụng hạn mức";
     }
-    if (!limitAmount || limitAmount === "0") {
+    // Validate limit amount
+    const limitAmountValue = getMoneyValue(limitAmountFormatted);
+    if (!limitAmountFormatted || limitAmountValue === 0) {
       newErrors.limit = "Vui lòng nhập hạn mức lớn hơn 0";
+    } else if (limitAmountValue < 1000) {
+      newErrors.limit = "Hạn mức phải tối thiểu 1.000 VND";
     }
+
+    // Validate start date
     if (!startDate) {
       newErrors.startDate = "Vui lòng chọn ngày bắt đầu";
+    } else if (mode === "create" && startDate < todayDate) {
+      newErrors.startDate = "Ngày bắt đầu không được ở trong quá khứ";
     }
+
+    // Validate end date
     if (!endDate) {
       newErrors.endDate = "Vui lòng chọn ngày kết thúc";
+    } else if (startDate && endDate <= startDate) {
+      newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
     }
-    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
-      newErrors.dateRange = "Ngày kết thúc phải sau ngày bắt đầu";
+
+    // Validate date range error from useEffect
+    if (dateError) {
+      if (dateError.includes("Ngày bắt đầu")) {
+        newErrors.startDate = dateError;
+      } else if (dateError.includes("Ngày kết thúc")) {
+        newErrors.endDate = dateError;
+      } else {
+        newErrors.dateRange = dateError;
+      }
     }
     if (alertThreshold < 50 || alertThreshold > 100) {
       newErrors.alertThreshold = "Ngưỡng cảnh báo phải trong khoảng 50% - 100%";
@@ -87,11 +143,12 @@ export default function BudgetFormModal({
 
     const categoryObj = categories.find((c) => c.name === selectedCategory) || {};
     // support special 'ALL' value meaning apply to all wallets
+    
     let payload = {
-      categoryId: categoryObj.id || null,
+      categoryId: categoryObj.id || categoryObj.categoryId || null,
       categoryName: selectedCategory,
       categoryType: "expense",
-      limitAmount: parseInt(limitAmount, 10),
+      limitAmount: limitAmountValue,
       startDate,
       endDate,
       alertPercentage: Number(alertThreshold),
@@ -185,9 +242,10 @@ export default function BudgetFormModal({
             <div className="input-group">
               <input
                 type="text"
+                inputMode="numeric"
                 className={`form-control ${errors.limit ? "is-invalid" : ""}`}
                 placeholder="0"
-                value={limitAmount}
+                value={limitAmountFormatted}
                 onChange={handleLimitChange}
               />
               <span className="input-group-text">VND</span>
@@ -195,6 +253,7 @@ export default function BudgetFormModal({
             {errors.limit && (
               <div className="invalid-feedback d-block">{errors.limit}</div>
             )}
+            <div className="form-text">Tối thiểu 1.000 VND</div>
           </div>
 
           {/* Date Range Selector */}
@@ -208,6 +267,7 @@ export default function BudgetFormModal({
                   className={`form-control ${errors.startDate ? "is-invalid" : ""}`}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  min={mode === "create" ? todayDate : undefined}
                 />
                 {errors.startDate && (
                   <div className="invalid-feedback d-block">{errors.startDate}</div>
@@ -220,6 +280,7 @@ export default function BudgetFormModal({
                   className={`form-control ${errors.endDate ? "is-invalid" : ""}`}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  min={startDate || undefined}
                 />
                 {errors.endDate && (
                   <div className="invalid-feedback d-block">{errors.endDate}</div>

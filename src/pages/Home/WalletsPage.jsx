@@ -11,7 +11,7 @@ import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
 import { useWalletData } from "../../home/store/WalletDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
-import { transactionAPI, walletAPI } from "../../services/api-client";
+import { transactionAPI, walletAPI, fundAPI } from "../../services/api-client";
 import Toast from "../../components/common/Toast/Toast";
 
 import "../../styles/home/WalletsPage.css";
@@ -1014,6 +1014,10 @@ export default function WalletsPage() {
     e.preventDefault();
     if (!selectedWallet || !updateWallet) return;
     try {
+      const oldCurrency = selectedWallet.currency || "VND";
+      const newCurrency = editForm.currency;
+      const currencyChanged = oldCurrency !== newCurrency;
+
       await updateWallet({
         id: selectedWallet.id,
         name: editForm.name.trim(),
@@ -1021,6 +1025,19 @@ export default function WalletsPage() {
         currency: editForm.currency,
         isDefault: !!editForm.isDefault,
       });
+
+      // Nếu currency thay đổi, thông báo để FundsPage reload
+      if (currencyChanged) {
+        // Dispatch event để FundsPage biết và reload funds
+        window.dispatchEvent(new CustomEvent("walletCurrencyChanged", {
+          detail: {
+            walletId: selectedWallet.id,
+            oldCurrency,
+            newCurrency,
+          },
+        }));
+      }
+      
       showToast("Cập nhật ví thành công");
     } catch (error) {
       showToast(error.message || "Không thể cập nhật ví", "error");

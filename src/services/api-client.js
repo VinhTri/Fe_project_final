@@ -1010,6 +1010,220 @@ export const loginLogAPI = {
 };
 
 /**
+ * ============================================
+ * FUND APIs (Quỹ Tiết Kiệm)
+ * ============================================
+ */
+
+export const fundAPI = {
+  /**
+   * Tạo quỹ mới
+   * @param {Object} fundData - Dữ liệu quỹ
+   */
+  createFund: async (fundData) => {
+    return apiCall("/funds", {
+      method: "POST",
+      body: JSON.stringify(fundData),
+    });
+  },
+
+  /**
+   * Lấy tất cả quỹ của user
+   */
+  getAllFunds: async () => {
+    return apiCall("/funds");
+  },
+
+  /**
+   * Lấy quỹ cá nhân
+   * @param {boolean|null} hasDeadline - true = có kỳ hạn, false = không kỳ hạn, null = tất cả
+   */
+  getPersonalFunds: async (hasDeadline = null) => {
+    const params = hasDeadline !== null ? `?hasDeadline=${hasDeadline}` : "";
+    return apiCall(`/funds/personal${params}`);
+  },
+
+  /**
+   * Lấy quỹ nhóm
+   * @param {boolean|null} hasDeadline - true = có kỳ hạn, false = không kỳ hạn, null = tất cả
+   */
+  getGroupFunds: async (hasDeadline = null) => {
+    const params = hasDeadline !== null ? `?hasDeadline=${hasDeadline}` : "";
+    return apiCall(`/funds/group${params}`);
+  },
+
+  /**
+   * Lấy quỹ tham gia (không phải chủ quỹ)
+   */
+  getParticipatedFunds: async () => {
+    return apiCall("/funds/participated");
+  },
+
+  /**
+   * Lấy chi tiết một quỹ
+   * @param {number} fundId
+   */
+  getFundDetails: async (fundId) => {
+    return apiCall(`/funds/${fundId}`);
+  },
+
+  /**
+   * Cập nhật quỹ
+   * @param {number} fundId
+   * @param {Object} fundData
+   */
+  updateFund: async (fundId, fundData) => {
+    return apiCall(`/funds/${fundId}`, {
+      method: "PUT",
+      body: JSON.stringify(fundData),
+    });
+  },
+
+  /**
+   * Xóa quỹ
+   * @param {number} fundId
+   */
+  deleteFund: async (fundId) => {
+    return apiCall(`/funds/${fundId}`, {
+      method: "DELETE",
+    });
+  },
+
+  /**
+   * Đóng quỹ
+   * @param {number} fundId
+   */
+  closeFund: async (fundId) => {
+    return apiCall(`/funds/${fundId}/close`, {
+      method: "PUT",
+    });
+  },
+
+  /**
+   * Nạp tiền vào quỹ
+   * @param {number} fundId
+   * @param {number} amount
+   */
+  depositToFund: async (fundId, amount) => {
+    return apiCall(`/funds/${fundId}/deposit`, {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  },
+
+  /**
+   * Rút tiền từ quỹ (chỉ cho quỹ không kỳ hạn)
+   * @param {number} fundId
+   * @param {number} amount
+   */
+  withdrawFromFund: async (fundId, amount) => {
+    return apiCall(`/funds/${fundId}/withdraw`, {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  },
+
+  /**
+   * Kiểm tra ví có đang được sử dụng
+   * @param {number} walletId
+   */
+  checkWalletUsed: async (walletId) => {
+    return apiCall(`/funds/check-wallet/${walletId}`);
+  },
+};
+
+/**
+ * ============================================
+ * BUDGET APIs
+ * ============================================
+ */
+export const budgetAPI = {
+  /**
+   * Tạo hạn mức chi tiêu mới
+   * @param {Object} budgetData
+   * @param {number} budgetData.categoryId - ID danh mục chi tiêu
+   * @param {number|null} budgetData.walletId - ID ví (null = áp dụng cho tất cả ví)
+   * @param {number} budgetData.amountLimit - Hạn mức chi tiêu (phải ≥ 1.000 VND)
+   * @param {string} budgetData.startDate - Ngày bắt đầu (format: YYYY-MM-DD)
+   * @param {string} budgetData.endDate - Ngày kết thúc (format: YYYY-MM-DD)
+   * @param {number} [budgetData.warningThreshold] - Ngưỡng cảnh báo (%) - từ 0 đến 100, mặc định 80%
+   * @param {string} [budgetData.note] - Ghi chú (tối đa 255 ký tự)
+   */
+  createBudget: async (budgetData) => {
+    return apiCall("/budgets/create", {
+      method: "POST",
+      body: JSON.stringify({
+        categoryId: budgetData.categoryId,
+        walletId: budgetData.walletId || null,
+        amountLimit: budgetData.amountLimit,
+        startDate: budgetData.startDate,
+        endDate: budgetData.endDate,
+        warningThreshold: budgetData.warningThreshold || 80,
+        note: budgetData.note || null,
+      }),
+    });
+  },
+
+  /**
+   * Lấy tất cả hạn mức chi tiêu của user
+   */
+  getAllBudgets: async () => {
+    return apiCall("/budgets");
+  },
+
+  /**
+   * Lấy chi tiết một hạn mức chi tiêu
+   * @param {number} budgetId
+   */
+  getBudgetById: async (budgetId) => {
+    return apiCall(`/budgets/${budgetId}`);
+  },
+
+  /**
+   * Cập nhật hạn mức chi tiêu
+   * @param {number} budgetId
+   * @param {Object} budgetData
+   * @param {number|null} [budgetData.walletId] - ID ví (null = áp dụng cho tất cả ví)
+   * @param {number} [budgetData.amountLimit] - Hạn mức chi tiêu
+   * @param {string} [budgetData.startDate] - Ngày bắt đầu
+   * @param {string} [budgetData.endDate] - Ngày kết thúc
+   * @param {number} [budgetData.warningThreshold] - Ngưỡng cảnh báo (%)
+   * @param {string} [budgetData.note] - Ghi chú
+   */
+  updateBudget: async (budgetId, budgetData) => {
+    return apiCall(`/budgets/${budgetId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        walletId: budgetData.walletId === "ALL" ? null : (budgetData.walletId || null),
+        amountLimit: budgetData.amountLimit,
+        startDate: budgetData.startDate,
+        endDate: budgetData.endDate,
+        warningThreshold: budgetData.warningThreshold || 80,
+        note: budgetData.note || null,
+      }),
+    });
+  },
+
+  /**
+   * Xóa hạn mức chi tiêu
+   * @param {number} budgetId
+   */
+  deleteBudget: async (budgetId) => {
+    return apiCall(`/budgets/${budgetId}`, {
+      method: "DELETE",
+    });
+  },
+
+  /**
+   * Lấy danh sách giao dịch thuộc một hạn mức chi tiêu
+   * @param {number} budgetId
+   */
+  getBudgetTransactions: async (budgetId) => {
+    return apiCall(`/budgets/${budgetId}/transactions`);
+  },
+};
+
+/**
  * Export default object chứa tất cả APIs
  */
 const apiClient = {
@@ -1018,6 +1232,8 @@ const apiClient = {
   wallet: walletAPI,
   transaction: transactionAPI,
   category: categoryAPI,
+  fund: fundAPI,
+  budget: budgetAPI,
   googleOAuth: googleOAuthAPI,
   admin: adminAPI,
   loginLog: loginLogAPI,

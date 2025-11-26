@@ -95,9 +95,41 @@ function formatVietnamTime(date) {
 /**
  * Format số tiền với độ chính xác cao (tối đa 8 chữ số thập phân)
  * Để hiển thị chính xác số tiền nhỏ khi chuyển đổi tiền tệ
+ * Giống formatMoney trong WalletsPage
  */
-
-
+function formatMoney(amount = 0, currency = "VND") {
+  const numAmount = Number(amount) || 0;
+  if (currency === "USD") {
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      const formatted = numAmount.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      });
+      return `$${formatted}`;
+    }
+    const formatted =
+      numAmount % 1 === 0
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 8,
+          });
+    return `$${formatted}`;
+  }
+  if (currency === "VND") {
+    return `${numAmount.toLocaleString("vi-VN")} VND`;
+  }
+  if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
+  }
+  return `${numAmount.toLocaleString("vi-VN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8,
+  })} ${currency}`;
+}
 
 export default function TransactionsPage() {
   const { formatCurrency } = useCurrency();
@@ -351,6 +383,10 @@ export default function TransactionsPage() {
             // Determine if this is an alert (approaching) or a warning (exceeding)
             const isExceeding = payload.amount > remaining;
             
+            // Lấy currency từ wallet
+            const wallet = wallets.find(w => w.walletName === payload.walletName || w.name === payload.walletName);
+            const currency = wallet?.currency || payload.currency || "VND";
+            
             setBudgetWarning({
               categoryName: payload.category,
               budgetLimit: categoryBudget.limitAmount,
@@ -358,6 +394,7 @@ export default function TransactionsPage() {
               transactionAmount: payload.amount,
               totalAfterTx,
               isExceeding,
+              currency,
             });
             setPendingTransaction(payload);
             setCreating(false);
@@ -878,6 +915,10 @@ export default function TransactionsPage() {
   const handleScheduleSubmit = (payload) => {
     const scheduleId = Date.now();
     const totalRuns = estimateScheduleRuns(payload.firstRun, payload.endDate, payload.scheduleType);
+    // Lấy currency từ wallet nếu có
+    const wallet = wallets.find(w => String(w.walletId) === String(payload.walletId));
+    const walletCurrency = wallet?.currencyCode || wallet?.currency || "VND";
+    
     const newSchedule = {
       id: scheduleId,
       walletId: payload.walletId,
@@ -885,7 +926,7 @@ export default function TransactionsPage() {
       categoryName: payload.categoryName,
       transactionType: payload.transactionType,
       amount: payload.amount,
-      currency: "VND",
+      currency: walletCurrency,
       scheduleType: payload.scheduleType,
       scheduleTypeLabel: SCHEDULE_TYPE_LABELS[payload.scheduleType] || payload.scheduleType,
       status: "PENDING",
@@ -1133,7 +1174,7 @@ export default function TransactionsPage() {
                         <span className={meta.className}>{meta.label}</span>
                       </div>
                       <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
-                        <span>Số tiền: {formatCurrency(schedule.amount)}</span>
+                        <span>Số tiền: {formatMoney(schedule.amount, schedule.currency || "VND")}</span>
                         <span>Tiếp theo: {formatVietnamDateTime(schedule.nextRun)}</span>
                         <span>
                           Lần hoàn thành: {schedule.successRuns}/{schedule.totalRuns || "∞"}
@@ -1228,7 +1269,7 @@ export default function TransactionsPage() {
                               }
                             >
                               {t.type === "expense" ? "-" : "+"}
-                              {formatCurrency(t.amount)}
+                              {formatMoney(t.amount, t.currency)}
                             </span>
                           </td>
                           <td className="text-center">
@@ -1300,7 +1341,7 @@ export default function TransactionsPage() {
                           </td>
                           <td className="text-end">
                             <span className="tx-amount-transfer">
-                              {formatCurrency(t.amount)}
+                              {formatMoney(t.amount, t.currency)}
                             </span>
                           </td>
                           <td className="text-center">
@@ -1451,6 +1492,7 @@ export default function TransactionsPage() {
         transactionAmount={budgetWarning?.transactionAmount || 0}
         totalAfterTx={budgetWarning?.totalAfterTx || 0}
         isExceeding={budgetWarning?.isExceeding || false}
+        currency={budgetWarning?.currency || "VND"}
         onConfirm={handleBudgetWarningConfirm}
         onCancel={handleBudgetWarningCancel}
       />

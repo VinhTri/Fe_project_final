@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { useCurrency } from "../../hooks/useCurrency";
 import "../../styles/home/BudgetsPage.css";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
@@ -14,12 +13,15 @@ import Toast from "../../components/common/Toast/Toast";
 export default function BudgetsPage() {
   const {
     budgets,
+    loading: budgetsLoading,
+    error: budgetsError,
     getSpentAmount,
     getSpentForBudget,
     createBudget,
     updateBudget,
     deleteBudget,
     externalTransactionsList,
+    reloadBudgets,
   } = useBudgetData();
   const { expenseCategories } = useCategoryData();
   const { wallets } = useWalletData();
@@ -47,6 +49,44 @@ export default function BudgetsPage() {
         return { spent: 0, remaining: 0, percent: 0, status: "healthy" };
       }
 
+      // Ưu tiên sử dụng giá trị từ API response nếu có
+      if (budget.spentAmount !== undefined && budget.spentAmount !== null) {
+        const spentValue = Number(budget.spentAmount) || 0;
+        const remainingValue = budget.remainingAmount !== undefined 
+          ? Number(budget.remainingAmount) || 0
+          : (budget.limitAmount || 0) - spentValue;
+        const percent = budget.usagePercentage !== undefined
+          ? Math.min(999, Math.max(0, Math.round(Number(budget.usagePercentage) || 0)))
+          : 0;
+        
+        // Map status từ API (OK, WARNING, EXCEEDED) sang frontend (healthy, warning, over)
+        let status = "healthy";
+        const apiStatus = budget.status || "";
+        if (apiStatus === "EXCEEDED") {
+          status = "over";
+        } else if (apiStatus === "WARNING") {
+          status = "warning";
+        } else {
+          // Fallback: tự tính status nếu không có từ API
+          const limit = budget.limitAmount || 0;
+          const percentRaw = limit > 0 ? (spentValue / limit) * 100 : 0;
+          const threshold = budget.alertPercentage ?? 80;
+          if (percentRaw >= 100) {
+            status = "over";
+          } else if (percentRaw >= threshold) {
+            status = "warning";
+          }
+        }
+
+        return {
+          spent: spentValue,
+          remaining: remainingValue,
+          percent,
+          status,
+        };
+      }
+
+      // Fallback: tính toán từ transactions nếu không có giá trị từ API
       const spentValue = getSpentForBudget
         ? getSpentForBudget(budget)
         : getSpentAmount(budget.categoryName, budget.walletName);
@@ -201,7 +241,49 @@ export default function BudgetsPage() {
   }, [budgets, budgetUsageMap]);
 
 
-  const { formatCurrency } = useCurrency();
+  // Format số tiền - giống formatMoney trong WalletsPage và TransactionsPage
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
+        });
+        return `$${formatted}`;
+      }
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
+      return `$${formatted}`;
+    }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
+  };
+
+  // Helper để lấy currency từ wallet của budget
+  const getBudgetCurrency = useCallback((budget) => {
+    if (!budget || !budget.walletId) {
+      return "VND"; // Mặc định VND nếu không có wallet hoặc áp dụng cho tất cả ví
+    }
+    const wallet = wallets.find((w) => w.id === budget.walletId);
+    return wallet?.currency || "VND";
+  }, [wallets]);
 
   const filteredCategories = useMemo(() => {
     if (Array.isArray(expenseCategories) && expenseCategories.length > 0) {
@@ -299,31 +381,43 @@ export default function BudgetsPage() {
     try {
       if (modalMode === "edit" && editingId != null) {
         await updateBudget(editingId, payload);
+        // Reload budgets from API to refresh list
+        if (reloadBudgets) {
+          await reloadBudgets();
+        }
         setToast({ open: true, message: "Đã cập nhật hạn mức", type: "success" });
       } else {
         await createBudget(payload);
+        // Reload budgets from API to refresh list
+        if (reloadBudgets) {
+          await reloadBudgets();
+        }
         setToast({ open: true, message: "Đã tạo hạn mức mới", type: "success" });
       }
     } catch (error) {
       console.error("Failed to save budget", error);
-      setToast({ open: true, message: "Không thể lưu hạn mức. Vui lòng thử lại.", type: "error" });
+      setToast({ open: true, message: error.message || "Không thể lưu hạn mức. Vui lòng thử lại.", type: "error" });
     } finally {
       setEditingId(null);
     }
-  }, [modalMode, editingId, updateBudget, createBudget]);
+  }, [modalMode, editingId, updateBudget, createBudget, reloadBudgets]);
 
   const handleDeleteBudget = useCallback(async () => {
     if (!confirmDel) return;
     try {
       await deleteBudget(confirmDel.id);
+      // Reload budgets from API to refresh list
+      if (reloadBudgets) {
+        await reloadBudgets();
+      }
       setToast({ open: true, message: "Đã xóa hạn mức", type: "success" });
     } catch (error) {
       console.error("Failed to delete budget", error);
-      setToast({ open: true, message: "Không thể xóa hạn mức. Vui lòng thử lại.", type: "error" });
+      setToast({ open: true, message: error.message || "Không thể xóa hạn mức. Vui lòng thử lại.", type: "error" });
     } finally {
       setConfirmDel(null);
     }
-  }, [confirmDel, deleteBudget]);
+  }, [confirmDel, deleteBudget, reloadBudgets]);
 
   return (
     <div className="budget-page container py-4">
@@ -365,14 +459,14 @@ export default function BudgetsPage() {
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">Tổng hạn mức</span>
-            <div className="budget-metric-value">{formatCurrency(overviewStats.totalLimit)}</div>
+            <div className="budget-metric-value">{formatMoney(overviewStats.totalLimit)}</div>
             <small className="text-muted">{overviewStats.activeBudgets} hạn mức đang hoạt động</small>
           </div>
         </div>
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">Đã sử dụng</span>
-            <div className="budget-metric-value text-primary">{formatCurrency(overviewStats.totalSpent)}</div>
+            <div className="budget-metric-value text-primary">{formatMoney(overviewStats.totalSpent)}</div>
             <small className="text-muted">
               {overviewStats.totalLimit > 0
                 ? `${Math.round((overviewStats.totalSpent / overviewStats.totalLimit) * 100)}% tổng hạn mức`
@@ -383,7 +477,7 @@ export default function BudgetsPage() {
         <div className="col-xl-3 col-md-6">
           <div className="budget-metric-card">
             <span className="budget-metric-label">Còn lại</span>
-            <div className="budget-metric-value text-success">{formatCurrency(overviewStats.totalRemaining)}</div>
+            <div className="budget-metric-value text-success">{formatMoney(overviewStats.totalRemaining)}</div>
             <small className="text-muted">Theo tất cả hạn mức</small>
           </div>
         </div>
@@ -474,7 +568,19 @@ export default function BudgetsPage() {
 
       <div className="budget-content-layout">
         <div className="budget-main-column">
-          {visibleBudgets.length === 0 ? (
+          {budgetsLoading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Đang tải...</span>
+              </div>
+              <p className="mt-3 text-muted">Đang tải danh sách hạn mức...</p>
+            </div>
+          ) : budgetsError ? (
+            <div className="alert alert-danger" role="alert">
+              <i className="bi bi-exclamation-triangle me-2" />
+              {budgetsError}
+            </div>
+          ) : visibleBudgets.length === 0 ? (
             <div className="budget-empty-state">
               <svg className="budget-empty-icon" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="60" cy="60" r="50" stroke="#e9ecef" strokeWidth="2" />
@@ -493,6 +599,7 @@ export default function BudgetsPage() {
                 const { spent, remaining, percent, status } = usage;
                 const isOver = status === "over";
                 const isWarning = status === "warning";
+                const budgetCurrency = getBudgetCurrency(budget);
 
                 return (
                   <div className="col-xl-6" key={budget.id}>
@@ -541,15 +648,15 @@ export default function BudgetsPage() {
                       <div className="budget-stats">
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Hạn mức</label>
-                          <div className="budget-stat-value">{formatCurrency(budget.limitAmount)}</div>
+                          <div className="budget-stat-value">{formatMoney(budget.limitAmount, budgetCurrency)}</div>
                         </div>
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Đã chi</label>
-                          <div className={`budget-stat-value ${isOver ? "danger" : ""}`}>{formatCurrency(spent)}</div>
+                          <div className={`budget-stat-value ${isOver ? "danger" : ""}`}>{formatMoney(spent, budgetCurrency)}</div>
                         </div>
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Còn lại</label>
-                          <div className={`budget-stat-value ${remaining < 0 ? "danger" : "success"}`}>{formatCurrency(remaining)}</div>
+                          <div className={`budget-stat-value ${remaining < 0 ? "danger" : "success"}`}>{formatMoney(remaining, budgetCurrency)}</div>
                         </div>
                         <div className="budget-stat-item">
                           <label className="budget-stat-label">Sử dụng</label>
@@ -636,7 +743,7 @@ export default function BudgetsPage() {
                             <small className="text-muted">{formatDateTime(tx.date)}</small>
                           </td>
                           <td className={`fw-semibold ${tx.type === "expense" ? "text-danger" : "text-success"}`}>
-                            {formatCurrency(tx.amount)}
+                            {formatMoney(tx.amount, tx.currency || "VND")}
                           </td>
                         </tr>
                       ))
@@ -658,6 +765,7 @@ export default function BudgetsPage() {
         open={!!detailBudget}
         budget={detailBudget?.budget}
         usage={detailBudget?.usage}
+        wallets={wallets}
         onClose={handleCloseDetail}
         onEdit={handleEditBudget}
         onRemind={handleSendReminder}

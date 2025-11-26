@@ -1,16 +1,54 @@
 import React from "react";
 import Modal from "../common/Modal/Modal";
 
-export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit, onRemind }) {
+export default function BudgetDetailModal({ open, budget, usage, wallets = [], onClose, onEdit, onRemind }) {
   if (!open || !budget) return null;
 
-  const formatCurrency = (value = 0) => {
-    try {
-      return (value || 0).toLocaleString("vi-VN");
-    } catch (error) {
-      return String(value || 0);
+  // Format số tiền - giống formatMoney trong WalletsPage và TransactionsPage
+  const formatMoney = (amount = 0, currency = "VND") => {
+    const numAmount = Number(amount) || 0;
+    if (currency === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
+        });
+        return `$${formatted}`;
+      }
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
+      return `$${formatted}`;
     }
+    if (currency === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${currency}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
   };
+
+  // Lấy currency từ wallet của budget
+  const getBudgetCurrency = () => {
+    if (!budget || !budget.walletId) {
+      return "VND"; // Mặc định VND nếu không có wallet hoặc áp dụng cho tất cả ví
+    }
+    const wallet = wallets.find((w) => w.id === budget.walletId);
+    return wallet?.currency || "VND";
+  };
+
+  const budgetCurrency = getBudgetCurrency();
 
   const statusLabel = {
     healthy: "Đang ổn",
@@ -48,15 +86,15 @@ export default function BudgetDetailModal({ open, budget, usage, onClose, onEdit
         <div className="budget-detail-grid">
           <div>
             <label>Hạn mức</label>
-            <p>{formatCurrency(limit)} VND</p>
+            <p>{formatMoney(limit, budgetCurrency)}</p>
           </div>
           <div>
             <label>Đã chi</label>
-            <p className={spent > limit ? "text-danger" : ""}>{formatCurrency(spent)} VND</p>
+            <p className={spent > limit ? "text-danger" : ""}>{formatMoney(spent, budgetCurrency)}</p>
           </div>
           <div>
             <label>Còn lại</label>
-            <p className={remaining < 0 ? "text-danger" : "text-success"}>{formatCurrency(remaining)} VND</p>
+            <p className={remaining < 0 ? "text-danger" : "text-success"}>{formatMoney(remaining, budgetCurrency)}</p>
           </div>
           <div>
             <label>Khoảng thời gian</label>

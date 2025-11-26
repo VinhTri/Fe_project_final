@@ -9,9 +9,45 @@ export default function BudgetWarningModal({
   transactionAmount,
   totalAfterTx,
   isExceeding,
+  currency = "VND",
   onConfirm,
   onCancel,
 }) {
+  // Format số tiền - giống formatMoney trong WalletsPage và TransactionsPage
+  const formatMoney = (amount = 0, curr = currency) => {
+    const numAmount = Number(amount) || 0;
+    if (curr === "USD") {
+      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+        const formatted = numAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 8,
+        });
+        return `$${formatted}`;
+      }
+      const formatted =
+        numAmount % 1 === 0
+          ? numAmount.toLocaleString("en-US")
+          : numAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8,
+            });
+      return `$${formatted}`;
+    }
+    if (curr === "VND") {
+      return `${numAmount.toLocaleString("vi-VN")} VND`;
+    }
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      return `${numAmount.toLocaleString("vi-VN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      })} ${curr}`;
+    }
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${curr}`;
+  };
+
   const remaining = budgetLimit - spent;
   const remainingAfterTx = budgetLimit - totalAfterTx;
   const amountOver = transactionAmount - remaining;
@@ -65,7 +101,7 @@ export default function BudgetWarningModal({
                 Hạn mức
               </label>
               <p style={{ color: "#0066cc", fontWeight: 600, margin: 0 }}>
-                {budgetLimit.toLocaleString("vi-VN")} VND
+                {formatMoney(budgetLimit)}
               </p>
             </div>
             <div>
@@ -73,7 +109,7 @@ export default function BudgetWarningModal({
                 Đã chi
               </label>
               <p style={{ color: "#dc3545", fontWeight: 600, margin: 0 }}>
-                {spent.toLocaleString("vi-VN")} VND
+                {formatMoney(spent)}
               </p>
             </div>
           </div>
@@ -90,7 +126,7 @@ export default function BudgetWarningModal({
                   margin: 0,
                 }}
               >
-                {remaining.toLocaleString("vi-VN")} VND
+                {formatMoney(remaining)}
               </p>
             </div>
             <div>
@@ -98,7 +134,7 @@ export default function BudgetWarningModal({
                 Giao dịch này
               </label>
               <p style={{ color: "#0099cc", fontWeight: 600, margin: 0 }}>
-                {transactionAmount.toLocaleString("vi-VN")} VND
+                {formatMoney(transactionAmount)}
               </p>
             </div>
           </div>
@@ -109,7 +145,7 @@ export default function BudgetWarningModal({
                 Tổng sau giao dịch
               </label>
               <p style={{ color: "#212529", fontWeight: 600, margin: 0 }}>
-                {totalAfterTx.toLocaleString("vi-VN")} VND
+                {formatMoney(totalAfterTx)}
               </p>
             </div>
             <div>
@@ -123,7 +159,7 @@ export default function BudgetWarningModal({
                   margin: 0,
                 }}
               >
-                {remainingAfterTx.toLocaleString("vi-VN")} VND
+                {formatMoney(remainingAfterTx)}
               </p>
             </div>
           </div>
@@ -132,7 +168,7 @@ export default function BudgetWarningModal({
             <div style={{ marginTop: "1rem", padding: "0.75rem", backgroundColor: "#ffcccc", borderRadius: "4px" }}>
               <strong style={{ color: "#dc3545" }}>Sẽ vượt quá:</strong>{" "}
               <span style={{ color: "#dc3545", fontWeight: 600 }}>
-                {amountOver.toLocaleString("vi-VN")} VND
+                {formatMoney(amountOver)}
               </span>
             </div>
           )}

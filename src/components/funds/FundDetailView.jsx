@@ -1,5 +1,43 @@
 // src/components/funds/FundDetailView.jsx
 import React, { useEffect, useState } from "react";
+import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
+
+/**
+ * Format số tiền - giống formatMoney trong WalletsPage và TransactionsPage
+ */
+function formatMoney(amount = 0, currency = "VND") {
+  const numAmount = Number(amount) || 0;
+  if (currency === "USD") {
+    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+      const formatted = numAmount.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      });
+      return `$${formatted}`;
+    }
+    const formatted =
+      numAmount % 1 === 0
+        ? numAmount.toLocaleString("en-US")
+        : numAmount.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 8,
+          });
+    return `$${formatted}`;
+  }
+  if (currency === "VND") {
+    return `${numAmount.toLocaleString("vi-VN")} VND`;
+  }
+  if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
+    return `${numAmount.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })} ${currency}`;
+  }
+  return `${numAmount.toLocaleString("vi-VN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8,
+  })} ${currency}`;
+}
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -10,14 +48,31 @@ const buildFormState = (fund) => ({
   description: fund.description || "",
 });
 
+// Helper để format giá trị ban đầu cho input
+const formatInitialValue = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  return formatMoneyInput(value);
+};
+
 export default function FundDetailView({ fund, onBack, onUpdateFund }) {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState(() => buildFormState(fund));
+  
+  // State riêng cho formatted values để hiển thị trong input
+  const [currentFormatted, setCurrentFormatted] = useState(() => 
+    formatInitialValue(fund.current ?? 0)
+  );
+  const [targetFormatted, setTargetFormatted] = useState(() => 
+    formatInitialValue(fund.target ?? "")
+  );
 
   // Khi chọn quỹ khác thì reset form + tắt chế độ sửa
   useEffect(() => {
     setIsEditing(false);
-    setForm(buildFormState(fund));
+    const newFormState = buildFormState(fund);
+    setForm(newFormState);
+    setCurrentFormatted(formatInitialValue(fund.current ?? 0));
+    setTargetFormatted(formatInitialValue(fund.target ?? ""));
   }, [fund]);
 
   const handleChange = (field, value) => {
@@ -26,21 +81,25 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setForm(buildFormState(fund));
+    const resetForm = buildFormState(fund);
+    setForm(resetForm);
+    setCurrentFormatted(formatInitialValue(fund.current ?? 0));
+    setTargetFormatted(formatInitialValue(fund.target ?? ""));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // Parse các giá trị từ formatted strings
+    const currentValue = getMoneyValue(currentFormatted);
+    const targetValue = targetFormatted ? getMoneyValue(targetFormatted) : null;
+
     const updated = {
       ...fund,
       name: form.name.trim(),
       hasTerm: !!form.hasTerm,
-      current: Number(form.current) || 0,
-      target:
-        form.target === "" || form.target === null
-          ? null
-          : Number(form.target),
+      current: currentValue || 0,
+      target: targetValue || null,
       currency: form.currency || "VND",
       description: form.description.trim(),
     };
@@ -82,18 +141,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
         <div className="mt-3">
           <div className="fund-detail-label">Số dư hiện tại</div>
           <div className="fund-detail-amount">
-            {fund.current.toLocaleString("vi-VN")}{" "}
-            <span className="fund-detail-currency">
-              {fund.currency || "VND"}
-            </span>
+            {formatMoney(fund.current, fund.currency || "VND")}
           </div>
 
           <div className="mt-2 fund-detail-label">Mục tiêu</div>
           <div className="fund-detail-text">
             {fund.target
-              ? `${fund.target.toLocaleString("vi-VN")} ${
-                  fund.currency || "VND"
-                }`
+              ? formatMoney(fund.target, fund.currency || "VND")
               : "Không thiết lập mục tiêu"}
           </div>
 
@@ -181,19 +235,33 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
               <div>
                 <label>Số dư hiện tại</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={form.current}
-                  onChange={(e) => handleChange("current", e.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  value={currentFormatted}
+                  onChange={(e) => {
+                    const formatted = formatMoneyInput(e.target.value);
+                    setCurrentFormatted(formatted);
+                    // Cập nhật form.current với giá trị số để validation
+                    const numericValue = getMoneyValue(formatted);
+                    handleChange("current", numericValue);
+                  }}
+                  placeholder="0"
                 />
               </div>
               <div>
                 <label>Mục tiêu (có thể bỏ trống)</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={form.target}
-                  onChange={(e) => handleChange("target", e.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  value={targetFormatted}
+                  onChange={(e) => {
+                    const formatted = formatMoneyInput(e.target.value);
+                    setTargetFormatted(formatted);
+                    // Cập nhật form.target với giá trị số để validation
+                    const numericValue = formatted ? getMoneyValue(formatted) : null;
+                    handleChange("target", numericValue);
+                  }}
+                  placeholder="0"
                 />
               </div>
             </div>
