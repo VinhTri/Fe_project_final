@@ -574,16 +574,18 @@ export default function CategoriesPage() {
               </button>
             </div>
 
-            <div className="ms-3">
-              <button
-                type="button"
-                className="btn btn-outline-primary category-add-header-btn"
-                onClick={openAddModal}
-              >
-                <i className="bi bi-plus-circle me-1" />
-                Thêm danh mục
-              </button>
-            </div>
+            {(activeTab !== "system" || isAdmin) && (
+              <div className="ms-3">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary category-add-header-btn"
+                  onClick={openAddModal}
+                >
+                  <i className="bi bi-plus-circle me-1" />
+                  Thêm danh mục
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

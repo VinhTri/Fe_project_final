@@ -511,13 +511,7 @@ return (
               onChange={onChange}
               disabled={loading}
             />
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => setShowNewPassword((v) => !v)}
-            >
-              <i className={showNewPassword ? "bi bi-eye-slash" : "bi bi-eye"}></i>
-            </button>
+           
           </div>
 
           {/* strength */}
@@ -545,13 +539,7 @@ return (
               onChange={onChange}
               disabled={loading}
             />
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => setShowConfirm((v) => !v)}
-            >
-              <i className={showConfirm ? "bi bi-eye-slash" : "bi bi-eye"}></i>
-            </button>
+          
           </div>
 
           {error && <div className="auth-error">{error}</div>}
