@@ -253,6 +253,11 @@ export default function CategoriesPage() {
   };
 
   const openAddModal = () => {
+    // Chỉ admin mới được thêm danh mục mặc định
+    if (activeTab === "system" && !isAdmin) {
+      return;
+    }
+    
     setModalMode("create");
     setModalInitial("");
     setModalEditingId(null);
@@ -574,16 +579,19 @@ export default function CategoriesPage() {
               </button>
             </div>
 
-            <div className="ms-3">
-              <button
-                type="button"
-                className="btn btn-outline-primary category-add-header-btn"
-                onClick={openAddModal}
-              >
-                <i className="bi bi-plus-circle me-1" />
-                Thêm danh mục
-              </button>
-            </div>
+            {/* Chỉ hiển thị nút "Thêm danh mục" khi không ở tab "Mặc định" hoặc là admin */}
+            {(activeTab !== "system" || isAdmin) && (
+              <div className="ms-3">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary category-add-header-btn"
+                  onClick={openAddModal}
+                >
+                  <i className="bi bi-plus-circle me-1" />
+                  Thêm danh mục
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
