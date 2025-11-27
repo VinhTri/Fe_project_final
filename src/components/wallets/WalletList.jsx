@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 const formatWalletBalance = (amount = 0, currency = "VND") => {
   const numAmount = Number(amount) || 0;
@@ -55,6 +56,7 @@ export default function WalletList({
   selectedSharedOwnerId,
   onSelectSharedOwner,
 }) {
+  const { t } = useLanguage();
   const showSharedWithMeOwners =
     activeTab === "shared" && sharedFilter === "sharedWithMe";
 
@@ -70,7 +72,7 @@ export default function WalletList({
           }
           onClick={() => onTabChange("personal")}
         >
-          Ví cá nhân
+          {t('wallets.tab.personal')}
           {personalCount > 0 && (
             <span className="wallets-tab__badge">{personalCount}</span>
           )}
@@ -83,7 +85,7 @@ export default function WalletList({
           }
           onClick={() => onTabChange("group")}
         >
-          Ví nhóm
+          {t('wallets.tab.group')}
           {groupCount > 0 && (
             <span className="wallets-tab__badge">{groupCount}</span>
           )}
@@ -96,7 +98,7 @@ export default function WalletList({
           }
           onClick={() => onTabChange("shared")}
         >
-          Ví chia sẻ
+          {t('wallets.tab.shared')}
           {sharedCount > 0 && (
             <span className="wallets-tab__badge">{sharedCount}</span>
           )}
@@ -108,7 +110,7 @@ export default function WalletList({
         <div className="wallets-list-panel__search">
           <input
             type="text"
-            placeholder="Tìm theo tên hoặc ghi chú ví…"
+            placeholder={t('wallets.search_placeholder')}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
           />
@@ -118,10 +120,10 @@ export default function WalletList({
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value)}
           >
-            <option value="default">Sắp xếp: Mặc định</option>
-            <option value="name_asc">Tên (A → Z)</option>
-            <option value="balance_desc">Số dư (cao → thấp)</option>
-            <option value="balance_asc">Số dư (thấp → cao)</option>
+            <option value="default">{t('wallets.sort.default')}</option>
+            <option value="name_asc">{t('wallets.sort.name_az')}</option>
+            <option value="balance_desc">{t('wallets.sort.balance_desc_label')}</option>
+            <option value="balance_asc">{t('wallets.sort.balance_asc_label')}</option>
           </select>
         </div>
       </div>
@@ -165,9 +167,7 @@ export default function WalletList({
       {showSharedWithMeOwners ? (
         <div className="wallets-shared-owner-wrapper">
           {sharedWithMeOwners.length === 0 ? (
-            <div className="wallets-list__empty">
-              Không có ví nào được chia sẻ cho bạn.
-            </div>
+            <div className="wallets-list__empty">{t('wallets.no_shared_with_me')}</div>
           ) : (
             <>
               <div className="wallets-shared-owner-chips">
@@ -193,18 +193,14 @@ export default function WalletList({
                   </button>
                 ))}
               </div>
-              <p className="wallets-shared-owner-hint">
-                Chọn một người chia sẻ để xem các ví họ đã chia sẻ cho bạn ở ô chi tiết bên phải.
-              </p>
+              <p className="wallets-shared-owner-hint">{t('wallets.shared_owner_hint')}</p>
             </>
           )}
         </div>
       ) : (
         <div className="wallets-list-panel__list">
           {wallets.length === 0 && (
-            <div className="wallets-list__empty">
-              Không có ví nào trong mục này.
-            </div>
+            <div className="wallets-list__empty">{t('wallets.empty_list')}</div>
           )}
 
           {wallets.map((w) => {
@@ -223,16 +219,14 @@ export default function WalletList({
               >
                 <div className="wallets-list-item__header">
                   <span className="wallets-list-item__name">
-                    {w.name || "Chưa đặt tên"}
+                    {w.name || t('wallets.no_name')}
                   </span>
                   <div className="wallets-list-item__pill-row">
                     <span className="wallets-list-item__type">
-                      {w.isShared ? "Nhóm" : "Cá nhân"}
+                      {w.isShared ? t('wallets.type.group') : t('wallets.type.personal')}
                     </span>
                     {w.isDefault && (
-                      <span className="wallets-list-item__default-pill">
-                        Mặc định
-                      </span>
+                      <span className="wallets-list-item__default-pill">{t('wallets.card.default') || 'Mặc định'}</span>
                     )}
                   </div>
                 </div>

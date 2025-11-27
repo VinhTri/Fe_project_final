@@ -14,6 +14,7 @@ import FundDetailView from "../../components/funds/FundDetailView";
 
 export default function FundsPage() {
   const { wallets } = useWalletData();
+  const { t } = useLanguage();
 
   // CHỈ VÍ CÁ NHÂN (vì đã bỏ quỹ nhóm)
   const personalWallets = useMemo(
@@ -411,10 +412,8 @@ export default function FundsPage() {
     </div>
 
     <div className="funds-header-text">
-      <h2 className="mb-1">Quản lý quỹ</h2>
-      <p className="mb-0 text-muted">
-        Theo dõi và quản lý các quỹ tiết kiệm cá nhân của bạn.
-      </p>
+      <h2 className="mb-1">{t('funds.title')}</h2>
+      <p className="mb-0 text-muted">{t('funds.subtitle')}</p>
     </div>
   </div>
 
@@ -426,7 +425,7 @@ export default function FundsPage() {
       onClick={() => setViewMode("create")}
     >
       <i className="bi bi-plus-circle me-1" />
-      Tạo quỹ
+      {t('funds.btn.create_personal')}
     </button>
   ) : (
     <button
@@ -438,7 +437,7 @@ export default function FundsPage() {
       }}
     >
       <i className="bi bi-arrow-left me-1" />
-      Quay lại danh sách quỹ
+      {t('funds.btn.back')}
     </button>
   )}
 </div>
@@ -580,7 +579,7 @@ export default function FundsPage() {
               }
               onClick={() => setPersonalTab("term")}
             >
-              Quỹ có thời hạn
+              {t('funds.section.personal_term')}
             </button>
             <button
               className={
@@ -589,7 +588,7 @@ export default function FundsPage() {
               }
               onClick={() => setPersonalTab("no-term")}
             >
-              Quỹ không thời hạn
+              {t('funds.section.personal_no_term')}
             </button>
           </div>
 

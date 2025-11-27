@@ -13,6 +13,7 @@ import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
 import { useBudgetData } from "../../home/store/BudgetDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { useWalletData } from "../../home/store/WalletDataContext";
+import { useLanguage } from "../../home/store/LanguageContext";
 import { transactionAPI, walletAPI } from "../../services/api-client";
 
 // ===== REMOVED MOCK DATA - Now using API =====
@@ -133,6 +134,7 @@ function formatMoney(amount = 0, currency = "VND") {
 
 export default function TransactionsPage() {
   const { formatCurrency } = useCurrency();
+  const { t } = useLanguage();
   const [externalTransactions, setExternalTransactions] = useState([]);
   const [internalTransactions, setInternalTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -222,55 +224,31 @@ export default function TransactionsPage() {
   }, [wallets]);
 
   const hasWallets = Array.isArray(wallets) && wallets.length > 0;
-
   // Load transactions from API
-  useEffect(() => {
-    const loadTransactions = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
-        setExternalTransactions([]);
-        setInternalTransactions([]);
-        setLoading(false);
-        return;
+  const loadTransactions = async () => {
+    setLoading(true);
+    try {
+      const txResponse = await transactionAPI.getAllTransactions();
+      if (txResponse && txResponse.transactions) {
+        const mapped = txResponse.transactions.map(mapTransactionToFrontend);
+        setExternalTransactions(mapped);
       }
 
-      setLoading(true);
-      try {
-        // Load external transactions
-        const txResponse = await transactionAPI.getAllTransactions();
-        if (txResponse.transactions) {
-          const mapped = txResponse.transactions.map(mapTransactionToFrontend);
-          setExternalTransactions(mapped);
-        }
-
-        // Load internal transfers
-        const transferResponse = await walletAPI.getAllTransfers();
-        if (transferResponse.transfers) {
-          const mapped = transferResponse.transfers.map(mapTransferToFrontend);
-          setInternalTransactions(mapped);
-        }
-      } catch (error) {
-        console.error("Error loading transactions:", error);
-        setToast({ open: true, message: "Không thể tải danh sách giao dịch: " + (error.message || "Lỗi không xác định"), type: "error" });
-      } finally {
-        setLoading(false);
+      const transferResponse = await walletAPI.getAllTransfers();
+      if (transferResponse && transferResponse.transfers) {
+        const mappedTransfers = transferResponse.transfers.map(mapTransferToFrontend);
+        setInternalTransactions(mappedTransfers);
       }
-    };
-
-    // Load ngay khi mount hoặc khi có wallets
-    if (hasWallets) {
-      loadTransactions();
-    } else {
-      // Nếu chưa có wallets nhưng có token, vẫn thử load (có thể wallets đang load)
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        loadTransactions();
-      } else {
-        setExternalTransactions([]);
-        setInternalTransactions([]);
-        setLoading(false);
-      }
+    } catch (err) {
+      console.error("Failed to load transactions:", err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    // Initial load
+    loadTransactions();
 
     // Lắng nghe event khi user đăng nhập
     const handleUserChange = () => {
@@ -341,18 +319,8 @@ export default function TransactionsPage() {
     const value = e.target.value;
     setActiveTab(value);
     setSearchText("");
-    setFilterType("all");
-    setFilterCategory("all");
-    setFilterWallet("all");
-    setFromDateTime("");
-    setToDateTime("");
-    setCurrentPage(1);
-    setViewing(null);
-    setEditing(null);
-    setConfirmDel(null);
-    setCreating(false);
   };
-
+  
   const handleCreate = async (payload) => {
     // Check for budget warning if this is an external expense transaction with a category
     if (activeTab === TABS.EXTERNAL && payload.type === "expense") {
@@ -405,11 +373,11 @@ export default function TransactionsPage() {
     }
 
     try {
-    if (activeTab === TABS.EXTERNAL) {
+        if (activeTab === TABS.EXTERNAL) {
         // Find walletId and categoryId
         const wallet = wallets.find(w => w.walletName === payload.walletName || w.name === payload.walletName);
         if (!wallet) {
-          setToast({ open: true, message: "Không tìm thấy ví: " + payload.walletName, type: "error" });
+          setToast({ open: true, message: t("transactions.error.wallet_not_found").replace("{wallet}", payload.walletName), type: "error" });
           return;
         }
 
@@ -466,14 +434,14 @@ export default function TransactionsPage() {
           );
         }
 
-        setToast({ open: true, message: "Đã thêm giao dịch mới." });
+        setToast({ open: true, message: t("transactions.toast.add_success") });
       } else {
         // Internal transfer
         const sourceWallet = wallets.find(w => w.walletName === payload.sourceWallet || w.name === payload.sourceWallet);
         const targetWallet = wallets.find(w => w.walletName === payload.targetWallet || w.name === payload.targetWallet);
         
         if (!sourceWallet || !targetWallet) {
-          setToast({ open: true, message: "Không tìm thấy ví nguồn hoặc ví đích.", type: "error" });
+          setToast({ open: true, message: t("transactions.error.wallet_not_found_pair"), type: "error" });
           return;
         }
 
@@ -487,7 +455,7 @@ export default function TransactionsPage() {
           payload.note || ""
         );
 
-        setToast({ open: true, message: "Đã thêm giao dịch chuyển tiền mới." });
+        setToast({ open: true, message: t("transactions.toast.add_success") });
       }
 
       // Reload wallets để cập nhật số dư sau khi tạo giao dịch
@@ -511,7 +479,7 @@ export default function TransactionsPage() {
     setCurrentPage(1);
     } catch (error) {
       console.error("Error creating transaction:", error);
-      setToast({ open: true, message: "Lỗi khi tạo giao dịch: " + (error.message || "Lỗi không xác định"), type: "error" });
+      setToast({ open: true, message: t("transactions.error.create_failed") + (error?.message ? `: ${error.message}` : ""), type: "error" });
     }
   };
 
@@ -541,7 +509,7 @@ export default function TransactionsPage() {
 
     if (!editing.id) {
       console.error("handleUpdate: editing.id is missing", editing);
-      setToast({ open: true, message: "Không tìm thấy ID giao dịch.", type: "error" });
+      setToast({ open: true, message: t("transactions.error.id_not_found"), type: "error" });
       return;
     }
 
@@ -568,7 +536,7 @@ export default function TransactionsPage() {
         }
 
         setEditing(null);
-        setToast({ open: true, message: "Đã cập nhật giao dịch chuyển tiền thành công.", type: "success" });
+        setToast({ open: true, message: t("transactions.toast.update_success"), type: "success" });
         return;
       }
 
@@ -625,14 +593,14 @@ export default function TransactionsPage() {
       }
 
       setEditing(null);
-      setToast({ open: true, message: "Đã cập nhật giao dịch thành công.", type: "success" });
+      setToast({ open: true, message: t("transactions.toast.update_success"), type: "success" });
     } catch (error) {
       console.error("Error updating transaction/transfer:", error);
       const errorMessage = error.message || "Lỗi không xác định";
       if (editing.type === "transfer") {
-        setToast({ open: true, message: "Lỗi khi cập nhật giao dịch chuyển tiền: " + errorMessage, type: "error" });
+        setToast({ open: true, message: t("transactions.error.update_failed") + ": " + errorMessage, type: "error" });
       } else {
-        setToast({ open: true, message: "Lỗi khi cập nhật giao dịch: " + errorMessage, type: "error" });
+        setToast({ open: true, message: t("transactions.error.update_failed") + ": " + errorMessage, type: "error" });
       }
     }
   };
@@ -659,7 +627,7 @@ export default function TransactionsPage() {
         // Reload wallets để cập nhật số dư
         await loadWallets();
 
-        setToast({ open: true, message: "Đã xóa giao dịch chuyển tiền thành công.", type: "success" });
+        setToast({ open: true, message: t("transactions.toast.delete_success"), type: "success" });
         return;
       }
 
@@ -677,7 +645,7 @@ export default function TransactionsPage() {
       // Reload wallets để cập nhật số dư
       await loadWallets();
 
-      setToast({ open: true, message: "Đã xóa giao dịch thành công.", type: "success" });
+      setToast({ open: true, message: t("transactions.toast.delete_success"), type: "success" });
     } catch (error) {
       console.error("Error deleting transaction/transfer:", error);
       // Kiểm tra nếu lỗi là về ví âm tiền
@@ -686,12 +654,12 @@ export default function TransactionsPage() {
           errorMessage.includes("ví không được âm tiền") || 
           errorMessage.includes("ví âm tiền") ||
           errorMessage.includes("âm tiền")) {
-        setToast({ open: true, message: "Không thể xóa giao dịch vì ví âm tiền", type: "error" });
+        setToast({ open: true, message: t("transactions.error.delete_wallet_negative"), type: "error" });
       } else {
         if (item.type === "transfer") {
-          setToast({ open: true, message: "Lỗi khi xóa giao dịch chuyển tiền: " + errorMessage, type: "error" });
+          setToast({ open: true, message: t("transactions.error.delete_failed") + ": " + errorMessage, type: "error" });
         } else {
-          setToast({ open: true, message: "Lỗi khi xóa giao dịch: " + errorMessage, type: "error" });
+          setToast({ open: true, message: t("transactions.error.delete_failed") + ": " + errorMessage, type: "error" });
         }
       }
     }
@@ -941,7 +909,7 @@ export default function TransactionsPage() {
 
     setScheduledTransactions((prev) => [newSchedule, ...prev]);
     setScheduleModalOpen(false);
-    setToast({ open: true, message: "Đã tạo lịch giao dịch mới.", type: "success" });
+    setToast({ open: true, message: t("transactions.toast.schedule_created"), type: "success" });
   };
 
   const handleScheduleCancel = (scheduleId) => {
@@ -966,60 +934,44 @@ export default function TransactionsPage() {
     );
 
     setSelectedSchedule((prev) => (prev?.id === scheduleId ? null : prev));
-    setToast({ open: true, message: "Đã hủy lịch giao dịch.", type: "success" });
+    setToast({ open: true, message: t("transactions.toast.schedule_cancelled"), type: "success" });
   };
 
   return (
-    <div className="tx-page container py-4">
-      {/* HEADER – dùng màu giống trang Danh sách ví */}
-      <div
-        className="tx-header card border-0 mb-3"
-        style={{
-          borderRadius: 18,
-          background:
-            "linear-gradient(90deg, #00325d 0%, #004b8f 40%, #005fa8 100%)",
-          color: "#ffffff",
-        }}
-      >
-        <div className="card-body d-flex justify-content-between align-items-center">
-          {/* BÊN TRÁI: ICON + TEXT */}
-          <div className="d-flex align-items-center gap-2">
-            <div className="tx-header-icon-wrap">
-              {/* icon giống sidebar: Giao dịch = bi-cash-stack */}
-              <i className="bi bi-cash-stack tx-header-icon" />
-            </div>
-            <div>
-              <h2 className="tx-title mb-1" style={{ color: "#ffffff" }}>
-                Quản lý Giao dịch
-              </h2>
-              <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)" }}>
-                Xem, tìm kiếm và quản lý các khoản thu chi gần đây.
-              </p>
-            </div>
+    <div className="tx-page container-fluid py-4">
+      <div className="tx-page-inner">
+      <div className="wallet-header">
+        <div className="wallet-header-left">
+          <div className="wallet-header-icon">
+            <i className="bi bi-cash-stack" />
           </div>
-
-          {/* BÊN PHẢI: CHỌN LOẠI TRANG + THÊM GIAO DỊCH */}
-          <div className="d-flex align-items-center gap-2">
-            <select
-              className="form-select form-select-sm"
-              style={{ minWidth: 220 }}
-              value={activeTab}
-              onChange={handleTabChange}
-            >
-              <option value={TABS.EXTERNAL}>Giao dịch ngoài</option>
-              <option value={TABS.INTERNAL}>Giao dịch giữa các ví</option>
-              <option value={TABS.SCHEDULE}>Lịch giao dịch định kỳ</option>
-            </select>
-
-            <button
-              className="btn btn-primary tx-add-btn d-flex align-items-center"
-              style={{ whiteSpace: "nowrap" }}
-              onClick={() => setCreating(true)}
-            >
-              <i className="bi bi-plus-lg me-2" />
-              Thêm giao dịch mới
-            </button>
+          <div>
+            <h2 className="wallet-header-title">{t("transactions.page.title")}</h2>
+            <p className="wallet-header-subtitle">{t("transactions.page.subtitle")}</p>
           </div>
+        </div>
+
+        <div className="wallet-header-center d-flex justify-content-center">
+          <select
+            className="form-select form-select-sm"
+            style={{ minWidth: 220, maxWidth: 360 }}
+            value={activeTab}
+            onChange={handleTabChange}
+          >
+            <option value={TABS.EXTERNAL}>{t("transactions.tab.external")}</option>
+            <option value={TABS.INTERNAL}>{t("transactions.tab.internal")}</option>
+            <option value={TABS.SCHEDULE}>{t("transactions.tab.schedule")}</option>
+          </select>
+        </div>
+
+        <div className="wallet-header-right d-flex align-items-center justify-content-end">
+          <button
+            className="wallet-header-btn d-flex align-items-center"
+            onClick={() => setCreating(true)}
+          >
+            <i className="bi bi-plus-lg me-2" />
+            {t("transactions.btn.add")}
+          </button>
         </div>
       </div>
 
@@ -1035,7 +987,7 @@ export default function TransactionsPage() {
                   </span>
                   <input
                     className="form-control border-start-0"
-                    placeholder="Tìm kiếm giao dịch..."
+                    placeholder={t("transactions.filter.search_placeholder")}
                     value={searchText}
                     onChange={(e) => {
                       setSearchText(e.target.value);
@@ -1052,20 +1004,20 @@ export default function TransactionsPage() {
                     value={filterType}
                     onChange={handleFilterChange(setFilterType)}
                   >
-                    <option value="all">Loại giao dịch</option>
-                    <option value="income">Thu nhập</option>
-                    <option value="expense">Chi tiêu</option>
+                    <option value="all">{t("transactions.filter.type_all")}</option>
+                    <option value="income">{t("transactions.type.income")}</option>
+                    <option value="expense">{t("transactions.type.expense")}</option>
                   </select>
                 </div>
               )}
 
               <div className="tx-filter-item">
-                <select
+                  <select
                   className="form-select"
                   value={filterCategory}
                   onChange={handleFilterChange(setFilterCategory)}
                 >
-                  <option value="all">Danh mục</option>
+                    <option value="all">{t("transactions.filter.category_all")}</option>
                   {allCategories.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -1082,7 +1034,7 @@ export default function TransactionsPage() {
                   value={filterWallet}
                   onChange={handleFilterChange(setFilterWallet)}
                 >
-                  <option value="all">Ví</option>
+                  <option value="all">{t("transactions.filter.wallet_all")}</option>
                   {allWallets.map((w) => (
                     <option key={w} value={w}>
                       {w}
@@ -1098,7 +1050,7 @@ export default function TransactionsPage() {
                   value={fromDateTime}
                   onChange={handleDateChange(setFromDateTime)}
                 />
-                <span className="text-muted small px-1">đến</span>
+                <span className="text-muted small px-1">{t("transactions.filter.to")}</span>
                 <input
                   type="datetime-local"
                   className="form-control"
@@ -1114,7 +1066,7 @@ export default function TransactionsPage() {
                   onClick={clearFilters}
                 >
                   <i className="bi bi-x-circle me-1" />
-                  Xóa lọc
+                  {t("transactions.btn.clear")}
                 </button>
               </div>
             </div>
@@ -1127,11 +1079,11 @@ export default function TransactionsPage() {
           <div className="card-body">
             <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
               <div>
-                <h5 className="mb-1">Lịch giao dịch định kỳ</h5>
-                <p className="text-muted mb-0">Quản lý các khoản thu chi được lập lịch tự động.</p>
+                <h5 className="mb-1">{t("transactions.schedule.title")}</h5>
+                <p className="text-muted mb-0">{t("transactions.schedule.desc")}</p>
               </div>
               <button className="btn btn-primary" type="button" onClick={() => setScheduleModalOpen(true)}>
-                <i className="bi bi-plus-lg me-2" />Tạo lịch giao dịch
+                <i className="bi bi-plus-lg me-2" />{t("transactions.schedule.create_btn")}
               </button>
             </div>
 
@@ -1143,7 +1095,7 @@ export default function TransactionsPage() {
                   className={`schedule-tab ${scheduleFilter === tab.value ? "active" : ""}`}
                   onClick={() => setScheduleFilter(tab.value)}
                 >
-                  {tab.label}
+                  {t(`transactions.schedule.tab.${tab.value}`)}
                   <span className="badge rounded-pill bg-light text-dark ms-2">
                     {scheduleCounts[tab.value] ?? 0}
                   </span>
@@ -1165,19 +1117,19 @@ export default function TransactionsPage() {
                       <div className="d-flex justify-content-between align-items-start mb-2">
                         <div>
                           <h6 className="mb-1">
-                            {schedule.walletName} • {schedule.transactionType === "income" ? "Thu nhập" : "Chi tiêu"}
+                            {schedule.walletName} • {schedule.transactionType === "income" ? t("transactions.type.income") : t("transactions.type.expense")}
                           </h6>
                           <p className="mb-1 text-muted">
                             {schedule.categoryName} · {schedule.scheduleTypeLabel}
                           </p>
                         </div>
-                        <span className={meta.className}>{meta.label}</span>
+                        <span className={meta.className}>{t(`transactions.schedule.status.${String(schedule.status).toLowerCase()}`)}</span>
                       </div>
                       <div className="d-flex flex-wrap gap-3 mb-2 small text-muted">
                         <span>Số tiền: {formatMoney(schedule.amount, schedule.currency || "VND")}</span>
                         <span>Tiếp theo: {formatVietnamDateTime(schedule.nextRun)}</span>
                         <span>
-                          Lần hoàn thành: {schedule.successRuns}/{schedule.totalRuns || "∞"}
+                          {t("transactions.schedule.completed_runs")} {schedule.successRuns}/{schedule.totalRuns || "∞"}
                         </span>
                       </div>
                       <div className="progress schedule-progress">
@@ -1191,7 +1143,7 @@ export default function TransactionsPage() {
                       )}
                       <div className="scheduled-card-actions">
                         <button type="button" className="btn btn-link px-0" onClick={() => setSelectedSchedule(schedule)}>
-                          Xem lịch sử
+                          {t("transactions.schedule.view_history")}
                         </button>
                         <button
                           type="button"
@@ -1199,7 +1151,7 @@ export default function TransactionsPage() {
                           disabled={schedule.status === "CANCELLED"}
                           onClick={() => handleScheduleCancel(schedule.id)}
                         >
-                          Hủy lịch
+                          {t("transactions.schedule.cancel")}
                         </button>
                       </div>
                     </div>
@@ -1216,7 +1168,7 @@ export default function TransactionsPage() {
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Đang tải...</span>
               </div>
-              <p className="mt-2 text-muted">Đang tải danh sách giao dịch...</p>
+              <p className="mt-2 text-muted">{t("transactions.loading.list")}</p>
             </div>
           ) : (
           <div className="table-responsive">
@@ -1224,42 +1176,40 @@ export default function TransactionsPage() {
               <table className="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th style={{ width: 60 }}>STT</th>
-                    <th>Ngày</th>
-                    <th>Thời gian</th>
-                    <th>Loại</th>
-                    <th>Ví</th>
-                    <th>Danh mục</th>
-                    <th className="tx-note-col">Mô tả</th>
-                    <th className="text-end">Số tiền</th>
-                    <th className="text-center">Hành động</th>
+                    <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
+                    <th>{t("transactions.table.date")}</th>
+                    <th>{t("transactions.table.time")}</th>
+                    <th>{t("transactions.table.type")}</th>
+                    <th>{t("transactions.table.wallet")}</th>
+                    <th>{t("transactions.table.category")}</th>
+                    <th className="tx-note-col">{t("transactions.table.note")}</th>
+                    <th className="text-end">{t("transactions.table.amount")}</th>
+                    <th className="text-center">{t("transactions.table.action")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="text-center text-muted py-4">
-                        Không có giao dịch nào.
+                        {t("transactions.table.empty")}
                       </td>
                     </tr>
                   ) : (
-                    paginated.map((t, i) => {
+                    paginated.map((tx, i) => {
                       const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                      const d = toDateObj(t.date);
+                      const d = toDateObj(tx.date);
                       const dateStr = formatVietnamDate(d);
                       const timeStr = formatVietnamTime(d);
 
                       return (
-                        <tr key={t.id}>
+                        <tr key={tx.id}>
                           <td>{serial}</td>
                           <td>{dateStr}</td>
                           <td>{timeStr}</td>
-                          <td>{t.type === "income" ? "Thu nhập" : "Chi tiêu"}</td>
-                          <td>{t.walletName}</td>
-                          <td>{t.category}</td>
-                          <td className="tx-note-cell" title={t.note || "-"}>
-                            {t.note || "-"}
-                          </td>
+                          <td>{tx.type === "income" ? t("transactions.type.income") : t("transactions.type.expense")}</td>
+                          <td>{tx.walletName}</td>
+                          <td>{tx.category}</td>
+                          <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
                           <td className="text-end">
                             <span
                               className={
@@ -1273,25 +1223,13 @@ export default function TransactionsPage() {
                             </span>
                           </td>
                           <td className="text-center">
-                            <button
-                              className="btn btn-link btn-sm text-muted me-1"
-                              title="Xem chi tiết"
-                              onClick={() => setViewing(t)}
-                            >
+                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.view")} onClick={() => setViewing(tx)}>
                               <i className="bi bi-eye" />
                             </button>
-                            <button
-                              className="btn btn-link btn-sm text-muted me-1"
-                              title="Chỉnh sửa"
-                              onClick={() => setEditing(t)}
-                            >
+                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.edit")} onClick={() => setEditing(tx)}>
                               <i className="bi bi-pencil-square" />
                             </button>
-                            <button
-                              className="btn btn-link btn-sm text-danger"
-                              title="Xóa"
-                              onClick={() => setConfirmDel(t)}
-                            >
+                            <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => setConfirmDel(tx)}>
                               <i className="bi bi-trash" />
                             </button>
                           </td>
@@ -1305,65 +1243,51 @@ export default function TransactionsPage() {
               <table className="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th style={{ width: 60 }}>STT</th>
-                    <th>Ngày</th>
-                    <th>Thời gian</th>
-                    <th>Ví gửi</th>
-                    <th>Ví nhận</th>
-                    <th className="tx-note-col">Ghi chú</th>
-                    <th className="text-end">Số tiền</th>
-                    <th className="text-center">Hành động</th>
+                    <th style={{ width: 60 }}>{t("transactions.table.no")}</th>
+                    <th>{t("transactions.table.date")}</th>
+                    <th>{t("transactions.table.time")}</th>
+                    <th>{t("transactions.table.source_wallet")}</th>
+                    <th>{t("transactions.table.target_wallet")}</th>
+                    <th className="tx-note-col">{t("transactions.table.note")}</th>
+                    <th className="text-end">{t("transactions.table.amount")}</th>
+                    <th className="text-center">{t("transactions.table.action")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center text-muted py-4">
-                        Không có giao dịch nào.
+                        {t("transactions.table.empty")}
                       </td>
                     </tr>
                   ) : (
-                    paginated.map((t, i) => {
+                    paginated.map((tx, i) => {
                       const serial = (currentPage - 1) * PAGE_SIZE + i + 1;
-                      const d = toDateObj(t.date);
+                      const d = toDateObj(tx.date);
                       const dateStr = formatVietnamDate(d);
                       const timeStr = formatVietnamTime(d);
 
                       return (
-                        <tr key={t.id}>
+                        <tr key={tx.id}>
                           <td>{serial}</td>
                           <td>{dateStr}</td>
                           <td>{timeStr}</td>
-                          <td>{t.sourceWallet}</td>
-                          <td>{t.targetWallet}</td>
-                          <td className="tx-note-cell" title={t.note || "-"}>
-                            {t.note || "-"}
-                          </td>
+                          <td>{tx.sourceWallet}</td>
+                          <td>{tx.targetWallet}</td>
+                          <td className="tx-note-cell" title={tx.note || "-"}>{tx.note || "-"}</td>
                           <td className="text-end">
                             <span className="tx-amount-transfer">
                               {formatMoney(t.amount, t.currency)}
                             </span>
                           </td>
                           <td className="text-center">
-                            <button
-                              className="btn btn-link btn-sm text-muted me-1"
-                              title="Xem chi tiết"
-                              onClick={() => setViewing(t)}
-                            >
+                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.view")} onClick={() => setViewing(tx)}>
                               <i className="bi bi-eye" />
                             </button>
-                            <button
-                              className="btn btn-link btn-sm text-muted me-1"
-                              title="Chỉnh sửa"
-                              onClick={() => setEditing(t)}
-                            >
+                            <button className="btn btn-link btn-sm text-muted me-1" title={t("transactions.action.edit")} onClick={() => setEditing(tx)}>
                               <i className="bi bi-pencil-square" />
                             </button>
-                            <button
-                              className="btn btn-link btn-sm text-danger"
-                              title="Xóa"
-                              onClick={() => setConfirmDel(t)}
-                            >
+                            <button className="btn btn-link btn-sm text-danger" title={t("transactions.action.delete")} onClick={() => setConfirmDel(tx)}>
                               <i className="bi bi-trash" />
                             </button>
                           </td>
@@ -1474,12 +1398,12 @@ export default function TransactionsPage() {
 
       <ConfirmModal
         open={!!confirmDel}
-        title="Xóa giao dịch"
+        title={t("transactions.confirm.delete_title")}
         message={
-          confirmDel ? `Bạn chắc chắn muốn xóa giao dịch ${confirmDel.code}?` : ""
+          confirmDel ? t("transactions.confirm.delete_message").replace("{code}", confirmDel.code) : ""
         }
-        okText="Xóa"
-        cancelText="Hủy"
+        okText={t("transactions.confirm.delete_ok")}
+        cancelText={t("transactions.confirm.delete_cancel")}
         onOk={handleDelete}
         onClose={() => setConfirmDel(null)}
       />
@@ -1504,6 +1428,7 @@ export default function TransactionsPage() {
         duration={2200}
         onClose={() => setToast({ open: false, message: "", type: "success" })}
       />
+      </div>
     </div>
   );
 }

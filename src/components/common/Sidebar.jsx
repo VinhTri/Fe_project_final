@@ -1,17 +1,11 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import "../../../styles/home/Sidebar.css";
-
-const MENU = [
-  { to: "/home", label: "Tổng quan", icon: "bi-speedometer2", end: true },
-  { to: "/home/wallets", label: "Ví", icon: "bi-wallet2" }, // ✅ phải có dòng này
-  { to: "/home/budgets", label: "Ngân sách", icon: "bi-graph-up-arrow" },
-  { to: "/home/reports", label: "Báo cáo", icon: "bi-graph-up-arrow" },
-  { to: "/home/accounts", label: "Tài khoản", icon: "bi-credit-card-2-front" },
- 
-];
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function HomeSidebar() {
+  const { t } = useLanguage();
+
   const [collapsed, setCollapsed] = useState(
     localStorage.getItem("sb_collapsed") === "1"
   );
@@ -35,7 +29,15 @@ export default function HomeSidebar() {
 
       {/* Menu chính */}
       <nav className="sb__nav">
-        {MENU.map((m) => (
+        {[
+          { to: "/home", labelKey: "sidebar.overview", icon: "bi-speedometer2", end: true },
+          { to: "/home/wallets", labelKey: "sidebar.wallets", icon: "bi-wallet2" },
+          { to: "/home/budgets", labelKey: "sidebar.budgets", icon: "bi-graph-up-arrow" },
+          { to: "/home/reports", labelKey: "sidebar.reports", icon: "bi-graph-up-arrow" },
+          { to: "/home/accounts", labelKey: "sidebar.accounts", icon: "bi-credit-card-2-front" },
+          { to: "/home/funds", labelKey: "sidebar.funds", icon: "bi-wallet" },
+          { to: "/home/categories", labelKey: "sidebar.categories", icon: "bi-tags" },
+        ].map((m) => (
           <NavLink
             key={m.to}
             to={m.to}
@@ -43,12 +45,12 @@ export default function HomeSidebar() {
             className={({ isActive }) =>
               "sb__link" + (isActive ? " is-active" : "")
             }
-            title={collapsed ? m.label : undefined}
+            title={collapsed ? t(m.labelKey) : undefined}
           >
             <span className="sb__icon">
               <i className={`bi ${m.icon}`} />
             </span>
-            <span className="sb__text">{m.label}</span>
+            <span className="sb__text">{t(m.labelKey)}</span>
           </NavLink>
         ))}
       </nav>

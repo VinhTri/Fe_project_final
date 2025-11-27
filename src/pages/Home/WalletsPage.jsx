@@ -13,6 +13,7 @@ import { useWalletData } from "../../home/store/WalletDataContext";
 import { useCategoryData } from "../../home/store/CategoryDataContext";
 import { transactionAPI, walletAPI, fundAPI } from "../../services/api-client";
 import Toast from "../../components/common/Toast/Toast";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 import "../../styles/home/WalletsPage.css";
 
@@ -231,6 +232,7 @@ const getVietnamDateTime = () => {
 };
 
 export default function WalletsPage() {
+  const { t } = useLanguage();
   const {
     wallets = [],
     createWallet,
@@ -547,18 +549,18 @@ export default function WalletsPage() {
     async (rawEmail) => {
       const email = rawEmail?.trim();
       if (!email) {
-        const message = "Vui lòng nhập email hợp lệ.";
+        const message = t('wallets.error.email_invalid');
         showToast(message, "error");
         return { success: false, message };
       }
       if (!selectedWallet?.id) {
-        const message = "Vui lòng chọn ví trước khi chia sẻ.";
+        const message = t('wallets.error.select_wallet_first');
         showToast(message, "error");
         return { success: false, message };
       }
       const normalized = email.toLowerCase();
       if (selectedWalletEmailSet.has(normalized)) {
-        const message = "Email này đã nằm trong danh sách chia sẻ.";
+        const message = t('wallets.error.email_already_shared');
         showToast(message, "error");
         return { success: false, message };
       }
@@ -572,11 +574,11 @@ export default function WalletsPage() {
           if (list.includes(email)) return prev;
           return { ...prev, sharedEmails: [...list, email] };
         });
-        showToast(`Đã chia sẻ ví cho ${email}`);
+        showToast(`${t('wallets.share_success')} ${email}`);
         await loadWallets();
         return { success: true };
       } catch (error) {
-        const message = error.message || "Không thể chia sẻ ví";
+        const message = error.message || t('wallets.toast.create_error');
         showToast(message, "error");
         return { success: false, message };
       } finally {
@@ -941,7 +943,7 @@ export default function WalletsPage() {
       const created = await createWallet(payload);
 
       if (!created?.id) {
-        throw new Error("Không nhận được thông tin ví vừa tạo");
+        throw new Error(t('wallets.error.no_created_info'));
       }
 
       let shareResult = { success: 0, failed: [] };
@@ -956,27 +958,27 @@ export default function WalletsPage() {
       if (shareEmails.length) {
         if (hasSuccessfulShare && !hasFailedShare) {
           showToast(
-            `Đã tạo và chia sẻ ví "${
+            `${t('wallets.toast.created_personal')} "${
               created.name || createForm.name
-            }" cho ${shareResult.success} người`
+            }" ${t('wallets.toast.shared_count_suffix', { count: shareResult.success })}`
           );
         } else if (hasSuccessfulShare && hasFailedShare) {
           const failedEmails = shareResult.failed
             .map((item) => item.email)
             .join(", ");
           showToast(
-            `Đã tạo ví nhưng không thể chia sẻ cho: ${failedEmails}`,
-            "error"
-          );
+              `${t('wallets.toast.created_personal')} ${t('wallets.toast.share_failed_for')}: ${failedEmails}`,
+              "error"
+            );
         } else {
           const failedEmails = shareEmails.join(", ");
           showToast(
-            `Không thể chia sẻ ví cho: ${failedEmails}`,
-            "error"
-          );
+              `${t('wallets.toast.share_failed_for')}: ${failedEmails}`,
+              "error"
+            );
         }
       } else {
-        showToast(`Đã tạo ví cá nhân "${created.name || createForm.name}"`);
+        showToast(`${t('wallets.toast.created_personal')} "${created.name || createForm.name}"`);
       }
 
       setSelectedId(created.id);
@@ -988,7 +990,7 @@ export default function WalletsPage() {
       setCreateShareEnabled(false);
       setShowCreate(false);
     } catch (error) {
-      showToast(error.message || "Không thể tạo ví", "error");
+      showToast(error.message || t('wallets.toast.create_error'), "error");
     }
   };
 
@@ -1040,7 +1042,7 @@ export default function WalletsPage() {
       
       showToast("Cập nhật ví thành công");
     } catch (error) {
-      showToast(error.message || "Không thể cập nhật ví", "error");
+      showToast(error.message || t('wallets.toast.update_error'), "error");
     }
   };
 
@@ -1050,13 +1052,13 @@ export default function WalletsPage() {
       const wallet = wallets.find((w) => Number(w.id) === Number(walletId));
       const walletName = wallet?.name || "ví";
       await deleteWallet(walletId);
-      showToast(`Đã xóa ví "${walletName}"`);
+      showToast(`${t('wallets.toast.deleted')} "${walletName}"`);
       if (String(walletId) === String(selectedId)) {
         setSelectedId(null);
         setActiveDetailTab("view");
       }
     } catch (error) {
-      showToast(error.message || "Lỗi kết nối máy chủ", "error");
+      showToast(error.message || t('common.error'), "error");
     }
   };
 
@@ -1079,9 +1081,7 @@ export default function WalletsPage() {
       if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
-        showToast(
-          "Nạp tiền thành công. Giao dịch đã được lưu vào lịch sử."
-        );
+        showToast(t('wallets.toast.topup_success'));
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -1110,12 +1110,10 @@ export default function WalletsPage() {
         withdrawNote || "",
         null
       );
-      if (response?.transaction) {
+        if (response?.transaction) {
         await loadWallets();
         refreshTransactions();
-        showToast(
-          "Rút tiền thành công. Giao dịch đã được lưu vào lịch sử."
-        );
+        showToast(t('wallets.toast.withdraw_success'));
       } else {
         throw new Error(response?.error || "Không thể tạo giao dịch");
       }
@@ -1145,9 +1143,9 @@ export default function WalletsPage() {
       });
       await loadWallets();
       refreshTransactions();
-      showToast("Chuyển tiền thành công");
+      showToast(t('wallets.toast.transfer_success'));
     } catch (error) {
-      showToast(error.message || "Không thể chuyển tiền", "error");
+      showToast(error.message || t('wallets.toast.create_error'), "error");
     } finally {
       setTransferTargetId("");
       setTransferAmount("");
@@ -1199,7 +1197,7 @@ export default function WalletsPage() {
       await loadWallets();
       refreshTransactions();
 
-      showToast("Đã gộp ví thành công");
+      showToast(t('wallets.toast.merged'));
       setSelectedId(targetId);
       setActiveDetailTab("view");
     } catch (error) {
@@ -1225,7 +1223,7 @@ export default function WalletsPage() {
       }
 
       await convertToGroup(selectedWallet.id);
-      showToast("Chuyển đổi ví thành nhóm thành công");
+      showToast(t('wallets.toast.converted'));
       setSelectedId(null);
       setActiveTab("group");
       setActiveDetailTab("view");
@@ -1357,10 +1355,8 @@ export default function WalletsPage() {
           <i className="bi bi-wallet2" />
         </div>
         <div>
-          <h2 className="wallet-header-title">Quản lý ví</h2>
-          <p className="wallet-header-subtitle">
-            Tạo ví cá nhân, nạp – rút – chuyển, gộp và chia sẻ… tất cả trên một màn hình.
-          </p>
+          <h2 className="wallet-header-title">{t('wallets.title')}</h2>
+          <p className="wallet-header-subtitle">{t('wallets.header_subtitle')}</p>
         </div>
       </div>
 
@@ -1369,7 +1365,7 @@ export default function WalletsPage() {
         onClick={() => setShowCreate((v) => !v)}
       >
         <i className="bi bi-plus-lg" />
-        <span>{showCreate ? "Đóng tạo ví" : "Tạo ví cá nhân"}</span>
+        <span>{showCreate ? t('wallets.modal.cancel') : t('wallets.create_new')}</span>
       </button>
     </div>
     
@@ -1378,19 +1374,19 @@ export default function WalletsPage() {
       {/* STATS */}
       <div className="wallets-page__stats">
         <div className="wallets-stat">
-          <span className="wallets-stat__label">Tổng số dư</span>
+          <span className="wallets-stat__label">{t('wallets.total_balance')}</span>
           <span className="wallets-stat__value">
             {formatMoney(totalBalance, displayCurrency || "VND")}
           </span>
         </div>
         <div className="wallets-stat">
-          <span className="wallets-stat__label">Ví cá nhân</span>
+          <span className="wallets-stat__label">{t('wallets.tab.personal')}</span>
           <span className="wallets-stat__value">
             {personalWallets.length}
           </span>
         </div>
         <div className="wallets-stat">
-          <span className="wallets-stat__label">Ví nhóm</span>
+          <span className="wallets-stat__label">{t('wallets.tab.group')}</span>
           <span className="wallets-stat__value">
             {groupWallets.length}
           </span>
@@ -1506,18 +1502,13 @@ export default function WalletsPage() {
       {demoNavigationState.visible && (
         <div className="wallets-demo-overlay">
           <div className="wallets-demo-overlay__box">
-            <p className="wallets-demo-overlay__title">
-              Đang điều hướng đến trang…
-            </p>
+            <p className="wallets-demo-overlay__title">{t('wallets.demo_navigating_title')}</p>
             {demoNavigationState.walletName && (
               <p className="wallets-demo-overlay__wallet">
                 {demoNavigationState.walletName}
               </p>
             )}
-            <span className="wallets-demo-overlay__hint">
-              Đây là bản demo, chức năng sẽ được hoàn thiện trong bản chính
-              thức.
-            </span>
+            <span className="wallets-demo-overlay__hint">{t('wallets.demo_hint')}</span>
           </div>
         </div>
       )}

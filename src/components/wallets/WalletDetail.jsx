@@ -3,6 +3,7 @@ import { useCurrency } from "../../hooks/useCurrency";
 import ConfirmModal from "../common/Modal/ConfirmModal";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import { walletAPI } from "../../services/api-client";
+import { useLanguage } from "../../home/store/LanguageContext";
 
 export default function WalletDetail(props) {
   const {
@@ -114,6 +115,7 @@ export default function WalletDetail(props) {
   }, [wallet?.sharedEmails, sharedEmailsOverride]);
   const balance = Number(wallet?.balance ?? wallet?.current ?? 0) || 0;
   const { currency, formatCurrency } = useCurrency();
+  const { t } = useLanguage();
 
   const [sharedMembers, setSharedMembers] = useState([]);
   const [sharedMembersLoading, setSharedMembersLoading] = useState(false);
@@ -211,8 +213,8 @@ export default function WalletDetail(props) {
       <div className="wallets-detail-panel">
         <div className="wallets-section wallets-section--inline">
           <div className="wallets-section__header">
-            <h3>Tạo ví cá nhân</h3>
-            <span>Nhập thông tin để tạo ví</span>
+            <h3>{t("wallets.create_new")}</h3>
+            <span>{t("wallets.create_desc") || "Nhập thông tin để tạo ví"}</span>
           </div>
           <form
             className="wallet-form"
@@ -357,10 +359,8 @@ export default function WalletDetail(props) {
       return (
         <div className="wallets-detail-panel wallets-detail-panel--shared-with-me">
           <div className="wallets-shared-detail__header">
-            <h2>Ví được chia sẻ cho bạn</h2>
-            <p>
-              Chọn một người chia sẻ ở danh sách bên trái để xem các ví mà họ đã cấp quyền sử dụng.
-            </p>
+            <h2>{t("wallets.tab.shared")}</h2>
+            <p>{t("wallets.inspector.select_hint")}</p>
           </div>
 
           {!hasOwners ? (
@@ -476,27 +476,23 @@ export default function WalletDetail(props) {
           {isGroupTab ? (
             <>
               <h2 className="wallets-detail-empty__title">
-                Chưa có ví nhóm nào
+                {t("wallets.tab.group")}
               </h2>
               <p className="wallets-detail-empty__text">
-                Bạn chưa có ví nhóm trong mục này.
-              </p>
-              <p className="wallets-detail-empty__hint">
-                Hãy tạo ví nhóm mới để bắt đầu quản lý chi tiêu chung với mọi
-                người.
+                {t("wallets.empty.group_desc") || "Bạn chưa có ví nhóm trong mục này."}
               </p>
             </>
           ) : (
             <>
               <h2 className="wallets-detail-empty__title">
-                Chưa có ví nào được chọn
+                {t("wallets.inspector.no_wallet_selected")}
               </h2>
               <p className="wallets-detail-empty__text">
-                Vui lòng chọn một ví ở danh sách bên trái để xem chi tiết.
+                {t("wallets.inspector.select_hint")}
               </p>
               <p className="wallets-detail-empty__hint">
-                Hoặc dùng nút <strong>“Tạo ví cá nhân”</strong> ở góc trên bên
-                phải để tạo ví mới.
+                {t("wallets.create_hint") ||
+                  "Hoặc dùng nút “Tạo ví cá nhân” ở góc trên bên phải để tạo ví mới."}
               </p>
             </>
           )}
@@ -510,23 +506,23 @@ export default function WalletDetail(props) {
     <div className="wallets-detail-panel">
       {/* HEADER */}
       <div className="wallets-detail__header">
-        <div>
+          <div>
           <h2 className="wallets-detail__name">
-            {wallet.name || "Chưa đặt tên"}
+            {wallet.name || t("wallets.unnamed") || "Chưa đặt tên"}
           </h2>
           <div className="wallets-detail__tags">
             <span className="wallet-tag">
-              {wallet.isShared ? "Ví nhóm" : "Ví cá nhân"}
+              {wallet.isShared ? t("wallets.group_wallet") : t("wallets.personal_wallet")}
             </span>
             {!wallet.isShared && wallet.isDefault && (
               <span className="wallet-tag wallet-tag--outline">
-                Ví mặc định
+                {t("wallets.card.default")}
               </span>
             )}
           </div>
         </div>
         <div className="wallets-detail__balance">
-          <div className="wallets-detail__balance-label">Số dư</div>
+          <div className="wallets-detail__balance-label">{t("wallets.card.balance")}</div>
           <div className="wallets-detail__balance-value">
             {formatCurrency(balance)}
           </div>
@@ -543,7 +539,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("view")}
         >
-          Xem chi tiết
+          {t("wallets.inspector.tab.details")}
         </button>
         <button
           className={
@@ -553,7 +549,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("topup")}
         >
-          Nạp ví
+          {t("wallets.inspector.tab.topup") || "Nạp ví"}
         </button>
         <button
           className={
@@ -563,7 +559,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("withdraw")}
         >
-          Rút ví
+          {t("wallets.inspector.tab.withdraw")}
         </button>
         <button
           className={
@@ -573,7 +569,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("transfer")}
         >
-          Chuyển tiền
+          {t("wallets.inspector.tab.transfer")}
         </button>
         <button
           className={
@@ -583,7 +579,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("edit")}
         >
-          Sửa ví
+          {t("wallets.inspector.tab.edit") || "Sửa ví"}
         </button>
         <button
           className={
@@ -593,7 +589,7 @@ export default function WalletDetail(props) {
           }
           onClick={() => setActiveDetailTab("merge")}
         >
-          Gộp ví
+          {t("wallets.inspector.tab.merge")}
         </button>
 
         {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}

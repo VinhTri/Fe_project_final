@@ -14,6 +14,7 @@ import { AuthProvider } from "./home/store/AuthContext";
 import { ToastProvider } from "./components/common/Toast/ToastContext";
 import { FeedbackProvider } from "./home/store/FeedbackDataContext";
 import { NotificationProvider } from "./home/store/NotificationContext";   // ⬅️ Quan trọng
+import { LanguageProvider } from "./home/store/LanguageContext";
 
 // Global error handlers
 window.addEventListener("unhandledrejection", (event) => {
@@ -28,15 +29,17 @@ createRoot(document.getElementById("root")).render(
     <AuthProvider>
       <ToastProvider>
         <NotificationProvider>          {/* ⬅️ THÊM VÀO ĐÂY */}
-          <FeedbackProvider>
-            <CategoryDataProvider>
-              <WalletDataProvider>
-                <BudgetDataProvider>
-                  <App />
-                </BudgetDataProvider>
-              </WalletDataProvider>
-            </CategoryDataProvider>
-          </FeedbackProvider>
+          <LanguageProvider>
+            <FeedbackProvider>
+              <CategoryDataProvider>
+                <WalletDataProvider>
+                  <BudgetDataProvider>
+                    <App />
+                  </BudgetDataProvider>
+                </WalletDataProvider>
+              </CategoryDataProvider>
+            </FeedbackProvider>
+          </LanguageProvider>
         </NotificationProvider>
       </ToastProvider>
     </AuthProvider>
