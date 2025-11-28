@@ -9,13 +9,16 @@ import React, {
 import { useLocation } from "react-router-dom";
 import WalletList from "../../components/wallets/WalletList";
 import WalletDetail from "../../components/wallets/WalletDetail";
-import { useWalletData } from "../../home/store/WalletDataContext";
-import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { useWalletData } from "../../contexts/WalletDataContext";
+import { useCategoryData } from "../../contexts/CategoryDataContext";
 import { transactionAPI, walletAPI } from "../../services/api-client";
 import Toast from "../../components/common/Toast/Toast";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
+import { formatMoney } from "../../utils/formatMoney";
 
-import "../../styles/home/WalletsPage.css";
+import "../../styles/pages/WalletsPage.css";
+import "../../styles/components/wallets/WalletList.css";
+import "../../styles/components/wallets/WalletHeader.css";
 
 const CURRENCIES = ["VND", "USD"];
 
@@ -807,40 +810,6 @@ export default function WalletsPage() {
     });
   }, [wallets]);
 
-  // Format số tiền
-  const formatMoney = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    if (currency === "USD") {
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 8,
-        });
-        return `$${formatted}`;
-      }
-      const formatted =
-        numAmount % 1 === 0
-          ? numAmount.toLocaleString("en-US")
-          : numAmount.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 8,
-            });
-      return `$${formatted}`;
-    }
-    if (currency === "VND") {
-      return `${numAmount.toLocaleString("vi-VN")} VND`;
-    }
-    if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-      return `${numAmount.toLocaleString("vi-VN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 8,
-      })} ${currency}`;
-    }
-    return `${numAmount.toLocaleString("vi-VN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 8,
-    })} ${currency}`;
-  };
 
   // Tổng số dư: chuyển đổi tất cả về VND, sau đó quy đổi sang displayCurrency
   const totalBalance = useMemo(
@@ -1330,7 +1299,8 @@ export default function WalletsPage() {
   };
 
   return (
-  <div className="wallets-page">
+  <div className="wallets-page tx-page container-fluid py-4">
+    <div className="tx-page-inner">
     {/* HEADER RIÊNG CỦA VÍ */}
     <div className="wallet-header mb-3">
       <div className="wallet-header-left">
@@ -1495,6 +1465,7 @@ export default function WalletsPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

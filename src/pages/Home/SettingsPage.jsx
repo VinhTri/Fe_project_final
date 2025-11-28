@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile, changePassword } from "../../services/profile.service";
-import "../../styles/home/SettingsPage.css";
-import { useLanguage } from "../../home/store/LanguageContext";
+import "../../styles/pages/SettingsPage.css";
+import { useLanguage } from "../../contexts/LanguageContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
 
 export default function SettingsPage() {
@@ -24,6 +24,9 @@ export default function SettingsPage() {
   // Move date format state to top-level to avoid hook rules error
   const [dateFormat, setDateFormat] = useState(() => localStorage.getItem("dateFormat") || "dd/MM/yyyy");
   const [dateSuccess, setDateSuccess] = useState("");
+  const [selectedTheme, setSelectedTheme] = useState(() => {
+    return localStorage.getItem("theme") || "light";
+  });
 
   const { t, changeLanguage, language } = useLanguage();
   const { showToast } = useToast();
@@ -40,7 +43,31 @@ export default function SettingsPage() {
   // Load profile khi component mount
   useEffect(() => {
     loadProfile();
+    // Load và áp dụng theme khi component mount
+    const savedTheme = localStorage.getItem("theme") || "light";
+    applyTheme(savedTheme);
   }, []);
+
+  // Hàm áp dụng theme
+  const applyTheme = (theme) => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.body.classList.add("dark");
+    } else if (theme === "light") {
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
+    } else if (theme === "system") {
+      // System: theo preference của OS
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (prefersDark) {
+        document.documentElement.classList.add("dark");
+        document.body.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.body.classList.remove("dark");
+      }
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -533,25 +560,98 @@ export default function SettingsPage() {
 
       case "theme":
 
+        const handleThemeChange = (theme) => {
+          setSelectedTheme(theme);
+          // Áp dụng theme ngay lập tức khi chọn
+          applyTheme(theme);
+        };
+
+        const handleSaveTheme = () => {
+          localStorage.setItem("theme", selectedTheme);
+          applyTheme(selectedTheme);
+          
+          showToast(t('common.success'), { 
+            type: 'success', 
+            anchorSelector: 'body', 
+            topbarSelector: '.no-topbar', 
+            offset: { top: 12, right: 16 } 
+          });
+        };
+
         return (
 <div className="settings-detail__body">
 <h4>{t('settings.theme')}</h4>
 <p className="settings-detail__desc">{t('settings.theme.desc')}</p>
-<div className="settings-radio-row">
-<label className="settings-radio">
-<input type="radio" name="theme" defaultChecked />
-<span>{t('settings.theme.opt.light')}</span>
-</label>
-<label className="settings-radio">
-<input type="radio" name="theme" />
-<span>{t('settings.theme.opt.dark')}</span>
-</label>
-<label className="settings-radio">
-<input type="radio" name="theme" />
-<span>{t('settings.theme.opt.system')}</span>
-</label>
+<div className="settings-theme-options">
+  <div 
+    className={`settings-theme-card ${selectedTheme === "light" ? "active" : ""}`}
+    onClick={() => handleThemeChange("light")}
+  >
+    <div className="settings-theme-card__icon">
+      <i className="bi bi-sun"></i>
+    </div>
+    <div className="settings-theme-card__content">
+      <h5>{t('settings.theme.opt.light')}</h5>
+      <p>Giao diện sáng, dễ nhìn</p>
+    </div>
+    <div className="settings-theme-card__radio">
+      <input 
+        type="radio" 
+        name="theme" 
+        value="light"
+        checked={selectedTheme === "light"}
+        onChange={() => handleThemeChange("light")}
+      />
+    </div>
+  </div>
+
+  <div 
+    className={`settings-theme-card ${selectedTheme === "dark" ? "active" : ""}`}
+    onClick={() => handleThemeChange("dark")}
+  >
+    <div className="settings-theme-card__icon">
+      <i className="bi bi-moon-stars"></i>
+    </div>
+    <div className="settings-theme-card__content">
+      <h5>{t('settings.theme.opt.dark')}</h5>
+      <p>Giao diện tối, tiết kiệm pin</p>
+    </div>
+    <div className="settings-theme-card__radio">
+      <input 
+        type="radio" 
+        name="theme" 
+        value="dark"
+        checked={selectedTheme === "dark"}
+        onChange={() => handleThemeChange("dark")}
+      />
+    </div>
+  </div>
+
+  <div 
+    className={`settings-theme-card ${selectedTheme === "system" ? "active" : ""}`}
+    onClick={() => handleThemeChange("system")}
+  >
+    <div className="settings-theme-card__icon">
+      <i className="bi bi-circle-half"></i>
+    </div>
+    <div className="settings-theme-card__content">
+      <h5>{t('settings.theme.opt.system')}</h5>
+      <p>Theo cài đặt hệ thống</p>
+    </div>
+    <div className="settings-theme-card__radio">
+      <input 
+        type="radio" 
+        name="theme" 
+        value="system"
+        checked={selectedTheme === "system"}
+        onChange={() => handleThemeChange("system")}
+      />
+    </div>
+  </div>
 </div>
-<button className="settings-btn settings-btn--primary" onClick={() => showToast(t('common.success'), { type: 'success', anchorSelector: 'body', topbarSelector: '.no-topbar', offset: { top: 12, right: 16 } })}>{t('common.save')}</button>
+<button className="settings-btn settings-btn--primary" onClick={handleSaveTheme}>
+  {t('common.save')}
+</button>
 </div>
 
         );
@@ -601,7 +701,8 @@ export default function SettingsPage() {
   ];
 
   return (
-<div className="settings-page">
+<div className="settings-page tx-page container-fluid py-4">
+  <div className="tx-page-inner">
 <h1 className="settings-title">{t('settings.title')}</h1>
 <p className="settings-subtitle">{t('settings.subtitle')}</p>
 
@@ -688,6 +789,7 @@ export default function SettingsPage() {
 </div>
 </div>
 </div>
+  </div>
 
   );
 

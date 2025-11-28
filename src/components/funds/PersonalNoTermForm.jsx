@@ -3,6 +3,8 @@ import React, { useMemo, useState } from "react";
 import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
+import { formatMoney } from "../../utils/formatMoney";
+import "../../styles/components/funds/FundForms.css";
 
 export default function PersonalNoTermForm({ wallets }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
@@ -12,10 +14,10 @@ export default function PersonalNoTermForm({ wallets }) {
   );
 
   const currentBalance = Number(selectedWallet?.balance || 0);
-  const currency = selectedWallet?.currency || "";
+  const currency = selectedWallet?.currency || "VND";
 
   const currentBalanceText = selectedWallet
-    ? `${currentBalance.toLocaleString("vi-VN")} ${currency}`
+    ? formatMoney(currentBalance, currency)
     : "";
 
   const [reminderOn, setReminderOn] = useState(false);

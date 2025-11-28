@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from "react";
 import Modal from "../common/Modal/Modal";
 
+// Danh sách 40 icon đẹp cho category
+const CATEGORY_ICONS = [
+  "bi-cash-coin", "bi-wallet2", "bi-credit-card", "bi-piggy-bank",
+  "bi-graph-up-arrow", "bi-graph-down-arrow", "bi-cart", "bi-bag",
+  "bi-cup-hot", "bi-egg-fried", "bi-basket", "bi-shop",
+  "bi-house", "bi-building", "bi-car-front", "bi-bus-front",
+  "bi-airplane", "bi-train-front", "bi-bicycle", "bi-fuel-pump",
+  "bi-hospital", "bi-heart-pulse", "bi-capsule", "bi-clipboard-pulse",
+  "bi-book", "bi-mortarboard", "bi-laptop", "bi-phone",
+  "bi-tv", "bi-camera", "bi-headphones", "bi-controller",
+  "bi-gift", "bi-balloon", "bi-flower1", "bi-tree",
+  "bi-droplet", "bi-lightning", "bi-wifi", "bi-gear",
+  "bi-star", "bi-heart", "bi-trophy", "bi-award"
+];
+
 export default function CategoryFormModal({
   open,
   mode = "create", // "create" | "edit"
@@ -10,9 +25,11 @@ export default function CategoryFormModal({
   onClose,
   isAdmin,
 }) {
-  // initialValue: string (name) hoặc object { name, description, isSystem }
+  // initialValue: string (name) hoặc object { name, description, isSystem, icon }
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState("bi-tags");
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const [error, setError] = useState("");
 
   // trạng thái "danh mục hệ thống"
@@ -25,12 +42,15 @@ export default function CategoryFormModal({
     if (initialValue && typeof initialValue === "object") {
       setName(initialValue.name || "");
       setDescription(initialValue.description || "");
+      setSelectedIcon(initialValue.icon || "bi-tags");
       setIsSystemState(!!initialValue.isSystem);
     } else {
       setName(typeof initialValue === "string" ? initialValue : "");
       setDescription("");
+      setSelectedIcon("bi-tags");
       setIsSystemState(false);
     }
+    setShowIconPicker(false);
     setError("");
   }, [open, initialValue]);
 
@@ -52,6 +72,7 @@ export default function CategoryFormModal({
       onSubmit({
         name: trimmed,
         description: (description || "").trim(),
+        icon: selectedIcon,
         // Admin được phép bật/tắt, user thường luôn false
         isSystem: isAdmin ? isSystemState : false,
       });
@@ -123,6 +144,64 @@ export default function CategoryFormModal({
             border-radius: 999px;
             padding-inline: 18px;
           }
+
+          .category-icon-picker {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f9fafb;
+          }
+
+          .category-icon-item {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 1.2rem;
+            color: #2d99ae;
+          }
+
+          .category-icon-item:hover {
+            border-color: #2d99ae;
+            background: rgba(45, 153, 174, 0.1);
+            transform: scale(1.1);
+          }
+
+          .category-icon-item.selected {
+            border-color: #2d99ae;
+            background: rgba(45, 153, 174, 0.15);
+            box-shadow: 0 2px 8px rgba(45, 153, 174, 0.2);
+          }
+
+          .category-icon-preview {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(45, 153, 174, 0.1);
+            font-size: 1.5rem;
+            color: #2d99ae;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+
+          .category-icon-preview:hover {
+            background: rgba(45, 153, 174, 0.2);
+            transform: scale(1.05);
+          }
         `}</style>
 
         <div className="category-modal">
@@ -152,6 +231,52 @@ export default function CategoryFormModal({
           <form onSubmit={handleSubmit}>
             {/* BODY */}
             <div className="modal-body" style={{ padding: "12px 22px 8px" }}>
+              {/* Icon Picker */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold">
+                  Icon <span className="text-muted small">(tùy chọn)</span>
+                </label>
+                <div className="d-flex align-items-center gap-3">
+                  <div 
+                    className="category-icon-preview"
+                    onClick={() => setShowIconPicker(!showIconPicker)}
+                    title="Chọn icon"
+                  >
+                    <i className={`bi ${selectedIcon}`} />
+                  </div>
+                  <div className="flex-grow-1">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => setShowIconPicker(!showIconPicker)}
+                    >
+                      {showIconPicker ? "Ẩn icon" : "Chọn icon"}
+                    </button>
+                  </div>
+                </div>
+                {showIconPicker && (
+                  <div className="mt-2">
+                    <div className="category-icon-picker">
+                      {CATEGORY_ICONS.map((icon) => (
+                        <div
+                          key={icon}
+                          className={`category-icon-item ${
+                            selectedIcon === icon ? "selected" : ""
+                          }`}
+                          onClick={() => {
+                            setSelectedIcon(icon);
+                            setShowIconPicker(false);
+                          }}
+                          title={icon.replace("bi-", "")}
+                        >
+                          <i className={`bi ${icon}`} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="mb-3">
                 <label className="form-label fw-semibold">
                   Tên danh mục <span className="text-danger">*</span>

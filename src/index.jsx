@@ -4,17 +4,18 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
-import "./styles/variables.css";
+import "./styles/base/variables.css";
+import "./styles/base/dark-mode.css";
 
 // Providers
-import { WalletDataProvider } from "./home/store/WalletDataContext";
-import { BudgetDataProvider } from "./home/store/BudgetDataContext";
-import { CategoryDataProvider } from "./home/store/CategoryDataContext";
-import { AuthProvider } from "./home/store/AuthContext";
+import { WalletDataProvider } from "./contexts/WalletDataContext";
+import { BudgetDataProvider } from "./contexts/BudgetDataContext";
+import { CategoryDataProvider } from "./contexts/CategoryDataContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./components/common/Toast/ToastContext";
-import { FeedbackProvider } from "./home/store/FeedbackDataContext";
-import { NotificationProvider } from "./home/store/NotificationContext";   // ⬅️ Quan trọng
-import { LanguageProvider } from "./home/store/LanguageContext";
+import { FeedbackProvider } from "./contexts/FeedbackDataContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 
 // Global error handlers
 window.addEventListener("unhandledrejection", (event) => {

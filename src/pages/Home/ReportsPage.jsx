@@ -3,10 +3,10 @@ import { useCurrency } from "../../hooks/useCurrency";
 import { useDateFormat } from "../../hooks/useDateFormat";
 
 import { useNavigate } from "react-router-dom";
-import "../../styles/home/ReportsPage.css";
-import { useWalletData } from "../../home/store/WalletDataContext";
+import "../../styles/pages/ReportsPage.css";
+import { useWalletData } from "../../contexts/WalletDataContext";
 import { transactionAPI } from "../../services/api-client";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 const RANGE_OPTIONS = [
   { value: "week", label: "Tuần" },

@@ -1,5 +1,7 @@
 // src/components/funds/FundCard.jsx
 import React from "react";
+import { formatMoney } from "../../utils/formatMoney";
+import "../../styles/components/funds/FundCard.css";
 
 export default function FundCard({ fund, onClick }) {
   const { name, current, target, currency } = fund;
@@ -10,11 +12,11 @@ export default function FundCard({ fund, onClick }) {
       <div className="fund-card__top">
         <div className="fund-card__title">{name}</div>
         <div className="fund-card__amount">
-          {current.toLocaleString("vi-VN")} {currency}
+          {formatMoney(current, currency || "VND")}
           {target && (
             <span className="fund-card__target">
               {" "}
-              / {target.toLocaleString("vi-VN")} {currency}
+              / {formatMoney(target, currency || "VND")}
             </span>
           )}
         </div>

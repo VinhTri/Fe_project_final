@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import "../../../styles/home/Sidebar.css";
-import { useAuth, ROLES } from "../../../home/store/AuthContext";
-import { useLanguage } from "../../../home/store/LanguageContext";
+import "../../../styles/pages/Sidebar.css";
+import { useAuth, ROLES } from "../../../contexts/AuthContext";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 // Use translation keys; labels resolved at render time
 const BASE_MENU = [

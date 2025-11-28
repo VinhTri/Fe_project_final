@@ -11,7 +11,7 @@ import { login, loginWithGoogle } from "../../services/auth.service";
 import { getProfile } from "../../services/profile.service";
 
 // AUTH CONTEXT
-import { useAuth } from "../../home/store/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 // 🔥 CLIENT_ID phải TRÙNG với BE (spring.security.oauth2.client.registration.google.client-id)
 const GOOGLE_CLIENT_ID =

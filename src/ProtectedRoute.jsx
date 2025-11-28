@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useAuth } from "./home/store/AuthContext";
+import { useAuth } from "./contexts/AuthContext";
 import { getProfile } from "./services/profile.service";
 
 export default function ProtectedRoute({ requiredRoles }) {

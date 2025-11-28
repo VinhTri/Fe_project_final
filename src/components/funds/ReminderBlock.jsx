@@ -1,5 +1,6 @@
 // src/components/funds/ReminderBlock.jsx
 import React, { useState } from "react";
+import "../../styles/components/funds/FundForms.css";
 
 export default function ReminderBlock({ reminderOn, setReminderOn, freq = "day" }) {
   const [mode, setMode] = useState("follow"); // follow | custom

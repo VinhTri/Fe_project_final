@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 
 import { useLocation } from "react-router-dom";
-import "../../styles/home/TransactionsPage.css";
+import "../../styles/pages/TransactionsPage.css";
 import TransactionViewModal from "../../components/transactions/TransactionViewModal";
 import TransactionFormModal from "../../components/transactions/TransactionFormModal";
 import ScheduledTransactionModal from "../../components/transactions/ScheduledTransactionModal";
@@ -10,10 +10,10 @@ import ScheduledTransactionDrawer from "../../components/transactions/ScheduledT
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
 import BudgetWarningModal from "../../components/budgets/BudgetWarningModal";
-import { useBudgetData } from "../../home/store/BudgetDataContext";
-import { useCategoryData } from "../../home/store/CategoryDataContext";
-import { useWalletData } from "../../home/store/WalletDataContext";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
+import { useCategoryData } from "../../contexts/CategoryDataContext";
+import { useWalletData } from "../../contexts/WalletDataContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 import { transactionAPI, walletAPI } from "../../services/api-client";
 
 // ===== REMOVED MOCK DATA - Now using API =====

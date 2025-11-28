@@ -1,5 +1,6 @@
 import React from "react";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
+import "../../styles/components/wallets/WalletList.css";
 
 const formatWalletBalance = (amount = 0, currency = "VND") => {
   const numAmount = Number(amount) || 0;

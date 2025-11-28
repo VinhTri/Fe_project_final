@@ -1,76 +1,11 @@
 // src/components/transactions/TransactionFormModal.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useCategoryData } from "../../home/store/CategoryDataContext";
-import { useWalletData } from "../../home/store/WalletDataContext";
+import { useCategoryData } from "../../contexts/CategoryDataContext";
+import { useWalletData } from "../../contexts/WalletDataContext";
 import { formatMoneyInput, handleMoneyInputChange, getMoneyValue } from "../../utils/formatMoneyInput";
-import { useLanguage } from "../../home/store/LanguageContext";
-
-/* ================== HELPER FUNCTIONS ================== */
-/**
- * Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
- * Format: YYYY-MM-DDTHH:mm (cho datetime-local input)
- */
-function getVietnamDateTime() {
-  const now = new Date();
-  
-  // Dùng toLocaleString với timezone Việt Nam để lấy đúng giờ VN
-  const vnDateStr = now.toLocaleString('en-US', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-  
-  // Parse: "11/17/2025, 21:16" -> "2025-11-17T21:16"
-  const parts = vnDateStr.split(', ');
-  const datePart = parts[0].split('/'); // ["11", "17", "2025"]
-  const timePart = parts[1]; // "21:16"
-  
-  const year = datePart[2];
-  const month = datePart[0].padStart(2, '0');
-  const day = datePart[1].padStart(2, '0');
-  
-  return `${year}-${month}-${day}T${timePart}`;
-}
-
-/**
- * Convert một Date string/object sang múi giờ Việt Nam
- * Format: YYYY-MM-DDTHH:mm
- */
-function convertToVietnamDateTime(dateInput) {
-  if (!dateInput) return "";
-  
-  const d = new Date(dateInput);
-  if (Number.isNaN(d.getTime())) return "";
-  
-  // Dùng toLocaleString với timezone Việt Nam
-  const vnDateStr = d.toLocaleString('en-US', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-  
-  // Parse: "11/17/2025, 21:16" -> "2025-11-17T21:16"
-  const parts = vnDateStr.split(', ');
-  if (parts.length !== 2) return "";
-  
-  const datePart = parts[0].split('/'); // ["11", "17", "2025"]
-  const timePart = parts[1]; // "21:16"
-  
-  const year = datePart[2];
-  const month = datePart[0].padStart(2, '0');
-  const day = datePart[1].padStart(2, '0');
-  
-  return `${year}-${month}-${day}T${timePart}`;
-}
+import { useLanguage } from "../../contexts/LanguageContext";
+import { getVietnamDateTime, convertToVietnamDateTime, formatMoney } from "./utils/transactionUtils";
 
 /* ================== CẤU HÌNH MẶC ĐỊNH ================== */
 const EMPTY_FORM = {
@@ -339,41 +274,6 @@ export default function TransactionFormModal({
     ? showTransferAmountError 
     : showExpenseAmountError;
 
-  // Helper function để format số tiền
-  const formatMoney = (amount = 0, currency = "VND") => {
-    const numAmount = Number(amount) || 0;
-    
-    // Custom format cho USD: hiển thị $ ở trước
-    // Sử dụng tối đa 8 chữ số thập phân để hiển thị chính xác số tiền nhỏ
-    if (currency === "USD") {
-      // Nếu số tiền rất nhỏ (< 0.01), hiển thị nhiều chữ số thập phân hơn
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        const formatted = numAmount.toLocaleString("en-US", { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 8 
-        });
-        return `$${formatted}`;
-      }
-      const formatted = numAmount % 1 === 0 
-        ? numAmount.toLocaleString("en-US")
-        : numAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-      return `$${formatted}`;
-    }
-    
-    // Format cho VND và các currency khác
-    try {
-      if (currency === "VND") {
-        return `${numAmount.toLocaleString("vi-VN")} VND`;
-      }
-      // Với các currency khác, cũng hiển thị tối đa 8 chữ số thập phân để chính xác
-      if (Math.abs(numAmount) < 0.01 && numAmount !== 0) {
-        return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-      }
-      return `${numAmount.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${currency}`;
-    } catch {
-      return `${numAmount.toLocaleString("vi-VN")} ${currency}`;
-    }
-  };
 
   // Keep form.category in sync when type changes or categories update
   useEffect(() => {

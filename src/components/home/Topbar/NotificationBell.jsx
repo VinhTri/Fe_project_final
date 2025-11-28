@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NotificationList from "./NotificationList";
-import { useNotifications } from "../../../home/store/NotificationContext";
+import { useNotifications } from "../../../contexts/NotificationContext";
 import useOnClickOutside from "../../../hooks/useOnClickOutside";
 
 export default function NotificationBell({ role = "user" }) {

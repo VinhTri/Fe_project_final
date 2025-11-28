@@ -1,8 +1,12 @@
 // src/pages/Home/FundsPage.jsx
 import React, { useMemo, useState } from "react";
-import { useLanguage } from "../../home/store/LanguageContext";
-import { useWalletData } from "../../home/store/WalletDataContext";
-import "../../styles/home/FundsPage.css";
+import { useLanguage } from "../../contexts/LanguageContext";
+import { useWalletData } from "../../contexts/WalletDataContext";
+import "../../styles/pages/FundsPage.css";
+import "../../styles/components/funds/FundCard.css";
+import "../../styles/components/funds/FundSection.css";
+import "../../styles/components/funds/FundDetail.css";
+import "../../styles/components/funds/FundForms.css";
 
 // Components
 import FundSection from "../../components/funds/FundSection";
@@ -129,7 +133,8 @@ export default function FundsPage() {
   );
 
   return (
-    <div className="funds-page py-4">
+    <div className="funds-page tx-page container-fluid py-4">
+      <div className="tx-page-inner">
       {/* HEADER */}
       {/* HEADER QUỸ – CHUẨN LAYOUT GIỐNG VÍ */}
 <div className="funds-header-unique mb-3">
@@ -278,6 +283,7 @@ export default function FundsPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
