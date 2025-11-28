@@ -1,5 +1,6 @@
 // src/components/funds/WalletSourceField.jsx
 import React, { useMemo, useState } from "react";
+import "../../styles/components/funds/FundForms.css";
 
 export default function WalletSourceField({
   required,

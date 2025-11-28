@@ -2,7 +2,7 @@
 import { useLocation } from "react-router-dom";
 import "../../styles/Header.css";
 import GlobalSearch from "./GlobalSearch";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function Header() {
   const location = useLocation();

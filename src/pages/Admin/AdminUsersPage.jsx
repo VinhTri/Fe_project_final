@@ -1,7 +1,7 @@
 // src/pages/Admin/AdminUsersPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import "../../styles/admin/AdminUsersPage.css";
-import { ROLES, useAuth } from "../../home/store/AuthContext";
+import { ROLES, useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
 import {
   getAdminUsers,
@@ -11,7 +11,7 @@ import {
   unlockUser,
   deleteUser as deleteUserApi,
 } from "../../services/adminUserApi";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 // format thời gian dạng "YYYY-MM-DD HH:mm"
 function formatNow() {

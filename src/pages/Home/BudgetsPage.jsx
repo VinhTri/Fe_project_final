@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
-import "../../styles/home/BudgetsPage.css";
-import { useBudgetData } from "../../home/store/BudgetDataContext";
-import { useCategoryData } from "../../home/store/CategoryDataContext";
-import { useWalletData } from "../../home/store/WalletDataContext";
+import "../../styles/pages/BudgetsPage.css";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
+import { useCategoryData } from "../../contexts/CategoryDataContext";
+import { useWalletData } from "../../contexts/WalletDataContext";
 import BudgetFormModal from "../../components/budgets/BudgetFormModal";
 import BudgetDetailModal from "../../components/budgets/BudgetDetailModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
 import Toast from "../../components/common/Toast/Toast";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 // Use centralized categories from CategoryDataContext
 

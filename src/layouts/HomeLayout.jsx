@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import HomeSidebar from "../components/home/Sidebar/HomeSidebar";
 import HomeTopbar from "../components/home/Topbar/HomeTopbar";
-import "../styles/home/HomeLayout.css";
+import "../styles/pages/HomeLayout.css";
 
 export default function HomeLayout() {
   return (

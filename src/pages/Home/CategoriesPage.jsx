@@ -1,13 +1,13 @@
 // src/pages/Home/CategoriesPage.jsx
 import React, { useRef, useState } from "react";
-import { useLanguage } from "../../home/store/LanguageContext";
-import "../../styles/home/CategoriesPage.css";
+import { useLanguage } from "../../contexts/LanguageContext";
+import "../../styles/pages/CategoriesPage.css";
 import Toast from "../../components/common/Toast/Toast";
 import CategoryFormModal from "../../components/categories/CategoryFormModal";
 import ConfirmModal from "../../components/common/Modal/ConfirmModal";
-import { useCategoryData } from "../../home/store/CategoryDataContext";
+import { useCategoryData } from "../../contexts/CategoryDataContext";
 import useOnClickOutside from "../../hooks/useOnClickOutside";
-import { useAuth } from "../../home/store/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 const PAGE_SIZE = 9; // ✅ giới hạn 9 thẻ mỗi trang
 
@@ -275,6 +275,7 @@ export default function CategoriesPage() {
     setModalInitial({
       name: cat.name,
       description: cat.description || "",
+      icon: cat.icon || "bi-tags",
     });
     setModalEditingId(cat.id);
     setModalEditingKind(kind);
@@ -666,7 +667,14 @@ export default function CategoriesPage() {
                           )}
                         </div>
 
-                        <h5 className="category-card-title mb-1">{c.name}</h5>
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          {c.icon && (
+                            <div className="category-card-icon">
+                              <i className={`bi ${c.icon}`} />
+                            </div>
+                          )}
+                          <h5 className="category-card-title mb-0">{c.name}</h5>
+                        </div>
 
                         <p
                           className="category-card-desc text-muted small mb-3 flex-grow-1"

@@ -3,7 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import WalletSourceField from "./WalletSourceField";
 import ReminderBlock from "./ReminderBlock";
 import AutoTopupBlock from "./AutoTopupBlock";
-import { calcEstimateDate } from "./fundUtils";
+import { calcEstimateDate } from "./utils/fundUtils";
+import { formatMoney } from "../../utils/formatMoney";
+import { formatVietnamDate } from "../../utils/dateFormat";
+import "../../styles/components/funds/FundForms.css";
 
 export default function PersonalTermForm({ wallets }) {
   const [srcWalletId, setSrcWalletId] = useState(null);
@@ -13,10 +16,10 @@ export default function PersonalTermForm({ wallets }) {
   );
 
   const currentBalance = Number(selectedWallet?.balance || 0);
-  const currency = selectedWallet?.currency || "";
+  const currency = selectedWallet?.currency || "VND";
 
   const currentBalanceText = selectedWallet
-    ? `${currentBalance.toLocaleString("vi-VN")} ${currency}`
+    ? formatMoney(currentBalance, currency)
     : "";
 
   const [targetAmount, setTargetAmount] = useState("");
@@ -46,9 +49,7 @@ export default function PersonalTermForm({ wallets }) {
 
     if (t <= currentBalance) {
       setTargetError(
-        `Số tiền mục tiêu phải lớn hơn số dư hiện tại của ví (${currentBalance.toLocaleString(
-          "vi-VN"
-        )} ${currency}).`
+        `Số tiền mục tiêu phải lớn hơn số dư hiện tại của ví (${formatMoney(currentBalance, currency)}).`
       );
       return;
     }
@@ -95,7 +96,7 @@ export default function PersonalTermForm({ wallets }) {
       return;
     }
 
-    const dateStr = doneDate.toLocaleDateString("vi-VN");
+    const dateStr = formatVietnamDate(doneDate);
 
     const unitText =
       freq === "day"

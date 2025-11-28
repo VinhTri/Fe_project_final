@@ -2,10 +2,10 @@ import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useOnClickOutside from "../../../hooks/useOnClickOutside";
 import ConfirmModal from "../../common/Modal/ConfirmModal";
-import { useLanguage } from "../../../home/store/LanguageContext";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 // 👇 THÊM
-import { useAuth, ROLES } from "../../../home/store/AuthContext";
+import { useAuth, ROLES } from "../../../contexts/AuthContext";
 
 export default function UserMenu({ avatarUrl }) {
   const { t } = useLanguage();

@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
-import { useLanguage } from "../../home/store/LanguageContext";
+import { useLanguage } from "../../contexts/LanguageContext";
 
-import "../../styles/home/DashboardPage.css";
-import { useBudgetData } from "../../home/store/BudgetDataContext";
+import "../../styles/pages/DashboardPage.css";
+import { useBudgetData } from "../../contexts/BudgetDataContext";
+import CalendarWidget from "../../components/dashboard/CalendarWidget";
+import WeatherWidget from "../../components/dashboard/WeatherWidget";
+import ExchangeRateWidget from "../../components/dashboard/ExchangeRateWidget";
 
 const STORAGE_EXTERNAL = "app_external_transactions_v1";
 const DONUT_COLORS = ["#0C5776", "#2D99AE", "#58D3F7", "#BCFEFE"];
@@ -433,7 +436,8 @@ export default function DashboardPage() {
   }, [transactionTypeData]);
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page tx-page container-fluid py-4">
+      <div className="tx-page-inner">
       <div className="wallet-header">
           <div className="wallet-header-left">
             <div className="wallet-header-icon">
@@ -465,6 +469,11 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+      {/* Exchange Rate Widget - Dưới header */}
+      <div className="dashboard-exchange-rate">
+        <ExchangeRateWidget />
+      </div>
 
       <div className="dashboard-grid">
         <section className="dashboard-main">
@@ -686,6 +695,17 @@ export default function DashboardPage() {
             </ul>
           </div>
         </aside>
+      </div>
+
+      {/* Calendar and Weather Widgets */}
+      <div className="dashboard-widgets-row">
+        <div className="dashboard-widgets-col">
+          <CalendarWidget />
+        </div>
+        <div className="dashboard-widgets-col">
+          <WeatherWidget />
+        </div>
+      </div>
       </div>
     </div>
   );

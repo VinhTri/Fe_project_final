@@ -1,10 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
 import FeedbackList from "../../components/feedback/FeedbackList";
 import FeedbackForm from "../../components/feedback/FeedbackForm";
-import "../../styles/home/FeedbackPage.css";
+import "../../styles/pages/FeedbackPage.css";
 
-import { useFeedbackData } from "../../home/store/FeedbackDataContext";
-import { useNotifications } from "../../home/store/NotificationContext";
+import { useFeedbackData } from "../../contexts/FeedbackDataContext";
+import { useNotifications } from "../../contexts/NotificationContext";
 import { useToast } from "../../components/common/Toast/ToastContext";
 
 import { useLocation } from "react-router-dom";
@@ -76,7 +76,8 @@ export default function FeedbackPage() {
   }, [focusReviewId]);
 
   return (
-    <div className="feedback-page">
+    <div className="feedback-page tx-page container-fluid py-4">
+      <div className="tx-page-inner">
       {/* Khối tổng quan */}
       <section className="feedback-summary-card">
         <div className="feedback-summary-header">
@@ -133,6 +134,7 @@ export default function FeedbackPage() {
           focusReviewId={focusReviewId}
         />
       </section>
+      </div>
     </div>
   );
 }

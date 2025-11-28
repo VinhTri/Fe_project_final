@@ -1,5 +1,6 @@
 // src/components/funds/AutoTopupBlock.jsx
 import React, { useEffect, useState } from "react";
+import "../../styles/components/funds/FundForms.css";
 
 export default function AutoTopupBlock({
   autoTopupOn,

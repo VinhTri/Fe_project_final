@@ -1,6 +1,6 @@
 // src/components/feedback/FeedbackList.jsx
 import React from "react";
-import "../../styles/home/FeedbackPage.css";
+import "../../styles/pages/FeedbackPage.css";
 
 
 export default function FeedbackList({ feedbacks }) {

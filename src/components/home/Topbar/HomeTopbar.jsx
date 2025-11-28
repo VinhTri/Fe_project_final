@@ -1,9 +1,9 @@
-import "../../../styles/home/Topbar.css";
+import "../../../styles/pages/Topbar.css";
 import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
 import GlobalSearch from "../../common/GlobalSearch";
 import { useEffect, useState } from "react";
-import { useLanguage } from "../../../home/store/LanguageContext";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 export default function HomeTopbar() {
   const [userName, setUserName] = useState("Người dùng");

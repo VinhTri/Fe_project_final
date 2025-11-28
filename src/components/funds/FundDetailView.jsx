@@ -1,5 +1,8 @@
 // src/components/funds/FundDetailView.jsx
 import React, { useEffect, useState } from "react";
+import { formatMoney } from "../../utils/formatMoney";
+import "../../styles/components/funds/FundDetail.css";
+import "../../styles/components/funds/FundForms.css";
 
 const buildFormState = (fund) => ({
   name: fund.name || "",
@@ -82,18 +85,13 @@ export default function FundDetailView({ fund, onBack, onUpdateFund }) {
         <div className="mt-3">
           <div className="fund-detail-label">Số dư hiện tại</div>
           <div className="fund-detail-amount">
-            {fund.current.toLocaleString("vi-VN")}{" "}
-            <span className="fund-detail-currency">
-              {fund.currency || "VND"}
-            </span>
+            {formatMoney(fund.current, fund.currency || "VND")}
           </div>
 
           <div className="mt-2 fund-detail-label">Mục tiêu</div>
           <div className="fund-detail-text">
             {fund.target
-              ? `${fund.target.toLocaleString("vi-VN")} ${
-                  fund.currency || "VND"
-                }`
+              ? formatMoney(fund.target, fund.currency || "VND")
               : "Không thiết lập mục tiêu"}
           </div>
 
