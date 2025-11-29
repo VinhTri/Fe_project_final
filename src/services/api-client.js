@@ -575,6 +575,21 @@ export const walletAPI = {
   },
 
   /**
+   * Cập nhật role của thành viên trong ví
+   * @param {number} walletId
+   * @param {number} memberUserId
+   * @param {string} role - e.g., "MEMBER" or "VIEW"
+   */
+  updateMemberRole: async (walletId, memberUserId, role) => {
+    // Update member role. Server is expected to support PATCH for role updates.
+    const endpoint = `/wallets/${walletId}/members/${memberUserId}`;
+    return apiCall(endpoint, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  /**
    * Rời khỏi ví
    * @param {number} walletId
    */

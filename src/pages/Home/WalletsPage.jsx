@@ -52,66 +52,7 @@ const buildWalletForm = (wallet) => ({
 });
 
 const DEMO_SHARED_WITH_ME = [
-  {
-    id: "demo-shared-wallet-1",
-    name: "Quỹ du lịch Hội An",
-    currency: "VND",
-    balance: 3250000,
-    note: "Lan Phạm chia sẻ quỹ chuyến đi.",
-    isShared: true,
-    ownerUserId: "demo-owner-lan",
-    ownerName: "Lan Phạm",
-    ownerEmail: "lan.pham@example.com",
-    walletRole: "MEMBER",
-    sharedRole: "USE",
-    membersCount: 3,
-    hasSharedMembers: true,
-    includeOverall: false,
-    includePersonal: false,
-    includeGroup: true,
-    color: "#E7F4F2",
-    isDemoShared: true,
-  },
-  {
-    id: "demo-shared-wallet-2",
-    name: "Quỹ từ thiện Noel",
-    currency: "VND",
-    balance: 1500000,
-    note: "Lan Phạm thêm bạn vào ví chung.",
-    isShared: true,
-    ownerUserId: "demo-owner-lan",
-    ownerName: "Lan Phạm",
-    ownerEmail: "lan.pham@example.com",
-    walletRole: "MEMBER",
-    sharedRole: "VIEW",
-    membersCount: 4,
-    hasSharedMembers: true,
-    includeOverall: false,
-    includePersonal: false,
-    includeGroup: true,
-    color: "#FDECEF",
-    isDemoShared: true,
-  },
-  {
-    id: "demo-shared-wallet-3",
-    name: "Ví tiền học nhóm",
-    currency: "USD",
-    balance: 220,
-    note: "Quốc Bảo chia sẻ phí workshop.",
-    isShared: true,
-    ownerUserId: "demo-owner-bao",
-    ownerName: "Quốc Bảo",
-    ownerEmail: "quoc.bao@example.com",
-    walletRole: "MEMBER",
-    sharedRole: "USE",
-    membersCount: 5,
-    hasSharedMembers: true,
-    includeOverall: false,
-    includePersonal: false,
-    includeGroup: true,
-    color: "#EEF2FF",
-    isDemoShared: true,
-  },
+
 ];
 
 const buildOwnerId = (wallet) => {
@@ -369,44 +310,50 @@ export default function WalletsPage() {
     },
     [localSharedMap]
   );
+    // Determine if the current user is the owner/administrator for a shared wallet
+    const isWalletOwnedByMe = useCallback(
+      (wallet) => {
+        if (!wallet) return false;
+        if (!(wallet.isShared || walletHasSharedMembers(wallet))) return false;
+        const role = (
+          wallet.walletRole ||
+          wallet.sharedRole ||
+          wallet.role ||
+          ""
+        ).toUpperCase();
+        if (role) {
+          if (["OWNER", "MASTER", "ADMIN"].includes(role)) return true;
+          if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role))
+            return false;
+        }
+        if (wallet.ownerUserId && currentUserId) {
+          return String(wallet.ownerUserId) === String(currentUserId);
+        }
+        return true;
+      },
+      [currentUserId, walletHasSharedMembers]
+    );
 
-  const personalWallets = useMemo(
-    () => wallets.filter((w) => !w.isShared),
-    [wallets]
-  );
-  const groupWallets = useMemo(
-    () => wallets.filter((w) => w.isShared),
-    [wallets]
-  );
+    // Personal wallets: include non-group wallets; if a personal wallet has shares,
+    // include it here only when the current user is the owner (so recipients don't see it in Personal)
+    const personalWallets = useMemo(() => {
+      return wallets.filter((w) => {
+        if (w.isShared) return false;
+        if (walletHasSharedMembers(w)) return isWalletOwnedByMe(w);
+        return true;
+      });
+    }, [wallets, walletHasSharedMembers, isWalletOwnedByMe]);
+
+    // Group wallets: show group wallets that the current user owns
+    const groupWallets = useMemo(
+      () => wallets.filter((w) => w.isShared && isWalletOwnedByMe(w)),
+      [wallets, isWalletOwnedByMe]
+    );
 
   const sharedCandidates = useMemo(
     () => wallets.filter((w) => walletHasSharedMembers(w) || w.isShared),
     [wallets, walletHasSharedMembers]
   );
-
-  const isWalletOwnedByMe = useCallback(
-    (wallet) => {
-      if (!wallet) return false;
-      if (!(wallet.isShared || walletHasSharedMembers(wallet))) return false;
-      const role = (
-        wallet.walletRole ||
-        wallet.sharedRole ||
-        wallet.role ||
-        ""
-      ).toUpperCase();
-      if (role) {
-        if (["OWNER", "MASTER", "ADMIN"].includes(role)) return true;
-        if (["MEMBER", "VIEW", "VIEWER", "USER", "USE"].includes(role))
-          return false;
-      }
-      if (wallet.ownerUserId && currentUserId) {
-        return String(wallet.ownerUserId) === String(currentUserId);
-      }
-      return true;
-    },
-    [currentUserId, walletHasSharedMembers]
-  );
-
   const sharedByMeWallets = useMemo(
     () => sharedCandidates.filter((w) => isWalletOwnedByMe(w)),
     [sharedCandidates, isWalletOwnedByMe]
@@ -775,6 +722,9 @@ export default function WalletsPage() {
     () => sortWalletsByMode(filteredWallets, sortBy),
     [filteredWallets, sortBy]
   );
+
+  // Debug: log counts to help diagnose empty shared list (placed after sortedWallets)
+  // (debug logging removed)
 
   useEffect(() => {
     setEditForm(buildWalletForm(selectedWallet));
@@ -1398,23 +1348,29 @@ export default function WalletsPage() {
 
       {/* STATS */}
       <div className="wallets-page__stats">
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">{t('wallets.total_balance')}</span>
-          <span className="wallets-stat__value">
-            {formatMoney(totalBalance, displayCurrency || "VND")}
-          </span>
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.total_balance')}</div>
+          <div className="budget-metric-value">{formatMoney(totalBalance, displayCurrency || "VND")}</div>
         </div>
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">{t('wallets.tab.personal')}</span>
-          <span className="wallets-stat__value">
-            {personalWallets.length}
-          </span>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.tab.personal')}</div>
+          <div className="budget-metric-value">{personalWallets.length}</div>
         </div>
-        <div className="wallets-stat">
-          <span className="wallets-stat__label">{t('wallets.tab.group')}</span>
-          <span className="wallets-stat__value">
-            {groupWallets.length}
-          </span>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.tab.group')}</div>
+          <div className="budget-metric-value">{groupWallets.length}</div>
+        </div>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.metric.shared_with_me')}</div>
+          <div className="budget-metric-value">{sharedWithMeDisplayWallets.length}</div>
+        </div>
+
+        <div className="budget-metric-card">
+          <div className="budget-metric-label">{t('wallets.metric.shared_by_me')}</div>
+          <div className="budget-metric-value">{sharedByMeWallets.length}</div>
         </div>
       </div>
 

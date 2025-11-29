@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useCurrency } from "../../hooks/useCurrency";
 import { formatMoneyInput, getMoneyValue } from "../../utils/formatMoneyInput";
 import { walletAPI } from "../../services/api-client";
 import { useLanguage } from "../../contexts/LanguageContext";
+import Toast from "../common/Toast/Toast";
 import DetailViewTab from "./tabs/DetailViewTab";
 import ManageMembersTab from "./tabs/ManageMembersTab";
 import TopupTab from "./tabs/TopupTab";
@@ -140,12 +141,75 @@ export default function WalletDetail(props) {
   const [sharedMembersLoading, setSharedMembersLoading] = useState(false);
   const [sharedMembersError, setSharedMembersError] = useState("");
   const [removingMemberId, setRemovingMemberId] = useState(null);
+  const [updatingMemberId, setUpdatingMemberId] = useState(null);
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
 
   const canManageSharedMembers = useMemo(() => {
     if (!wallet) return false;
-    // Nếu là ví nhóm và có quyền quản lý
-    return !!wallet.isShared;
+    // Ví nhóm luôn có danh sách thành viên
+    if (wallet.isShared) return true;
+    // Ví cá nhân có thể có sharedEmails hoặc membersCount
+    if (Array.isArray(wallet.sharedEmails) && wallet.sharedEmails.length > 0) return true;
+    if (Number(wallet.membersCount || 0) > 1) return true;
+    return false;
   }, [wallet]);
+  
+
+  // Robustly extract role from different possible API shapes
+  const getRoleFromWallet = (w) => {
+    if (!w) return "";
+    const candidates = [
+      w.walletRole,
+      w.sharedRole,
+      w.role,
+      w.accessRole,
+      w.currentUserRole,
+      w.myRole,
+      w.currentRole,
+      w.roleName,
+      w.membershipRole,
+      w.userRole,
+    ];
+    for (const c of candidates) {
+      if (!c && c !== 0) continue;
+      if (typeof c === "string") return c.toUpperCase();
+      if (typeof c === "number") return String(c).toUpperCase();
+      if (typeof c === "object") {
+        // Try common nested props
+        if (typeof c.role === "string") return c.role.toUpperCase();
+        if (typeof c.name === "string") return c.name.toUpperCase();
+        if (typeof c.value === "string") return c.value.toUpperCase();
+      }
+    }
+    return "";
+  };
+
+  const userRole = getRoleFromWallet(wallet);
+  const isOwnerRole = !!userRole && ["OWNER", "MASTER", "ADMIN"].includes(userRole);
+  const isMemberRole = !!userRole && ["MEMBER", "USER", "USE"].includes(userRole);
+  const isViewerRole = !!userRole && ["VIEW", "VIEWER"].includes(userRole);
+
+  
+
+  // NOTE: backend now provides current user's role on wallet responses.
+  // Removed temporary debug flag and the extra `checkAccess` fallback call.
+  const effectiveRole = userRole;
+  const effectiveIsOwner = !!effectiveRole && ["OWNER", "MASTER", "ADMIN"].includes(effectiveRole);
+  const effectiveIsMember = !!effectiveRole && ["MEMBER", "USER", "USE"].includes(effectiveRole);
+  const effectiveIsViewer = !!effectiveRole && ["VIEW", "VIEWER"].includes(effectiveRole);
+
+  // Effective flags for managing/inviting members: only owners can manage/invite
+  const effectiveCanManageSharedMembers = effectiveIsOwner ? canManageSharedMembers : false;
+  const effectiveCanInviteMembers = effectiveIsOwner ? canInviteMembers : false;
+
+  // If this wallet is opened and the current user is only a viewer,
+  // force the detail tab and keep only the detail view available.
+  useEffect(() => {
+    if (!wallet) return;
+    if (effectiveIsViewer) {
+      setActiveDetailTab?.("view");
+    }
+  }, [wallet?.id, effectiveIsViewer, setActiveDetailTab]);
 
   useEffect(() => {
     if (!wallet || !forceLoadSharedMembers) return;
@@ -159,12 +223,15 @@ export default function WalletDetail(props) {
       setSharedMembersLoading(true);
       setSharedMembersError("");
       try {
-        const response = await walletAPI.getSharedMembers(wallet.id);
-        if (response?.data) {
-          setSharedMembers(Array.isArray(response.data) ? response.data : []);
-        } else {
-          setSharedMembers([]);
-        }
+        const resp = await walletAPI.getWalletMembers(wallet.id);
+        let list = [];
+        if (!resp) list = [];
+        else if (Array.isArray(resp)) list = resp;
+        else if (Array.isArray(resp.data)) list = resp.data;
+        else if (Array.isArray(resp.members)) list = resp.members;
+        else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+        else list = [];
+        setSharedMembers(list);
       } catch (error) {
         setSharedMembersError(
           error.message || "Không thể tải danh sách thành viên."
@@ -186,7 +253,10 @@ export default function WalletDetail(props) {
 
     setRemovingMemberId(targetId);
     try {
-      await walletAPI.removeSharedMember(wallet.id, targetId);
+      if (walletAPI.removeMember) {
+        await walletAPI.removeMember(wallet.id, targetId);
+      }
+      // Update local list optimistically
       setSharedMembers((prev) =>
         prev.filter((m) => (m.userId ?? m.memberUserId ?? m.memberId) !== targetId)
       );
@@ -194,6 +264,46 @@ export default function WalletDetail(props) {
       setSharedMembersError(error.message || "Không thể xóa thành viên khỏi ví.");
     } finally {
       setRemovingMemberId(null);
+    }
+  };
+
+  const handleUpdateMemberRole = async (member, newRole) => {
+    if (!wallet || !member) return { success: false };
+    const memberId = member.userId ?? member.memberUserId ?? member.memberId;
+    if (!memberId) return { success: false };
+    setUpdatingMemberId(memberId);
+    try {
+      if (walletAPI.updateMemberRole) {
+        await walletAPI.updateMemberRole(wallet.id, memberId, newRole);
+      }
+      // reload members after change
+      const resp = await walletAPI.getWalletMembers(wallet.id);
+      let list = [];
+      if (!resp) list = [];
+      else if (Array.isArray(resp)) list = resp;
+      else if (Array.isArray(resp.data)) list = resp.data;
+      else if (Array.isArray(resp.members)) list = resp.members;
+      else if (resp.result && Array.isArray(resp.result.data)) list = resp.result.data;
+      setSharedMembers(list);
+      // Ensure translation fallback: if t() returns the key string, use Vietnamese fallback
+      const successKey = "wallets.toast.role_update_success";
+      const translated = t(successKey);
+      const successMsg = translated && translated !== successKey ? translated : "Phân quyền thành công.";
+      setToast({ open: true, message: successMsg, type: "success" });
+      return { success: true };
+    } catch (error) {
+      // Log full error for debugging (includes error.data from api-client)
+      // eslint-disable-next-line no-console
+      console.error("updateMemberRole error:", error, error?.data);
+
+      setSharedMembersError(error.message || "Không thể cập nhật quyền thành viên");
+      const statusMsg = error.status ? ` (code ${error.status})` : "";
+      const serverMsg = error?.data?.message || error?.data?.error || "";
+      const userMsg = serverMsg || error.message || "Không thể cập nhật quyền thành viên.";
+      setToast({ open: true, message: `${userMsg}${statusMsg}`, type: "error" });
+      return { success: false, message: error.message };
+    } finally {
+      setUpdatingMemberId(null);
     }
   };
 
@@ -224,35 +334,7 @@ export default function WalletDetail(props) {
                   placeholder="Ví tiền mặt, Ví ngân hàng..."
                 />
               </label>
-              <label>
-                Tiền tệ
-                <select
-                  value={createForm.currency}
-                  onChange={(e) =>
-                    onCreateFieldChange("currency", e.target.value)
-                  }
-                >
-                  {currencies.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
 
-            <div className="wallet-form__row">
-              <label className="wallet-form__full">
-                Ghi chú
-                <textarea
-                  rows={2}
-                  value={createForm.note}
-                  onChange={(e) =>
-                    onCreateFieldChange("note", e.target.value)
-                  }
-                  placeholder="Mục đích sử dụng ví này..."
-                />
-              </label>
             </div>
 
             {/* bật/tắt chia sẻ */}
@@ -494,6 +576,12 @@ export default function WalletDetail(props) {
   // ======= DETAIL PANEL =======
   return (
     <div className="wallets-detail-panel">
+      <Toast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((s) => ({ ...s, open: false }))}
+      />
       {/* HEADER */}
       <div className="wallets-detail__header">
           <div>
@@ -519,94 +607,123 @@ export default function WalletDetail(props) {
         </div>
       </div>
 
+      {/* If viewing as a readonly viewer, show a notice and hide management actions */}
+      {effectiveIsViewer && (
+        <div className="wallets-detail__viewer-notice">
+          Bạn đang xem với quyền Viewer,một số hành động sẽ không thể thực hiện.hãy liên hệ chủ ví nếu muốn có thêm quyền thao tác ví này
+        </div>
+      )}
+
+      {/* debug block removed */}
+
       {/* TABS */}
       <div className="wallets-detail__tabs">
-        <button
-          className={
-            activeDetailTab === "view"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("view")}
-        >
-          {t("wallets.inspector.tab.details")}
-        </button>
-        <button
-          className={
-            activeDetailTab === "topup"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("topup")}
-        >
-          {t("wallets.inspector.tab.topup") || "Nạp ví"}
-        </button>
-        <button
-          className={
-            activeDetailTab === "withdraw"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("withdraw")}
-        >
-          {t("wallets.inspector.tab.withdraw")}
-        </button>
-        <button
-          className={
-            activeDetailTab === "transfer"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("transfer")}
-        >
-          {t("wallets.inspector.tab.transfer")}
-        </button>
-        <button
-          className={
-            activeDetailTab === "edit"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("edit")}
-        >
-          {t("wallets.inspector.tab.edit") || "Sửa ví"}
-        </button>
-        <button
-          className={
-            activeDetailTab === "merge"
-              ? "wallets-detail-tab wallets-detail-tab--active"
-              : "wallets-detail-tab"
-          }
-          onClick={() => setActiveDetailTab("merge")}
-        >
-          {t("wallets.inspector.tab.merge")}
-        </button>
-
-        {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
-        {!wallet.isShared && walletTabType === "personal" && (
+        {/* If the user is a viewer for this wallet, only show the details tab */}
+        {effectiveIsViewer ? (
           <button
             className={
-              activeDetailTab === "convert"
+              activeDetailTab === "view"
                 ? "wallets-detail-tab wallets-detail-tab--active"
                 : "wallets-detail-tab"
             }
-            onClick={() => setActiveDetailTab("convert")}
+            onClick={() => setActiveDetailTab("view")}
           >
-            Chuyển thành ví nhóm
+            {t("wallets.inspector.tab.details")}
           </button>
-        )}
+        ) : (
+          <>
+            <button
+              className={
+                activeDetailTab === "view"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("view")}
+            >
+              {t("wallets.inspector.tab.details")}
+            </button>
+            <button
+              className={
+                activeDetailTab === "topup"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("topup")}
+            >
+              {t("wallets.inspector.tab.topup") || "Nạp ví"}
+            </button>
+            <button
+              className={
+                activeDetailTab === "withdraw"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("withdraw")}
+            >
+              {t("wallets.inspector.tab.withdraw")}
+            </button>
+            <button
+              className={
+                activeDetailTab === "transfer"
+                  ? "wallets-detail-tab wallets-detail-tab--active"
+                  : "wallets-detail-tab"
+              }
+              onClick={() => setActiveDetailTab("transfer")}
+            >
+              {t("wallets.inspector.tab.transfer")}
+            </button>
+            {effectiveIsOwner && (
+              <button
+                className={
+                  activeDetailTab === "edit"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("edit")}
+              >
+                {t("wallets.inspector.tab.edit") || "Sửa ví"}
+              </button>
+            )}
+            {!wallet.isShared && !effectiveIsMember && (
+              <button
+                className={
+                  activeDetailTab === "merge"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("merge")}
+              >
+                {t("wallets.inspector.tab.merge")}
+              </button>
+            )}
 
-        {canManageSharedMembers && (
-          <button
-            className={
-              activeDetailTab === "manageMembers"
-                ? "wallets-detail-tab wallets-detail-tab--active"
-                : "wallets-detail-tab"
-            }
-            onClick={() => setActiveDetailTab("manageMembers")}
-          >
-            Quản lý người dùng
-          </button>
+            {/* Chỉ hiển thị tab chuyển thành ví nhóm cho ví cá nhân */}
+            {!wallet.isShared && walletTabType === "personal" && (
+              <button
+                className={
+                  activeDetailTab === "convert"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("convert")}
+              >
+                Chuyển thành ví nhóm
+              </button>
+            )}
+
+            {effectiveIsOwner && (
+              <button
+                className={
+                  activeDetailTab === "manageMembers"
+                    ? "wallets-detail-tab wallets-detail-tab--active"
+                    : "wallets-detail-tab"
+                }
+                onClick={() => setActiveDetailTab("manageMembers")}
+              >
+                Quản lý người dùng
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -618,8 +735,8 @@ export default function WalletDetail(props) {
           sharedMembers={sharedMembers}
           sharedMembersLoading={sharedMembersLoading}
           sharedMembersError={sharedMembersError}
-          canManageSharedMembers={canManageSharedMembers}
-          canInviteMembers={canInviteMembers}
+          canManageSharedMembers={effectiveCanManageSharedMembers}
+          canInviteMembers={effectiveCanInviteMembers}
           removingMemberId={removingMemberId}
           onRemoveSharedMember={handleRemoveSharedMember}
           onQuickShareEmail={onQuickShareEmail}
@@ -630,7 +747,7 @@ export default function WalletDetail(props) {
         />
       )}
 
-      {activeDetailTab === "manageMembers" && canManageSharedMembers && (
+      {activeDetailTab === "manageMembers" && effectiveIsOwner && (
         <ManageMembersTab
           wallet={wallet}
           sharedMembers={sharedMembers}
@@ -638,6 +755,10 @@ export default function WalletDetail(props) {
           sharedMembersError={sharedMembersError}
           onRemoveSharedMember={handleRemoveSharedMember}
           removingMemberId={removingMemberId}
+          updatingMemberId={updatingMemberId}
+          onUpdateMemberRole={handleUpdateMemberRole}
+          onQuickShareEmail={onQuickShareEmail}
+          quickShareLoading={quickShareLoading}
         />
       )}
 
@@ -683,7 +804,7 @@ export default function WalletDetail(props) {
         />
       )}
 
-      {activeDetailTab === "edit" && (
+            {activeDetailTab === "edit" && effectiveIsOwner && (
         <EditTab
           wallet={wallet}
           currencies={currencies}
@@ -699,7 +820,7 @@ export default function WalletDetail(props) {
         />
       )}
 
-      {activeDetailTab === "merge" && (
+      {activeDetailTab === "merge" && !wallet.isShared && !effectiveIsMember && !effectiveIsViewer && (
         <MergeTab
           wallet={wallet}
           allWallets={allWallets}
